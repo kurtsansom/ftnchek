@@ -182,6 +182,7 @@ PRIVATE struct {
 {"ONLY",	tok_ONLY,	IK | NP | NI | EK,		0},
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
 {"OPERATOR",	tok_OPERATOR,	IK | MP | NI | EK,		0},
+{"OPTIONAL",	tok_OPTIONAL,	IK | NI ,		0},
 {"OUT",	    tok_OUT,	IK | NI | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
@@ -190,8 +191,9 @@ PRIVATE struct {
 #endif
 {"PRINT",	tok_PRINT,	IK | EK,			0},
 {"PRIVATE",    tok_PRIVATE,   IK | NI,   0},
-{"PROCEDURE",    tok_PROCEDURE,   IK | NI,   0},
+{"PROCEDURE",   tok_PROCEDURE,   IK | NI,   0},
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
+{"PROTECTED",   tok_PROTECTED,	IK | NI ,		0},
 {"PUBLIC",    tok_PUBLIC,   IK | NI,   0},
 {"PURE",    tok_PURE,   IK | NP | NI,   0},
 {"READ",	tok_READ,	IK | EK,			0},
@@ -208,7 +210,8 @@ PRIVATE struct {
 {"THEN",	tok_THEN,	IK | NP | EK,			0},
 {"TO",		tok_TO,		NI | EK,			0},
 {"TYPE",	tok_TYPE,	IK | EK,			0},
-{"USE",		tok_USE,	IK | NP | NI | EK,		0},
+{"USE",		tok_USE,	IK | NI,    		0},
+{"VOLATILE",   tok_VOLATILE,	IK | NI ,		0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},
 {"WRITE",	tok_WRITE,	IK | EK | MP | NA,		0},
 

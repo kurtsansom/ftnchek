@@ -984,6 +984,7 @@ PROTO(void do_ASSIGN,( Token *id ));
 PROTO(void do_assigned_GOTO,( Token *id ));
 PROTO(void do_ENTRY,( Token *id, Token *args, int hashno ));
 PROTO(int do_RETURN,( int hashno, Token *keyword ));
+PROTO(void do_bind_spec,(Token *p, SUBPROG_TYPE subprogtype));
 PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix));
 PROTO(void equivalence,( Token *id1, Token *id2 ));
 PROTO(DBLVAL float_expr_value,( Token *t ));

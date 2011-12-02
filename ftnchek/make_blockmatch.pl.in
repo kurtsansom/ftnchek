@@ -17,7 +17,9 @@
       'ENDFUNCTION' => 'FUNCTION',
       'ENDPROGRAM' => 'PROGRAM',
       'ENDBLOCKDATA' => 'BLOCKDATA',
-	  'ENDMODULE' => 'MODULE'
+      'ENDMODULE' => 'MODULE',
+      'ENDTYPE' => 'TYPE',
+      'ENDINTERFACE' => 'INTERFACE'
 );
 
 

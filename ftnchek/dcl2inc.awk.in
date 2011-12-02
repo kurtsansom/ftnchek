@@ -94,7 +94,7 @@ function begin_prog_unit()
     # Typical line:
     # c====>Begin Prog Unit PROB5_4DIM   File dp5_4dim.f     All variables
     last_dcn_file_name = dcn_file_name
-    dcn_file_name = $5
+    dcn_file_name = $6
     sub(/[.].*$/,".dcn",dcn_file_name)
     if ((last_dcn_file_name != "") && (last_dcn_file_name != dcn_file_name))
 	close(last_dcn_file_name)

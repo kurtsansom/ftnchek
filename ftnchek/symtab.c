@@ -60,6 +60,8 @@ this Software without prior written authorization from the author.
 	   do_assigned_GOTO(id)	 Handles assigned GOTO.
 	   do_ENTRY(id,args,hashno) Processes ENTRY statement.
 	   do_RETURN(hashno,keyword) Processes RETURN statement.
+	   do_bind_spec(p,subprogtype) Processes BIND spec
+	   do_suffix(class,subprogtype,hashno,suffix) Processes subprogram suffixes
 	   equivalence(id1,id2)	 equivalences two variables
        int get_type(symt)	 Finds out data type of symbol, or uses implicit
 				 typing to establish its type.
@@ -1602,38 +1604,117 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
+void do_result_spec(Token *p, int hashno)
+{
+    if (strcmp(hashtab[p->value.integer].name, hashtab[hashno].name) == 0)
+        syntax_error(p->line_num, p->col_num,
+                 "Result name must not be the same as function name");
 
+#ifdef DEBUG_SUFFIX
+    if(debug_latest) {
+	fprintf(list_fd,"\nRESULT variable = %s",
+		hashtab[p->value.integer].name);
+    }
+#endif
+}
+
+void do_bind_spec2(Token *p, SUBPROG_TYPE subprogtype) 
+{
+    Token *currToken;
+    for (currToken = p->left_token; currToken != NULL;
+            currToken = currToken->next_token) {
+
+        if (currToken->tclass == tok_identifier) { /* binding language, only C */
+#ifdef DEBUG_SUFFIX
+	    if(debug_latest) {
+		fprintf(list_fd,"\nLanguage binding spec, language=%s",hashtab[currToken->value.integer].name);
+	    }
+#endif
+            if (strcmp(hashtab[currToken->value.integer].name, "C") != 0)
+                syntax_error(currToken->line_num, currToken->col_num,
+                         "invalid binding language, must be C");
+        }
+
+        else if(currToken->tclass == '=') { /* NAME=identifier */
+#ifdef DEBUG_SUFFIX
+	    if(debug_latest) {
+		fprintf(list_fd,"\nLanguage binding spec, %s%s%s",
+			hashtab[currToken->left_token->value.integer].name,/*keywd NAME*/
+			currToken->src_text, /* = */
+			hashtab[currToken->next_token->value.integer].name /* bound name */
+		    );
+	    }
+#endif
+
+	    if (strcmp(hashtab[currToken->left_token->value.integer].name, "NAME") != 0)
+		syntax_error(currToken->left_token->line_num, 
+			     currToken->left_token->col_num,
+                     "invalid language binding spec");
+	    else {
+		if (subprogtype == internal_subprog) {
+		    syntax_error(currToken->left_token->line_num, 
+				 currToken->left_token->col_num,
+				 "language binding spec with NAME not permitted in internal procedure");
+		}
+		else { /* passed checks, process it */
+		}
+	    }
+	} /* else oops, can't happen */
+    }
+}
+
+/* check syntax errors in suffix */
 void do_bind_spec(Token *p, SUBPROG_TYPE subprogtype) 
 {
-    if (!p) return;
-    else {
-        if (p->tclass == tok_identifier) {
-            if (strcmp(hashtab[p->value.integer].name, "C") != 0)
-                syntax_error(p->line_num, p->col_num,
-                         "invalid keyword should be C");
+    Token *currToken = NULL;
+    
+    for (currToken = p; currToken; currToken = currToken->next_token) {
+        /* C and NAME are type tok_identifier */
+        if (currToken->left_token &&
+            currToken->left_token->tclass == tok_identifier) {
+            if (currToken->tclass == tok_BIND) { 
+
+#ifdef DEBUG_SUFFIX
+if (debug_latest) {
+    fprintf(list_fd, "\nLanguage binding spec, language=%s",
+	    hashtab[currToken->left_token->value.integer].name);
+}
+#endif
+
+            /* binding language, only C */
+
+		if (strcmp(hashtab[currToken->left_token->value.integer].name, "C") != 0) {
+		    syntax_error(currToken->left_token->line_num, 
+				 currToken->left_token->col_num,
+				 "invalid binding language, must be C");
+		}
+            }
+
+            /* NAME = character expression */
+            else /* if (currToken->tclass != tok_BIND) */ {
+#ifdef DEBUG_SUFFIX
+if(debug_latest) {
+    fprintf(list_fd, "\nLanguage binding spec, %s %s %s",
+	    hashtab[currToken->left_token->value.integer].name, /* keywd NAME*/
+	    currToken->src_text, /* = */
+	    (datatype_of(currToken->next_token->TOK_type) == type_STRING
+	     && is_true(EVALUATED_EXPR,currToken->next_token->TOK_flags))?
+	     currToken->next_token->value.string:"<expr>"); /* bound name stored as string */
+}
+#endif
+                if (strcmp(hashtab[currToken->left_token->value.integer].name, "NAME") != 0)
+                    syntax_error(currToken->left_token->line_num, 
+				 currToken->left_token->col_num,
+				 "invalid language binding spec");
+                else {
+                    if (subprogtype == internal_subprog)
+                        syntax_error(currToken->left_token->line_num, 
+				     currToken->left_token->col_num,
+				     "language binding spec with NAME not permitted in internal procedure");
+                }
+            }
         }
-
-        if (p->next_token && subprogtype != module_subprog) {
-
-            if (strcmp(p->next_token->src_text,"=") != 0)
-                syntax_error(p->next_token->line_num,
-                        p->next_token->col_num,
-                         "invalid punctuation should be =");
-
-            if (strcmp(hashtab[p->next_token->left_token->value.integer].name, "NAME") != 0)
-                syntax_error(p->next_token->left_token->line_num, 
-                        p->next_token->left_token->col_num,
-                         "invalid keyword should be NAME");
-        }
-
-        if (p->next_token && subprogtype == module_subprog) {
-            syntax_error(p->next_token->left_token->line_num, 
-                    p->next_token->left_token->col_num,
-                     "NAME cannot occur in an internal procedure");
-        }
-
     }
-    if (p->left_token) do_bind_spec(p->left_token, subprogtype);
 }
 
 
@@ -1645,8 +1726,19 @@ do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix)
     Token *currToken;
     for (currToken = suffix->next_token; currToken != NULL;
             currToken = currToken->next_token) {
-        if (currToken->left_token != NULL) {
+        switch(currToken->tclass) {
+        case tok_BIND:
+            if (currToken->left_token != NULL) {
             do_bind_spec(currToken->left_token, subprogtype);
+            }
+            break;
+        case tok_identifier:
+            do_result_spec(currToken, hashno);
+            break;
+        default:
+            oops_message(OOPS_FATAL,currToken->line_num,currToken->col_num,
+                 "unknown subprogram suffix item");
+            break;
         }
     }
 }
