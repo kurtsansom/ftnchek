@@ -1,0 +1,90 @@
+		 README file for ftnchek version 3.3
+
+Author: Robert Moniot
+	Fordham University
+	New York, NY  10023  USA
+	Telephone: (212) 636-6311
+	URL: http://www.dsm.fordham.edu/~moniot
+
+Date:	November 3, 2004
+
+Ftnchek (short for Fortran checker) is designed to detect certain
+errors in a Fortran program that a compiler usually does not.  Ftnchek
+is not primarily intended to detect syntax errors.  Its purpose is to
+assist the user in finding semantic errors.  Semantic errors are legal
+in the Fortran language but are wasteful or may cause incorrect
+operation.  For example, variables which are never used may indicate
+some omission in the program; uninitialized variables contain garbage
+which may cause incorrect results to be calculated; and variables
+which are not declared may not have the intended type.
+
+Ftnchek is written in C.  To build ftnchek, you must have a C compiler
+for the machine on which you wish to build it.  The URL for ftnchek's
+home page is http://www.dsm.fordham.edu/~ftnchek.  Source code, binary
+executables for some platforms, and other information are available
+there.
+
+
+		  INSTALLING FTNCHEK
+		  ------------------
+
+See the file INSTALL for detailed instructions on how to install
+ftnchek on your system.
+
+
+		   NEW FEATURES
+		   ------------
+
+Here are the new features in version 3.3:
+
+  1.  Front-end has been rewritten for unlimited lookahead,
+      eliminating the longstanding bug that caused incorrect
+      interpretation of statements whose ambiguity was not resolved
+      in the first line.
+
+  2.  The -mkhtml option is now available in the MS-DOS version.
+
+  3.  Added support for Fortran 90 pointer related syntax: ALLOCATE,
+      DEALLOCATE, and NULLIFY statements; the ALLOCATABLE, POINTER and
+      TARGET attributes in type declarations; the pointer assigment
+      operator => and intrinsic functions ALLOCATED and ASSOCIATED;
+      and deferred-shape array declarations.  At present these new
+      syntax features are accepted but not properly checked.  This
+      feature was added by Robert Landrito.
+
+  4.  The -f77 and -f90 pointer option controlling warnings about
+      ''Cray pointers'' has been renamed to cray-pointer.  The
+      -f77=pointer option now instead controls warnings for code
+      containing Fortran 90 pointer-related syntax.
+
+  5.  Re-implemented -mkhtml processing so it is now much faster on
+      source files containing many routines.
+
+  6.  Changed the arrangement of the test directory so there is no
+      longer any need to modify the distribution in order to run the
+      test suite (check.bat) under MS-DOS.
+
+  7.  Fixed bug in reading numeric settings on command line when
+      setting name abbreviated to 3 characters.
+
+  8.  Fixed bug causing spurious warning for a GOTO referring to a
+      labeled END statement when the statement before END was a
+      FORMAT.
+
+  9.  New flag -f77=character to control warnings about extensions to
+      the Fortran 77 character data type.  Accompanying this new flag
+      is support for Fortran 90 rules for character variable
+      declarations that evaluate to zero or negative length, allowing
+      them and treating negative length values as zero.
+
+  10. Fixed minor bug in printing of comments and blank lines
+      following last END statement in -list mode.
+
+See the file PATCHES for further changes made after the initial
+release of this version.
+
+NOTE: For VMS, it is recommendend to obtain the file shell_mung.c.
+This file is not necessary to build ftnchek, but without it wildcards
+in file names on the command line will not be expanded.  This file is
+no longer bundled with ftnchek, but is obtainable at the ftnchek home
+site and elsewhere.
