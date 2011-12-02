@@ -175,6 +175,7 @@ PRIVATE struct {
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
 {"READ",	tok_READ,	IK | EK,			0},
 {"REAL",	tok_REAL,	IK | NI | EK | TY | TK,		0},
+{"RESULT",	tok_RESULT,	NI | EK | MP | NA,		0},
 {"RETURN",	tok_RETURN,	IK | EK,			0},
 {"REWIND",	tok_REWIND,	IK | EK,			0},
 {"SAVE",	tok_SAVE,	IK | NP | NI | EK,		0},

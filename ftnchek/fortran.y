@@ -152,7 +152,8 @@ PRIVATE int
     prev_goto=FALSE,
     goto_flag=FALSE,	/* if unconditional GOTO was encountered */
 /*---------------addition-----------------------------*/
-    inside_function=FALSE;	/* is inside a function */
+    inside_function=FALSE,	/* is inside a function */
+    contains_sect=FALSE;	/* for contains block */
 /*----------------------------------------------------*/
 
 int 
@@ -195,6 +196,10 @@ int
 				/* Convenience typedef for category of block */
 typedef enum {subprog, construct} BLOCK_TYPE;
 
+/*----------------- addition --------------------------*/
+typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
+/*-----------------------------------------------------*/
+
 typedef struct {
     int sclass;			/* stmt_class of block opener */
     char *name;			/* name of block or subprogram */
@@ -202,6 +207,11 @@ typedef struct {
     LINENO_t first_line;	/* line number of block opener */
     BLOCK_TYPE blocktype;	/* category for wording of warnings */
     int do_var_hash;		/* hash index for index variable of DO block */
+
+/*-------------- addition --------------------*/
+	SUBPROG_TYPE subprogtype; /* differentiates between module_subprog
+									 and internal_subprog */
+/*-------------------------------------------*/
 } BlockStack;
 
 PRIVATE BlockStack block_stack[MAX_BLOCK_DEPTH];
@@ -345,6 +355,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_PROGRAM
 %token tok_READ
 %token tok_REAL
+%token tok_RESULT
 %token tok_RETURN
 %token tok_REWIND
 %token tok_SAVE
@@ -390,6 +401,7 @@ stmt_list	:	stmt_list_item
 
 stmt_list_item	:	ordinary_stmt
 			{
+
 				/* Create id token for prog if unnamed.  NOTE:
 				   this clobbers $1.class, value, src_text.
 				 */
@@ -434,6 +446,7 @@ stmt_list_item	:	ordinary_stmt
 			  if(curr_stmt_class == tok_END) {
 			    if(prev_stmt_class != tok_RETURN)
 			      (void)do_RETURN(current_prog_unit_hash,&($1));
+				
 			    pop_block(&($$),$$.tclass,
 				      curr_stmt_name,NO_LABEL);
 
@@ -459,6 +472,7 @@ ordinary_stmt	:	stmt
 			{
 				/* Treat END PROGRAM et al as plain END */
 			    curr_stmt_class = tok_END;
+
 			}
 		;
 
@@ -527,14 +541,32 @@ unlabeled_stmt	:	subprogram_header
 			    push_block(&($1),$1.tclass,subprog,
 				       hashtab[current_prog_unit_hash].name,
 				       NO_LABEL);
+
 			}
 		|	specification_stmt
 			{
+
+/*--------------------addition--------------------------------*/
+
+				if (contains_sect) syntax_error($1.line_num,$1.col_num,
+				"contains statement should be followed by a subprogram");
+
+/*------------------------------------------------------------*/
+
 			    executable_stmt = FALSE;
 			/* labeled_stmt_type set in lower productions */
 			}
 		|	executable_stmt
-			{	/* handle statement functions correctly */
+			{	
+
+/*--------------------addition--------------------------------*/
+
+				if (contains_sect) syntax_error($1.line_num,$1.col_num,
+				"contains statement must be followed by a subprogram declaration");
+
+/*------------------------------------------------------------*/
+				
+				/* handle statement functions correctly */
 			  if(is_true(STMT_FUNCTION_EXPR, $1.TOK_flags)
 				     && stmt_sequence_no <= SEQ_STMT_FUN) {
 			    stmt_sequence_no = SEQ_STMT_FUN;
@@ -574,6 +606,10 @@ unlabeled_stmt	:	subprogram_header
 			}
 		|	module_stmt
 			{
+/*--------------------addition--------------------------------*/
+				if (contains_sect) syntax_error($1.line_num,$1.col_num,
+				"contains statement should be followed by a subprogram");
+
 			    exec_stmt_count = 0;
 			    executable_stmt = FALSE;
 			    labeled_stmt_type = LAB_SPECIFICATION;
@@ -584,6 +620,14 @@ unlabeled_stmt	:	subprogram_header
 			}
 		|	contains_stmt
 			{
+				if (block_stack[block_depth-1].subprogtype ==
+					internal_subprog) {
+					syntax_error($1.line_num,$1.col_num,
+				"contains statement invalid inside internal subprogram");
+				}
+				else contains_sect = TRUE; 
+				stmt_sequence_no = 0;
+/*-----------------------------------------------------------*/
 			}
 		;
 
@@ -649,6 +693,14 @@ end_subprog_token:	tok_ENDBLOCKDATA
 		|	tok_ENDPROGRAM
 		|	tok_ENDSUBROUTINE
 		;
+
+/*----------------addition----------------*/
+contains_stmt: 		tok_CONTAINS EOS
+		;
+
+
+/*---------------------------------------*/
+
 
 include_stmt	:	tok_INCLUDE tok_string EOS
  			{
@@ -855,14 +907,6 @@ io_positioning_stmt:	rewind_stmt
 
 
 
-/*----------------addition----------------*/
-contains_stmt: tok_CONTAINS
-		;
-
-
-/*---------------------------------------*/
-
-
 
 restricted_stmt:		/* Disallowed in logical IF */
 			restricted_nontransfer_stmt
@@ -1005,8 +1049,11 @@ function_stmt	:	unlabeled_function_stmt
 		;
 
 unlabeled_function_stmt
-		:	typed_function_handle symbolic_name EOS
+		:	typed_function_handle symbolic_name result_stmt EOS
 			{
+
+/*-------result_stmt is a new addition ------------------------*/
+
 			     if(f77_function_noparen || f90_function_noparen) {
 				nonstandard($2.line_num,
 			     (unsigned)($2.col_num+strlen(token_name(&$2))),
@@ -1023,8 +1070,11 @@ unlabeled_function_stmt
 			   def_curr_prog_unit(&($2));
 			}
 		|	typed_function_handle symbolic_name
-				'(' dummy_argument_list ')' EOS
+				'(' dummy_argument_list ')' result_stmt EOS
 			{
+
+/*-------result_stmt is a new addition ------------------------*/
+
 			 def_function(
 				      current_datatype,
 				      current_typesize,
@@ -1093,11 +1143,14 @@ type_name	:	arith_type_name
 		|	char_type_name
 		;
 
+result_stmt	:	tok_RESULT '(' symbolic_name ')'
+		|
+		;
 
 /* 11 not present: see 9 */
 
 /*---------------- addition------------------*/
-module_stmt	: tok_MODULE symbolic_name EOS
+module_stmt	: module_handle symbolic_name EOS
 			{
 			  def_function(
 				       type_MODULE,
@@ -1110,6 +1163,11 @@ module_stmt	: tok_MODULE symbolic_name EOS
 			}
 		;
 
+module_handle	:	tok_MODULE
+			{
+			  check_seq_header(&($1));
+			}
+		;
 /*-----------------------------------------------------*/
 
 /* 12 */
@@ -4826,7 +4884,24 @@ END_processing(t)
   exec_stmt_count = 0;
   stmt_sequence_no = 0;
   f90_stmt_sequence_no = 0;
-  current_prog_unit_hash = -1;
+  /* exiting a scope, return to enclosing scope if any */
+  if( block_depth > 0 ) {
+	  printf("\nblock is not empty");
+	  
+	 // char *s = block_stack[block_depth-1].name;
+	  char *s = "tok_SUBROUTINE";
+	  //if( s == NULL ) printf("\nOops: no name in block stack");
+
+	  //else {printf("\nUpdating current_prog_unit_hash");
+		
+	  current_prog_unit_hash = 1;
+	  //current_prog_unit_hash = hash_lookup(block_stack[block_depth].name);
+	  //}
+  }
+  else {
+	  printf("\ncurrent_prog_unit_hash restarted");
+	  current_prog_unit_hash = -1;
+  }
   implicit_type_given = FALSE;
   implicit_none = FALSE;
   true_prev_stmt_line_num = 0;
@@ -4952,8 +5027,10 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 
 #ifdef DEBUG_BLOCKCHECK
   if(debug_latest) {
-    fprintf(list_fd,"\npopping stmt class %s name %s label %d at line %d",
-	    DBG_TOKNAME(stmt_class),name,label,t->line_num);
+    fprintf(list_fd,"\npopping token %s name %s label %d type %d at line %d", 
+	    DBG_TOKNAME(stmt_class),name,label,
+		block_stack[block_depth-1].subprogtype,
+		t->line_num);
   }
 #endif
 
@@ -4971,10 +5048,11 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 
 #ifdef DEBUG_BLOCKCHECK
     if(debug_latest) {
-      fprintf(list_fd,"\n  opener was class %s name %s label %d at line %d",
+      fprintf(list_fd,"\n  opener was token %s name %s label %d type %d at line %d",
 	      DBG_TOKNAME(opener_class),
 	      block_stack[block_depth].name,
 	      block_stack[block_depth].label,
+	      block_stack[block_depth].subprogtype,
 	      block_stack[block_depth].first_line);
     }
 #endif
@@ -5032,10 +5110,11 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 	  }
 #ifdef DEBUG_BLOCKCHECK
 	  if(debug_latest) {
-	      fprintf(list_fd,"\n  opener was class %s name %s label %d at line %d",
+	      fprintf(list_fd,"\n  opener was token %s name %s label %d type %d at line %d",
 		      DBG_TOKNAME(opener_class),
 		      block_stack[block_depth].name,
 		      block_stack[block_depth].label,
+		      block_stack[block_depth].subprogtype,
 		      block_stack[block_depth].first_line);
 	  }
 #endif
@@ -5094,6 +5173,16 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 	}
       }
     }
+
+/*--------------------------addition-----------------------------------*/
+	if (block_stack[block_depth].subprogtype == internal_subprog ||
+			block_stack[block_depth].subprogtype == module_subprog) {
+		contains_sect = TRUE; /* turns CONTAINS block on after exiting
+								 either of these */
+	}
+
+/*---------------------------------------------------------------------*/
+
 		/* Issue syntax error if name missing from a component of
 		   a named construct.  In picky mode warn if no name tag on
 		   structured END.
@@ -5188,12 +5277,15 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 		     "blocks nested too deeply");
   }
   else {
+	  /*
 #ifdef DEBUG_BLOCKCHECK
     if(debug_latest) {
-      fprintf(list_fd,"\npushing stmt class %s name %s label %d at line %d",
+      fprintf(list_fd,"\npushing token %s name %s label %d at line %d",
 	      DBG_TOKNAME(stmt_class),name,label,t->line_num);
     }
 #endif
+*/
+
 				/* ELSE and ELSE IF masquerade here as IF,
 				   and CASE and CASEDEFAULT as SELECT, to
 				   simplify match code in pop_block. */
@@ -5205,8 +5297,33 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
     block_stack[block_depth].first_line = t->line_num;
     block_stack[block_depth].blocktype = blocktype;
     block_stack[block_depth].do_var_hash = -1; /* undefined at this time */
-    ++block_depth;
 
+/*--------------------------addition------------------------------------*/
+
+	if (!contains_sect || (stmt_class != tok_SUBROUTINE &&
+		stmt_class != tok_FUNCTION))
+		block_stack[block_depth].subprogtype = not_subprog;
+	else { /* a subprogram inside a contains block is either
+			  a module subprogram or an internal subprogram */
+		if (block_depth > 0 && block_stack[block_depth-1].sclass
+				== tok_MODULE)
+			block_stack[block_depth].subprogtype = module_subprog;
+		else
+			block_stack[block_depth].subprogtype = internal_subprog;
+		contains_sect = FALSE;
+	}
+
+#ifdef DEBUG_BLOCKCHECK
+    if(debug_latest) {
+      fprintf(list_fd,"\npushing token %s name %s label %d type %d at line %d",
+	      DBG_TOKNAME(stmt_class),name,label,
+		  block_stack[block_depth].subprogtype,t->line_num);
+    }
+#endif
+
+/*---------------------------------------------------------------------*/
+
+    ++block_depth;
   }
 }
 
