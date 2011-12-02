@@ -292,14 +292,16 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_power	/*   **   */
 %token tok_concat	/*   //   */
 %token tok_lparen	/* special left paren to avoid s/r conflicts */
-%token tok_pointer_assignment /* => */
+%token tok_rightarrow /* => */
 %token tok_ACCEPT
 %token tok_ALLOCATABLE
 %token tok_ALLOCATE
 %token tok_ASSIGN
 %token tok_BACKSPACE
+%token tok_BIND
 %token tok_BLOCKDATA
 %token tok_BYTE
+%token tok_C
 %token tok_CALL
 %token tok_CASE
 %token tok_CASEDEFAULT
@@ -317,6 +319,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_DOUBLECOMPLEX
 %token tok_DOUBLEPRECISION
 %token tok_DOWHILE
+%token tok_ELEMENTAL 
 %token tok_ELSE
 %token tok_END
 %token tok_ENDBLOCKDATA
@@ -337,6 +340,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_GOTO
 %token tok_IF
 %token tok_IMPLICIT
+%token tok_IMPURE
 %token tok_INCLUDE
 %token tok_INQUIRE
 %token tok_INTEGER
@@ -353,8 +357,10 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_POINTER
 %token tok_PRINT
 %token tok_PROGRAM
+%token tok_PURE
 %token tok_READ
 %token tok_REAL
+%token tok_RECURSIVE
 %token tok_RESULT
 %token tok_RETURN
 %token tok_REWIND
@@ -549,7 +555,8 @@ unlabeled_stmt	:	subprogram_header
 /*--------------------addition--------------------------------*/
 
 				if (contains_sect) syntax_error($1.line_num,$1.col_num,
-				"contains statement should be followed by a subprogram");
+				"contains statement should be followed by a subprogram decleration");
+                contains_sect = FALSE;
 
 /*------------------------------------------------------------*/
 
@@ -563,6 +570,7 @@ unlabeled_stmt	:	subprogram_header
 
 				if (contains_sect) syntax_error($1.line_num,$1.col_num,
 				"contains statement must be followed by a subprogram declaration");
+                contains_sect = FALSE;
 
 /*------------------------------------------------------------*/
 				
@@ -583,6 +591,15 @@ unlabeled_stmt	:	subprogram_header
 			}
 		|	restricted_stmt
 			{
+
+/*--------------------addition--------------------------------*/
+
+				if (contains_sect) syntax_error($1.line_num,$1.col_num,
+				"contains statement must be followed by a subprogram declaration");
+                contains_sect = FALSE;
+
+/*------------------------------------------------------------*/
+
 			    stmt_sequence_no = SEQ_EXEC;
 			    f90_stmt_sequence_no = F90_SEQ_EXEC;
 			    ++exec_stmt_count;
@@ -608,7 +625,8 @@ unlabeled_stmt	:	subprogram_header
 			{
 /*--------------------addition--------------------------------*/
 				if (contains_sect) syntax_error($1.line_num,$1.col_num,
-				"contains statement should be followed by a subprogram");
+				"contains statement should be followed by a subprogram decleration");
+                contains_sect = FALSE;
 
 			    exec_stmt_count = 0;
 			    executable_stmt = FALSE;
@@ -625,7 +643,12 @@ unlabeled_stmt	:	subprogram_header
 					syntax_error($1.line_num,$1.col_num,
 				"contains statement invalid inside internal subprogram");
 				}
-				else contains_sect = TRUE; 
+				else {
+					contains_sect = TRUE; 
+#ifdef DEBUG_BLOCKCHECK
+		if(debug_latest) printf("\nCONTAINS stmt: setting contains_sect=TRUE");
+#endif
+				}
 				stmt_sequence_no = 0;
 /*-----------------------------------------------------------*/
 			}
@@ -1046,14 +1069,17 @@ entry_stmt	:	tok_ENTRY symbolic_name EOS
 
 /* 10 */
 function_stmt	:	unlabeled_function_stmt
+                |   new_function_stmt
+                    {
+/*---------------------addition-------------------------------*/
+/*------------------------------------------------------------*/
+                    }
+                   
 		;
 
 unlabeled_function_stmt
-		:	typed_function_handle symbolic_name result_stmt EOS
+		:	typed_function_handle symbolic_name EOS
 			{
-
-/*-------result_stmt is a new addition ------------------------*/
-
 			     if(f77_function_noparen || f90_function_noparen) {
 				nonstandard($2.line_num,
 			     (unsigned)($2.col_num+strlen(token_name(&$2))),
@@ -1070,11 +1096,8 @@ unlabeled_function_stmt
 			   def_curr_prog_unit(&($2));
 			}
 		|	typed_function_handle symbolic_name
-				'(' dummy_argument_list ')' result_stmt EOS
+				'(' dummy_argument_list ')' EOS
 			{
-
-/*-------result_stmt is a new addition ------------------------*/
-
 			 def_function(
 				      current_datatype,
 				      current_typesize,
@@ -1143,14 +1166,64 @@ type_name	:	arith_type_name
 		|	char_type_name
 		;
 
-result_stmt	:	tok_RESULT '(' symbolic_name ')'
-		|
-		;
-
 /* 11 not present: see 9 */
 
-/*---------------- addition------------------*/
-module_stmt	: module_handle symbolic_name EOS
+/*----------------------- addition---------------------------*/
+
+new_function_stmt
+        :  prefix_stmt function_keyword symbolic_name
+                '(' ')' suffix_stmt EOS
+           {
+			 def_function(
+				      current_datatype,
+				      current_typesize,
+				      current_len_text,
+				      &($3),
+				      (Token*)NULL);
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($3));
+			}
+        |  prefix_stmt function_keyword symbolic_name
+                '(' dummy_argument_list ')' suffix_stmt EOS
+           {
+			 def_function(
+				      current_datatype,
+				      current_typesize,
+				      current_len_text,
+				      &($3),
+				      &($5));
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($3));
+#ifdef DEBUG_PARSER
+			 if(debug_parser)
+			   print_exprlist("function stmt",&($5));
+#endif
+           }
+        ; 
+
+prefix_stmt :   prefix_spec
+            |   prefix_stmt prefix_spec 
+            ;
+
+prefix_spec :   type_name
+            |   tok_ELEMENTAL
+            |   tok_IMPURE
+            |   tok_MODULE
+            |   tok_PURE
+            |   tok_RECURSIVE
+            ;
+
+suffix_stmt :   proc_language_binding_spec tok_RESULT
+                       '(' symbolic_name ')'
+            |   tok_RESULT '(' symbolic_name ')'
+                        proc_language_binding_spec
+            |   tok_RESULT '(' symbolic_name ')'
+            ;
+
+proc_language_binding_spec  :   tok_BIND '(' tok_C ')'
+            ;
+
+module_stmt	:   module_handle symbolic_name EOS
 			{
 			  def_function(
 				       type_MODULE,
@@ -1168,7 +1241,7 @@ module_handle	:	tok_MODULE
 			  check_seq_header(&($1));
 			}
 		;
-/*-----------------------------------------------------*/
+/*------------------------------------------------------------*/
 
 /* 12 */
 subroutine_stmt	:	unlabeled_subroutine_stmt
@@ -2115,32 +2188,33 @@ char_type_decl_entity:symbolic_name
 
 /*---------------------------addition----------------------------*/
 
-use_handle		:	tok_USE
+use_handle	:	tok_USE
 		;
 
-use_stmt		:	use_handle use_decl
+use_stmt	:	use_handle use_decl
 			{
 			}
 		;
 
-use_decl		:	symbolic_name
-				|	symbolic_name ',' module_rename_list
-				| 	symbolic_name ',' tok_ONLY ':' module_only_list
+use_decl	:	symbolic_name
+		|	symbolic_name ',' module_rename_list
+		| 	symbolic_name ',' tok_ONLY ':' module_only_list
 		;
 
-module_rename_list:	module_rename
-				|	module_rename module_rename_list 
-
+module_rename_list:	module_rename_item
+		|	module_rename_list ',' module_rename_item 
 		;
 
-module_rename	:	symbolic_name '=>' symbolic_name
-		
+module_rename_item	:	symbolic_name '=''>' symbolic_name
 		;
 
-module_only_list:	symbolic_name
-		
+module_only_list    :   module_only_item	
+                    |   module_only_list ',' module_only_item
 		;
-
+ 
+module_only_item    :   symbolic_name
+                    |   module_rename_item
+        ;
 
 /*---------------------------------------------------------------*/
 
@@ -2723,7 +2797,7 @@ lvalue		:	variable_name
 		;
 
 assignment_op	: '='				/* normal assignment */
-		| tok_pointer_assignment	/* pointer assignment */
+		| tok_rightarrow	/* module rename assignment */
 			{
 			     if( f77_pointers ) {
 				  nonstandard($1.line_num,$1.col_num,0,0);
@@ -4790,6 +4864,32 @@ process_attrs(Token *t,Token *dim_bounds)
 	def_array_dim(t,dim_bounds);
 }
 
+/*** Temporary routine to fake it, as if the enclosing program unit
+     was just now declared.  This is called upon exiting from a
+     program unit enclosed in a larger scope.  This will go away
+     once the symbol table is redesigned to allow nested scopes.
+     Returns hash table index of the name of the unit.
+ ***/
+int fake_def_subprog(BlockStack *b)
+{
+	Token id;
+	int h =	hash_lookup(b->name);	/* look up the name in hash table */
+
+	/* fill in the token with as much info as def_function uses */
+	id.value.integer = h;
+	id.line_num = b->first_line;
+	id.col_num = NO_COL_NUM;
+
+	def_function(
+		type_SUBROUTINE,
+		size_DEFAULT,
+		(char *)NULL,
+		&id,
+		(Token*)NULL);
+
+	return h;
+}
+
 	/* After having parsed end_stmt, common block lists and
 	   subprogram argument lists are copied over into global symbol
 	   table, the local symbol table is printed out and then cleared,
@@ -4886,20 +4986,16 @@ END_processing(t)
   f90_stmt_sequence_no = 0;
   /* exiting a scope, return to enclosing scope if any */
   if( block_depth > 0 ) {
-	  printf("\nblock is not empty");
+	  if(debug_latest)
+	      printf("\nblock is not empty: restoring enclosing scope");
 	  
-	 // char *s = block_stack[block_depth-1].name;
-	  char *s = "tok_SUBROUTINE";
-	  //if( s == NULL ) printf("\nOops: no name in block stack");
-
-	  //else {printf("\nUpdating current_prog_unit_hash");
-		
-	  current_prog_unit_hash = 1;
-	  //current_prog_unit_hash = hash_lookup(block_stack[block_depth].name);
-	  //}
+	  current_prog_unit_hash = 
+/* put in a replacement symbol table entry for debugging grammar */
+		  fake_def_subprog(&block_stack[block_depth]);
   }
   else {
-	  printf("\ncurrent_prog_unit_hash restarted");
+	  if(debug_latest)
+		  printf("\ncurrent_prog_unit_hash cleared");
 	  current_prog_unit_hash = -1;
   }
   implicit_type_given = FALSE;
@@ -5179,6 +5275,16 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 			block_stack[block_depth].subprogtype == module_subprog) {
 		contains_sect = TRUE; /* turns CONTAINS block on after exiting
 								 either of these */
+#ifdef DEBUG_BLOCKCHECK
+		if(debug_latest) printf("\npop_block setting contains_sect=TRUE");
+#endif
+	}
+	else {
+		contains_sect = FALSE;	/* otherwise we may have
+					 * exited containing module */
+#ifdef DEBUG_BLOCKCHECK
+		if(debug_latest) printf("\npop_block setting contains_sect=FALSE");
+#endif
 	}
 
 /*---------------------------------------------------------------------*/
@@ -5310,11 +5416,12 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 			block_stack[block_depth].subprogtype = module_subprog;
 		else
 			block_stack[block_depth].subprogtype = internal_subprog;
-		contains_sect = FALSE;
 	}
+	contains_sect = FALSE;
 
 #ifdef DEBUG_BLOCKCHECK
     if(debug_latest) {
+	printf("\npush_block setting contains_sect=FALSE");
       fprintf(list_fd,"\npushing token %s name %s label %d type %d at line %d",
 	      DBG_TOKNAME(stmt_class),name,label,
 		  block_stack[block_depth].subprogtype,t->line_num);

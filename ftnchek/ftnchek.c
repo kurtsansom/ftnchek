@@ -617,6 +617,8 @@ wrapup(VOID)	/* look at cross references, etc. */
 	}
 #endif
 
+/*** Comment out stuff that can make trouble when fudging symtab ***/
+#if 0
 	visit_children();	/* Make call tree & check visited status */
 	check_com_usage();	/* Look for unused common stuff */
 	check_comlists();	/* Look for common block mismatches */
@@ -631,6 +633,7 @@ wrapup(VOID)	/* look at cross references, etc. */
 #ifdef DEBUG_GLOBAL_STRINGS
 	if(debug_latest)
 	  print_global_strings();
+#endif
 #endif
 }
 

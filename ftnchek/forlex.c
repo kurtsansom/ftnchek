@@ -1552,9 +1552,9 @@ get_punctuation(token)
 		advance();
 		src_text_buf[src_text_len++] = curr_char;
 	}
-                                /* recognize F90 pointer assignment => */
+            /* recognize module rename and ptr assignment => */
         else if(curr_char == '=' && next_char == '>') {
-                token->tclass = tok_pointer_assignment;
+                token->tclass = tok_rightarrow;
                 multichar = TRUE;
                 advance();
 		src_text_buf[src_text_len++] = curr_char;
