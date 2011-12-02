@@ -391,10 +391,8 @@ check_nonpure(sym_list, n, mod_name)
 	com_vars_modified=0,	/* count of common variables which are set */
 	args_modified=0;	/* count of arguments which are set */
     for(i=0; i<n; i++) {
-	if( (sym_list[i]->argument || sym_list[i]->common_var)
-	    && sym_list[i]->set_flag) {
-	    if( (sym_list[i]->argument && !CASCADE_LIMIT(args_modified))
-		|| (sym_list[i]->common_var && !CASCADE_LIMIT(com_vars_modified)) )
+	if( pure_args && sym_list[i]->argument && sym_list[i]->set_flag ) {
+	    if(sym_list[i]->assigned_flag && sym_list[i]->argument && !CASCADE_LIMIT(args_modified))
 	    {
 		char *filename = choose_filename(sym_list[i],file_set);
 
@@ -404,20 +402,34 @@ check_nonpure(sym_list, n, mod_name)
 			       (Lsymtab *)NULL,
 			       TRUE,
 			       "Function");
-		if(sym_list[i]->assigned_flag)
-		    msg_tail("modifies");
-		else
-		    msg_tail("may modify");
-		if(sym_list[i]->argument)
-		    msg_tail("argument");
-		else
-		    msg_tail("common variable");
+		    msg_tail("modifies argument");
 		msg_tail(sym_list[i]->name);
 	    }
 	    else {
 		break;
 	    }
 	}
+
+	if( pure_common && sym_list[i]->common_var && sym_list[i]->set_flag ) {
+	    if( sym_list[i]->assigned_flag && sym_list[i]->common_var && !CASCADE_LIMIT(com_vars_modified) )
+	    {
+		char *filename = choose_filename(sym_list[i],file_set);
+
+		local_warn_head(mod_name,
+			       filename,
+			       sym_list[i]->line_set,
+			       (Lsymtab *)NULL,
+			       TRUE,
+			       "Function");
+		    msg_tail("modifies common block variable");
+		msg_tail(sym_list[i]->name);
+	    }
+	    else {
+		break;
+	    }
+	}
+
+
     }
 			/* If quit early due to cascade limit, print "etc" */
 

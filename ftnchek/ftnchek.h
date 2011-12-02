@@ -1,4 +1,4 @@
-/* $Id: ftnchek.h,v 1.94 2005/02/06 21:36:37 moniot Rel $
+/* $Id: ftnchek.h,v 1.94 2005/02/06 21:36:37 moniot Exp $
 
 	Common definitions for Fortran Program Checker
 */
@@ -253,7 +253,7 @@ PROTO(VOID exit,(int));
 #endif
 
 	/* The following defines control the default status of
-	   warnings controlled by -arg, -f77/90/95, -port, -pretty, and -trunc.
+	   warnings controlled by -arg, -f77/90/95, -port, -pretty, -pure and -trunc.
 	 */
 
 
@@ -337,6 +337,13 @@ PROTO(VOID exit,(int));
 #define PRETTY_ALL FALSE
 #else
 #define PRETTY_ALL TRUE
+#endif
+
+			/* -pure options default to PURE_ALL */
+#ifdef IMPURE_IS_OK
+#define PURE_ALL FAlSE
+#else
+#define PURE_ALL TRUE
 #endif
 
 			/* -source options are defined here.  Since
@@ -1027,6 +1034,10 @@ OPT(int,proj_trim_calls,TRUE);  /* Keep min no of calls in project file */
 OPT(int,proj_trim_common,TRUE); /* Keep min no of block decls in proj file */
 		/* End of -project options */
 
+		/* These options are controlled by -pure */
+OPT(int,pure_args,PURE_ALL);		/* Function arguments are changed */
+OPT(int,pure_common,PURE_ALL);		/* Common block variables are changed */
+		/* End of -pure options */
 
 		/* These options are controlled by -source */
 OPT(int,source_dec_tab,DEC_TABS); /*DEC Fortran tab-format*/
@@ -1124,7 +1135,11 @@ OPT(int,library_mode,FALSE);	/* Set used-flag for all modules in file */
 OPT(int,brief,FALSE);		/* Briefer form of local error messages */
 OPT(int,do_list,FALSE);		/* Listing flag */
 OPT(int,novice_help,TRUE);	/* Extra help for novices */
-OPT(int,pure_functions,TRUE);	/* Assume functions are pure */
+/* Pure function is split into two flags:
+ * one for arugments
+ * and other for variables in a common block
+ */
+//OPT(int,pure_functions,TRUE); 
 OPT(int,quiet,FALSE);		/* Less verbose output format */
 OPT(int,sixclash,FALSE);	/* To check if names unique in 1st 6 chars */
 OPT(int,print_topo_sort,FALSE);	/* Topological sort of modules */

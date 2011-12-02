@@ -1,4 +1,4 @@
-/* $Id: options.c,v 1.42 2004/12/29 19:27:25 moniot Rel $
+/* $Id: options.c,v 1.42 2004/12/29 19:27:25 moniot Exp $
 
 	Definitions of command-line options and routines to set them.
 
@@ -224,8 +224,8 @@ PRIVATE struct {
 		 "print program listing",NOT_A_CHECK},
 	{"novice",	&novice_help,
 		 "extra help for novices",NOT_A_CHECK},
-	{"pure",	&pure_functions,
-		 "functions have no side effects",IS_A_CHECK},
+	//{"pure",	&pure_functions,
+	//	 "functions have no side effects",IS_A_CHECK},
 	{"quiet",	&quiet,
 		 "less verbose output",NOT_A_CHECK},
 	{"reference",	&print_ref_list,
@@ -820,6 +820,27 @@ PRIVATE WarnOptionList
 
 };
 
+
+PRIVATE char *pure_warn_list=(char *)NULL; /* Pure functions warnings */
+
+PRIVATE WarnOptionList
+ pure_warn_option[]={
+  {
+#if PURE_ALL
+   "all"	 /* used by -help */
+#else
+   "none"
+#endif
+     , (int *)NULL,		"Pure functions warning"},	/* Title for list */
+  {"args",		&pure_args,
+				"Function changes arguments"},
+  {"common",		&pure_common,
+				"Function changes common block variables"},
+  {(char *)NULL, (int *)NULL, (char *)NULL},
+
+};
+
+
 			/* Source format is not really a warning list,
 			   but it uses the same style of control. */
 
@@ -1057,6 +1078,9 @@ PRIVATE StrsettingList strsetting[]={
   {"project",	&project_warn_list,"all", "none", NOT_A_CHECK,
      project_warn_option, NULL,
      "create project file"},
+  {"pure",	&pure_warn_list,"all", "none", IS_A_CHECK,
+     pure_warn_option, NULL,
+     "warn about pure functions"},
   {"source",	&source_form_list,"all", "none", NOT_A_CHECK,
      source_form_option, source_numeric_option,
      "select source format options"},

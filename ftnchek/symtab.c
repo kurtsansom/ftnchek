@@ -1,4 +1,4 @@
-/* $Id: symtab.c,v 1.45 2003/08/07 19:37:48 moniot Rel $
+/* $Id: symtab.c,v 1.45 2003/08/07 19:37:48 moniot Exp $
 
   Definitions of symbol table maintenance routines and
   hash table functions
@@ -259,7 +259,7 @@ call_func(id,arg)	/* Process function invocation */
 	      i_len = symt->info.intrins_info->intrins_flags&I_LEN;
 	    }
 	    else {
-	      nonpure = ! pure_functions;
+	      nonpure = !(pure_args || pure_common);
 	      i_len = FALSE;
 	    }
 

@@ -1,4 +1,4 @@
-/* $Id: prlocsym.c,v 1.22 2003/03/17 17:47:56 moniot Rel $
+/* $Id: prlocsym.c,v 1.22 2003/03/17 17:47:56 moniot Exp $
 
 	Prints local symbol table, calling local checking routines along
 	the way.
@@ -262,7 +262,7 @@ print_loc_symbols(VOID)
 
 				/* Process the variables */
 
-    if(do_symtab || pure_functions
+    if(do_symtab || pure_args || pure_common
        || (usage_var_set_unused || usage_var_uninitialized
        || usage_var_unused || usage_arg_unused)) {
 	int i,n;
@@ -277,10 +277,10 @@ print_loc_symbols(VOID)
 
 	   sort_lsymbols(sym_list,n);
 
-	   if(this_is_a_function && pure_functions) {
+	   if(this_is_a_function && (pure_args || pure_common))  {
 	       check_nonpure(sym_list,n,mod_name);
 	   }
-
+	   
 			/* Print the variables */
 
 	   if(do_symtab) {
@@ -321,7 +321,7 @@ print_loc_symbols(VOID)
 	if(do_symtab || do_list)
 	  (void)fprintf(list_fd,"\n");
 
-    }/* end if(do_symtab || pure_functions || usage_...) */
+    }/* end if(do_symtab || pure_args || pure_common || usage_...) */
 
 			/* List all undeclared vars & functions */
     if(decls_required || implicit_none) {
