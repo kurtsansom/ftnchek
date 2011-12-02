@@ -1,4 +1,4 @@
-/* $Id: keywords.c,v 1.13 2003/06/05 00:19:59 landrito Rel $
+/* $Id: keywords.c,v 1.13 2003/06/05 00:19:59 landrito Exp $
 
 	Routines to distinguish keywords from identifiers.
 
@@ -122,6 +122,7 @@ PRIVATE struct {
 {"CLOSE",	tok_CLOSE,	IK | EK | MP | NA,		0},
 {"COMMON",	tok_COMMON,	IK | NP | NI | EK,		0},
 {"COMPLEX",	tok_COMPLEX,	IK | NI | EK | TY | TK,		0},
+{"CONTAINS",	tok_CONTAINS,	IK | NP | NI | EK | NA,		0},
 {"CONTINUE",	tok_CONTINUE,	IK | NP | EK | NA,		0},
 {"CYCLE",	tok_CYCLE,	IK | NP | EK,			0},
 {"DATA",	tok_DATA,	IK | NI | EK,			0},
@@ -141,6 +142,7 @@ PRIVATE struct {
 {"ENDFILE",	tok_ENDFILE,	IK | EK,			3},
 {"ENDFUNCTION",	tok_ENDFUNCTION,IK | NP | NI | EK,		3},
 {"ENDIF",	tok_ENDIF,	IK | NP | NI | EK,		3},
+{"ENDMODULE",	tok_ENDMODULE,	IK | NP | NI | EK,		3},
 {"ENDPROGRAM",	tok_ENDPROGRAM,	IK | NP | NI | EK,		3},
 {"ENDSELECT",	tok_ENDSELECT,	IK | NP | NI | EK,		3},
 {"ENDSUBROUTINE",tok_ENDSUBROUTINE,	IK | NP | NI | EK,	3},
@@ -158,9 +160,11 @@ PRIVATE struct {
 {"INTEGER",	tok_INTEGER,	IK | NI | EK | TY | TK,		0},
 {"INTRINSIC",	tok_INTRINSIC,	IK | NP | NI | EK,		0},
 {"LOGICAL",	tok_LOGICAL,	IK | NI | EK | TY | TK,		0},
+{"MODULE",	tok_MODULE,		IK | NP | NI | EK,		0},
 {"NAMELIST",	tok_NAMELIST,	IK | NP | NI | EK,		0},
 {"NONE",	tok_NONE,	IK | NI | EK | TY | NA,		0},
 {"NULLIFY",	tok_NULLIFY,	IK | MP | NI | EK,		0},
+{"ONLY",	tok_ONLY,	IK | NP | NI | EK,		0},
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
@@ -181,8 +185,10 @@ PRIVATE struct {
 {"THEN",	tok_THEN,	IK | NP | EK,			0},
 {"TO",		tok_TO,		NI | EK,			0},
 {"TYPE",	tok_TYPE,	IK | EK,			0},
+{"USE",		tok_USE,	IK | NP | NI | EK,		0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},
 {"WRITE",	tok_WRITE,	IK | EK | MP | NA,		0},
+
 };
 
 

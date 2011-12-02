@@ -1,4 +1,4 @@
-/* $Id: fortran.y,v 1.65 2006/10/01 20:31:24 moniot Exp $
+/* $Id: fortran.y,v 1.64 2004/11/18 02:06:04 moniot Exp $
 
     fortran.y:
 
@@ -294,6 +294,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_CLOSE
 %token tok_COMMON
 %token tok_COMPLEX
+%token tok_CONTAINS
 %token tok_CONTINUE
 %token tok_CYCLE
 %token tok_DATA
@@ -310,6 +311,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_ENDFILE
 %token tok_ENDFUNCTION
 %token tok_ENDIF
+%token tok_ENDMODULE
 %token tok_ENDPROGRAM
 %token tok_ENDSELECT
 %token tok_ENDSUBROUTINE
@@ -327,9 +329,11 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_INTEGER
 %token tok_INTRINSIC
 %token tok_LOGICAL
+%token tok_MODULE
 %token tok_NAMELIST
 %token tok_NONE
 %token tok_NULLIFY
+%token tok_ONLY
 %token tok_OPEN
 %token tok_PARAMETER
 %token tok_PAUSE
@@ -348,6 +352,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_THEN
 %token tok_TO
 %token tok_TYPE
+%token tok_USE
 %token tok_WHILE
 %token tok_WRITE
 
@@ -564,6 +569,14 @@ unlabeled_stmt	:	subprogram_header
 			    labeled_stmt_type = LAB_EXECUTABLE;
 			    yyerrok; /* (error message already given) */
 			}
+		|	module_stmt
+			{
+
+			}
+		|	contains_stmt
+			{
+				executable_stmt = FALSE;
+			}
 		;
 
 subprogram_header:	prog_stmt
@@ -622,6 +635,7 @@ named_end_stmt:		end_subprog_token symbolic_name EOS
 
 end_subprog_token:	tok_ENDBLOCKDATA
 		|	tok_ENDFUNCTION
+		|	tok_ENDMODULE
 		|	tok_ENDPROGRAM
 		|	tok_ENDSUBROUTINE
 		;
@@ -695,6 +709,9 @@ specification_stmt:	anywhere_stmt
 			  check_stmt_sequence(&($1),SEQ_SPECIF);
 			  check_f90_stmt_sequence(&($1),F90_SEQ_SPECIF);
 			  labeled_stmt_type = LAB_SPECIFICATION;
+			}
+		|	use_stmt
+			{
 			}
 		;
 
@@ -825,6 +842,17 @@ io_positioning_stmt:	rewind_stmt
 		|	backspace_stmt
 		|	endfile_stmt
 		;
+
+
+
+/*----------------addition----------------*/
+contains_stmt: tok_CONTAINS
+		;
+
+
+/*---------------------------------------*/
+
+
 
 restricted_stmt:		/* Disallowed in logical IF */
 			restricted_nontransfer_stmt
@@ -959,6 +987,8 @@ entry_stmt	:	tok_ENTRY symbolic_name EOS
 #endif
 			}
 		;
+		
+
 
 /* 10 */
 function_stmt	:	unlabeled_function_stmt
@@ -1055,6 +1085,32 @@ type_name	:	arith_type_name
 
 
 /* 11 not present: see 9 */
+
+/*---------------- addition------------------*/
+module_stmt	:	unlabeled_module_stmt
+		;
+
+unlabeled_module_stmt
+		:	module_handle symbolic_name EOS
+			{
+			  def_function(
+				       type_MODULE,
+				       size_DEFAULT,
+				       (char *)NULL,
+				       &($2),
+				       (Token*)NULL);
+			  current_module_hash=
+			    def_curr_module(&($2));
+			}
+		;
+
+module_handle:	tok_MODULE
+			{
+			  check_seq_header(&($1));
+			}
+		;
+/*-----------------------------------------------------*/
+
 
 /* 12 */
 subroutine_stmt	:	unlabeled_subroutine_stmt
@@ -1997,6 +2053,41 @@ char_type_decl_entity:symbolic_name
 			     process_attrs(&($1),current_dim_bound_list);
 			}
 		;
+
+
+/*---------------------------addition----------------------------*/
+
+use_handle		:	tok_USE
+		;
+
+use_stmt		:	use_handle use_decl
+			{
+			}
+		;
+
+use_decl		:	symbolic_name
+				|	symbolic_name ',' module_rename_list
+				| 	symbolic_name ',' tok_ONLY ':' module_only_list
+		;
+
+module_rename_list:	module_rename
+				|	module_rename module_rename_list 
+
+		;
+
+module_rename	:	symbolic_name '=>' symbolic_name
+		
+		;
+
+module_only_list:	symbolic_name
+		
+		;
+
+
+/*---------------------------------------------------------------*/
+
+
+
 
 /* 21 */
 				/* implicit_flag helps is_keyword's work */

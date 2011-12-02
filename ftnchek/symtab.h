@@ -1,4 +1,4 @@
-/* $Id: symtab.h,v 1.43 2003/08/07 19:28:50 moniot Rel $
+/* $Id: symtab.h,v 1.43 2003/08/07 19:28:50 moniot Exp $
 
 	Shared declarations for symbol-table routines.  Note: uses
 	declarations in ftnchek.h.
@@ -107,6 +107,7 @@ this Software without prior written authorization from the author.
 #define type_BLOCK_DATA 13
 #define type_LABEL 14
 #define type_NAMELIST 15
+#define type_MODULE 16
 
 #define size_DEFAULT	(0L)	/* code for standard numeric sizes */
 #define size_ADJUSTABLE	(-1L)	/* codes for special char string lengths */
@@ -265,6 +266,7 @@ char *type_table[]		/* Names as used in FORTRAN statements */
 	"BLOCK DATA",
 	"LABEL",
 	"NAMELIST",
+	"MODULE",
     }
 #endif
 ;
