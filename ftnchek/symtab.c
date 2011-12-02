@@ -1602,10 +1602,53 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
+
+void do_bind_spec(Token *p, SUBPROG_TYPE subprogtype) 
+{
+    if (!p) return;
+    else {
+        if (p->tclass == tok_identifier) {
+            if (strcmp(hashtab[p->value.integer].name, "C") != 0)
+                syntax_error(p->line_num, p->col_num,
+                         "invalid keyword should be C");
+        }
+
+        if (p->next_token && subprogtype != module_subprog) {
+
+            if (strcmp(p->next_token->src_text,"=") != 0)
+                syntax_error(p->next_token->line_num,
+                        p->next_token->col_num,
+                         "invalid punctuation should be =");
+
+            if (strcmp(hashtab[p->next_token->left_token->value.integer].name, "NAME") != 0)
+                syntax_error(p->next_token->left_token->line_num, 
+                        p->next_token->left_token->col_num,
+                         "invalid keyword should be NAME");
+        }
+
+        if (p->next_token && subprogtype == module_subprog) {
+            syntax_error(p->next_token->left_token->line_num, 
+                    p->next_token->left_token->col_num,
+                     "NAME cannot occur in an internal procedure");
+        }
+
+    }
+    if (p->left_token) do_bind_spec(p->left_token, subprogtype);
+}
+
+
 /* process suffix part of subprogram declaration */
 void
 do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix)
 {
+
+    Token *currToken;
+    for (currToken = suffix->next_token; currToken != NULL;
+            currToken = currToken->next_token) {
+        if (currToken->left_token != NULL) {
+            do_bind_spec(currToken->left_token, subprogtype);
+        }
+    }
 }
 
 void

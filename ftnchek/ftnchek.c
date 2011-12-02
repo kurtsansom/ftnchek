@@ -618,7 +618,7 @@ wrapup(VOID)	/* look at cross references, etc. */
 #endif
 
 /*** Comment out stuff that can make trouble when fudging symtab ***/
-#if 0
+#ifdef REGRESS
 	visit_children();	/* Make call tree & check visited status */
 	check_com_usage();	/* Look for unused common stuff */
 	check_comlists();	/* Look for common block mismatches */
