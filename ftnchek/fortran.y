@@ -159,6 +159,7 @@ PRIVATE int
 int 
     complex_const_allowed=FALSE, /* for help in lookahead for these */
     construct_name_seen=FALSE,	/* for help recognizing DO */
+    subprog_suffix_allowed = FALSE,	/* help for recognizing RESULT, BIND */
     param_noparen=FALSE,	/* for different PARAMETER stmt semantics */
     in_assignment_stmt=FALSE,
     in_attrbased_typedecl=FALSE,/* help is_keyword lex type, attr :: list */
@@ -196,9 +197,6 @@ int
 				/* Convenience typedef for category of block */
 typedef enum {subprog, construct} BLOCK_TYPE;
 
-/*----------------- addition --------------------------*/
-typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
-/*-----------------------------------------------------*/
 
 typedef struct {
     int sclass;			/* stmt_class of block opener */
@@ -301,7 +299,6 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_BIND
 %token tok_BLOCKDATA
 %token tok_BYTE
-%token tok_C
 %token tok_CALL
 %token tok_CASE
 %token tok_CASEDEFAULT
@@ -341,17 +338,23 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_IF
 %token tok_IMPLICIT
 %token tok_IMPURE
+%token tok_IN
+%token tok_INOUT
 %token tok_INCLUDE
 %token tok_INQUIRE
 %token tok_INTEGER
+%token tok_INTENT
 %token tok_INTRINSIC
 %token tok_LOGICAL
 %token tok_MODULE
 %token tok_NAMELIST
 %token tok_NONE
+%token tok_NONINTRINSIC
 %token tok_NULLIFY
 %token tok_ONLY
 %token tok_OPEN
+%token tok_OPERATOR
+%token tok_OUT
 %token tok_PARAMETER
 %token tok_PAUSE
 %token tok_POINTER
@@ -538,7 +541,7 @@ stmt		:	tok_label unlabeled_stmt
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
 			}
 		;
-
+        
 unlabeled_stmt	:	subprogram_header
 			{
 			    exec_stmt_count = 0;
@@ -549,32 +552,42 @@ unlabeled_stmt	:	subprogram_header
 				       NO_LABEL);
 
 			}
-		|	specification_stmt
-			{
-
+        |   non_subprogram_header
+            {
 /*--------------------addition--------------------------------*/
 
 				if (contains_sect) syntax_error($1.line_num,$1.col_num,
 				"contains statement should be followed by a subprogram decleration");
                 contains_sect = FALSE;
+            }
+		|	contains_stmt
+			{
+				if (block_stack[block_depth-1].subprogtype ==
+			        internal_subprog) {
+					syntax_error($1.line_num,$1.col_num,
+				"contains statement invalid inside internal subprogram");
+				}
+				else {
+					contains_sect = TRUE; 
+#ifdef DEBUG_BLOCKCHECK
+		        if(debug_latest) 
+                    printf("\nCONTAINS stmt: setting contains_sect=TRUE");
+#endif
+				}
+				stmt_sequence_no = 0;
+/*-----------------------------------------------------------*/
+			}
+        ;
 
-/*------------------------------------------------------------*/
-
+non_subprogram_header   
+        :   specification_stmt
+			{
 			    executable_stmt = FALSE;
 			/* labeled_stmt_type set in lower productions */
 			}
 		|	executable_stmt
 			{	
-
-/*--------------------addition--------------------------------*/
-
-				if (contains_sect) syntax_error($1.line_num,$1.col_num,
-				"contains statement must be followed by a subprogram declaration");
-                contains_sect = FALSE;
-
-/*------------------------------------------------------------*/
-				
-				/* handle statement functions correctly */
+			/* handle statement functions correctly */
 			  if(is_true(STMT_FUNCTION_EXPR, $1.TOK_flags)
 				     && stmt_sequence_no <= SEQ_STMT_FUN) {
 			    stmt_sequence_no = SEQ_STMT_FUN;
@@ -591,15 +604,6 @@ unlabeled_stmt	:	subprogram_header
 			}
 		|	restricted_stmt
 			{
-
-/*--------------------addition--------------------------------*/
-
-				if (contains_sect) syntax_error($1.line_num,$1.col_num,
-				"contains statement must be followed by a subprogram declaration");
-                contains_sect = FALSE;
-
-/*------------------------------------------------------------*/
-
 			    stmt_sequence_no = SEQ_EXEC;
 			    f90_stmt_sequence_no = F90_SEQ_EXEC;
 			    ++exec_stmt_count;
@@ -614,6 +618,7 @@ unlabeled_stmt	:	subprogram_header
 			    if(f90_stmt_sequence_no == 0)
 			      f90_stmt_sequence_no = SEQ_HEADER;
 			    complex_const_allowed = FALSE; /* turn off flags */
+			    subprog_suffix_allowed = FALSE;
 			    inside_format=FALSE;
 			    integer_context = FALSE;
 			    in_assignment_stmt = FALSE;
@@ -624,10 +629,6 @@ unlabeled_stmt	:	subprogram_header
 		|	module_stmt
 			{
 /*--------------------addition--------------------------------*/
-				if (contains_sect) syntax_error($1.line_num,$1.col_num,
-				"contains statement should be followed by a subprogram decleration");
-                contains_sect = FALSE;
-
 			    exec_stmt_count = 0;
 			    executable_stmt = FALSE;
 			    labeled_stmt_type = LAB_SPECIFICATION;
@@ -636,22 +637,8 @@ unlabeled_stmt	:	subprogram_header
 				       NO_LABEL);
 				current_prog_unit_type = type_MODULE;
 			}
-		|	contains_stmt
-			{
-				if (block_stack[block_depth-1].subprogtype ==
-					internal_subprog) {
-					syntax_error($1.line_num,$1.col_num,
-				"contains statement invalid inside internal subprogram");
-				}
-				else {
-					contains_sect = TRUE; 
-#ifdef DEBUG_BLOCKCHECK
-		if(debug_latest) printf("\nCONTAINS stmt: setting contains_sect=TRUE");
-#endif
-				}
-				stmt_sequence_no = 0;
 /*-----------------------------------------------------------*/
-			}
+
 		;
 
 subprogram_header:	prog_stmt
@@ -717,13 +704,11 @@ end_subprog_token:	tok_ENDBLOCKDATA
 		|	tok_ENDSUBROUTINE
 		;
 
-/*----------------addition----------------*/
-contains_stmt: 		tok_CONTAINS EOS
+/*------------------------addition-----------------------------*/
+contains_stmt:  tok_CONTAINS EOS
 		;
 
-
-/*---------------------------------------*/
-
+/*-------------------------------------------------------------*/
 
 include_stmt	:	tok_INCLUDE tok_string EOS
  			{
@@ -796,8 +781,6 @@ specification_stmt:	anywhere_stmt
 			  labeled_stmt_type = LAB_SPECIFICATION;
 			}
 		|	use_stmt
-			{
-			}
 		;
 
 anywhere_stmt	:	entry_stmt
@@ -1068,17 +1051,30 @@ entry_stmt	:	tok_ENTRY symbolic_name EOS
 
 
 /* 10 */
-function_stmt	:	unlabeled_function_stmt
-                |   new_function_stmt
-                    {
-/*---------------------addition-------------------------------*/
-/*------------------------------------------------------------*/
-                    }
-                   
+function_stmt	:   unlabeled_function_stmt EOS
+		|   unlabeled_function_stmt
+			suffix
+			{
+				do_suffix(tok_FUNCTION,block_stack[block_depth-1].subprogtype,
+					  current_prog_unit_hash,&($2));
+				subprog_suffix_allowed = FALSE;
+			} EOS
+        {
+            Token *p;
+            for (p = $2.next_token ; p != NULL; p = p->next_token) {
+                //if(p->tclass == tok_BIND)
+                    //printf("\nRESULT found\n");
+                printf("\n%s\n", p->src_text);
+                if (p->left_token != NULL){
+                    puts("\n C exists \n");
+                    printf("\n%d\n", p->left_token->tclass);
+                }
+            }
+        }
 		;
 
 unlabeled_function_stmt
-		:	typed_function_handle symbolic_name EOS
+		:	prefixed_function_handle symbolic_name 
 			{
 			     if(f77_function_noparen || f90_function_noparen) {
 				nonstandard($2.line_num,
@@ -1094,9 +1090,11 @@ unlabeled_function_stmt
 				      (Token*)NULL);
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
+
+             subprog_suffix_allowed = TRUE;
 			}
-		|	typed_function_handle symbolic_name
-				'(' dummy_argument_list ')' EOS
+		|	prefixed_function_handle symbolic_name
+				'(' dummy_argument_list ')' 
 			{
 			 def_function(
 				      current_datatype,
@@ -1110,8 +1108,9 @@ unlabeled_function_stmt
 			 if(debug_parser)
 			   print_exprlist("function stmt",&($4));
 #endif
+             subprog_suffix_allowed = TRUE;
 			}
-		|	plain_function_handle symbolic_name EOS
+		|	plain_function_handle symbolic_name 
 			{
 			     if(f77_function_noparen || f90_function_noparen) {
 				nonstandard($2.line_num,
@@ -1127,9 +1126,11 @@ unlabeled_function_stmt
 				      (Token*)NULL);
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
+
+             subprog_suffix_allowed = TRUE;
 			}
-		|	plain_function_handle symbolic_name
-				'(' dummy_argument_list ')' EOS
+		|	plain_function_handle symbolic_name 
+				'(' dummy_argument_list ')' 
 			{
 			 def_function(
 				      type_UNDECL,	/* type */
@@ -1143,14 +1144,126 @@ unlabeled_function_stmt
 			 if(debug_parser)
 			   print_exprlist("function stmt",&($4));
 #endif
+
+            subprog_suffix_allowed = TRUE;
 			}
 		;
 
-typed_function_handle:	type_name function_keyword
+/*------------------- original ----------------------------*/
+
+/*typed_function_handle:	type_name function_keyword
 			{
 			    $$ = $2; /* needed for block opener info */
-			}
-		;
+/*			}
+		; */
+
+/*--------------------------------------------------------*/
+
+/*----------------------- addition---------------------------*/
+
+prefixed_function_handle:  prefix function_keyword
+            {
+			    $$ = $2; /* needed for block opener info */
+            }
+        ;
+
+prefix  :   prefix_spec
+        |   prefix prefix_spec 
+        ;
+
+prefix_spec :   declaration_type_spec
+        |   tok_ELEMENTAL
+        |   tok_IMPURE
+        |   tok_MODULE
+        |   tok_PURE
+        |   tok_RECURSIVE
+        ;
+
+declaration_type_spec:  type_name
+        |   tok_TYPE '(' type_name ')'
+        ;
+
+		/* Fortran2010 R1231 */
+suffix  :  suffix_item
+	   {
+		   /* form suffix items into a token list */
+		   $$.next_token = append_token((Token *)NULL,&($1));
+	   }
+	|  suffix suffix_item
+	   {
+		   $$.next_token = append_token($1.next_token,&($2));
+	   }
+	;
+
+suffix_item : proc_language_binding_spec
+	   {
+		   /* move the lang binding spec node down one level so it can be in a list */
+		   $$.left_token = add_tree_node(&($1),&($1),(Token *)NULL);
+	   }
+    |   tok_RESULT '(' result_argument ')'
+       {   
+           $$ = $3;		/* replace RESULT token by identifier token */
+       }
+        
+
+result_argument	:	symbolic_name
+            {
+                def_arg_name(&($1));
+                primary_id_expr(&($1),&($$));
+
+
+                /* To do: set function name to result name */
+            }
+	    ;
+
+proc_language_binding_spec: language_binding_spec
+            {
+             /* if (block_stack[block_depth-1].subprogtype == 
+                        module_subprog);
+
+                if((block_stack[block_depth-1].sclass == tok_SUBROUTINE ||
+                        block_stack[block_depth-1].sclass == tok_FUNCTION))
+                    syntax_error( $1.line_num, $1.col_num,
+                    "language binding specification cannot occur in an internal procedure");
+                    */
+            }
+        ;
+
+language_binding_spec  :    tok_BIND '(' C_keyword ')'
+            {
+		    /* make C keyword the sole child of BIND */
+		    $$.left_token = add_tree_node(&($1),&($3),(Token *)NULL);
+            }
+        |   tok_BIND '(' C_keyword ',' bind_name ')'
+            {
+		    /* create tree with C keyword as left child, bind name as right */
+		    $$.left_token = add_tree_node(&($1),&($3),&($5));
+
+            }
+        ;
+
+C_keyword    :   symbolic_name
+        ;
+
+bind_name: symbolic_name '=' expr
+	{
+		/* construct tree node with "NAME" and identifier as children of '=' */
+		$$.left_token = add_tree_node(&($2),&($1),&($3));
+		    
+                /* check if expr is constant and scalar */
+		if (!is_true(CONST_EXPR,$3.TOK_flags) ||
+                  is_true(ARRAY_ID_EXPR,$3.TOK_flags))
+                    syntax_error( $3.line_num, $3.col_num,
+                       "scalar constant expression expected");
+	}
+	;
+
+intent_spec :   tok_IN
+        |   tok_OUT
+        |   tok_INOUT
+        ;
+/*--------------------------------------------------------*/
+
 
 plain_function_handle:	function_keyword
 		;
@@ -1168,60 +1281,8 @@ type_name	:	arith_type_name
 
 /* 11 not present: see 9 */
 
+
 /*----------------------- addition---------------------------*/
-
-new_function_stmt
-        :  prefix_stmt function_keyword symbolic_name
-                '(' ')' suffix_stmt EOS
-           {
-			 def_function(
-				      current_datatype,
-				      current_typesize,
-				      current_len_text,
-				      &($3),
-				      (Token*)NULL);
-			 current_prog_unit_hash=
-			   def_curr_prog_unit(&($3));
-			}
-        |  prefix_stmt function_keyword symbolic_name
-                '(' dummy_argument_list ')' suffix_stmt EOS
-           {
-			 def_function(
-				      current_datatype,
-				      current_typesize,
-				      current_len_text,
-				      &($3),
-				      &($5));
-			 current_prog_unit_hash=
-			   def_curr_prog_unit(&($3));
-#ifdef DEBUG_PARSER
-			 if(debug_parser)
-			   print_exprlist("function stmt",&($5));
-#endif
-           }
-        ; 
-
-prefix_stmt :   prefix_spec
-            |   prefix_stmt prefix_spec 
-            ;
-
-prefix_spec :   type_name
-            |   tok_ELEMENTAL
-            |   tok_IMPURE
-            |   tok_MODULE
-            |   tok_PURE
-            |   tok_RECURSIVE
-            ;
-
-suffix_stmt :   proc_language_binding_spec tok_RESULT
-                       '(' symbolic_name ')'
-            |   tok_RESULT '(' symbolic_name ')'
-                        proc_language_binding_spec
-            |   tok_RESULT '(' symbolic_name ')'
-            ;
-
-proc_language_binding_spec  :   tok_BIND '(' tok_C ')'
-            ;
 
 module_stmt	:   module_handle symbolic_name EOS
 			{
@@ -1243,12 +1304,20 @@ module_handle	:	tok_MODULE
 		;
 /*------------------------------------------------------------*/
 
+
 /* 12 */
-subroutine_stmt	:	unlabeled_subroutine_stmt
+subroutine_stmt	:   unlabeled_subroutine_stmt EOS
+                |   unlabeled_subroutine_stmt 
+                       suffix
+			{
+				do_suffix(tok_SUBROUTINE,block_stack[block_depth-1].subprogtype,
+					  current_prog_unit_hash,&($2));
+				subprog_suffix_allowed = FALSE;
+			} EOS
 		;
 
 unlabeled_subroutine_stmt
-		:	subroutine_handle symbolic_name EOS
+		:	prefixed_subroutine_handle symbolic_name 
 			{
 			  def_function(
 				       type_SUBROUTINE,
@@ -1258,9 +1327,11 @@ unlabeled_subroutine_stmt
 				       (Token*)NULL);
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
+			  
+              subprog_suffix_allowed = TRUE;
 			}
-		|	subroutine_handle symbolic_name
-				'(' dummy_argument_list ')' EOS
+		|	prefixed_subroutine_handle symbolic_name
+				'(' dummy_argument_list ')' 
 			{
 			  def_function(
 				       type_SUBROUTINE,
@@ -1274,14 +1345,60 @@ unlabeled_subroutine_stmt
 			  if(debug_parser)
 			    print_exprlist("subroutine stmt",&($4));
 #endif
+
+              subprog_suffix_allowed = TRUE;
+			}
+		|	plain_subroutine_handle symbolic_name 
+			{
+			  def_function(
+				       type_SUBROUTINE,
+				       size_DEFAULT,
+				       (char *)NULL,
+				       &($2),
+				       (Token*)NULL);
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
+
+              subprog_suffix_allowed = TRUE;
+			}
+		|	plain_subroutine_handle symbolic_name
+				'(' dummy_argument_list ')' 
+			{
+			  def_function(
+				       type_SUBROUTINE,
+				       size_DEFAULT,
+				       (char *)NULL,
+				       &($2),
+				       &($4));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
+#ifdef DEBUG_PARSER
+			  if(debug_parser)
+			    print_exprlist("subroutine stmt",&($4));
+#endif
+
+              subprog_suffix_allowed = TRUE;
 			}
 		;
 
-subroutine_handle:	tok_SUBROUTINE
+/*--------------------- addition -----------------------------------*/
+
+prefixed_subroutine_handle:    prefix subroutine_keyword
+			{
+			    $$ = $2; /* needed for block opener info */
+			}
+		;
+
+plain_subroutine_handle:    subroutine_keyword
+        ;
+
+subroutine_keyword :	tok_SUBROUTINE
 			{
 			  check_seq_header(&($1));
 			}
 		;
+
+/*--------------------------------------------------------------------*/
 
 dummy_argument_list:	/* empty */
 			{
@@ -1734,11 +1851,11 @@ type_attr	:	tok_DIMENSION '(' dim_bound_list ')'
                         {
                              current_allocatable_attr = TRUE;
                         }
+        |   tok_INTENT '(' intent_spec ')'
 		;
 
 
-arith_type_name	:	sizeable_type_name
-			{
+arith_type_name	:	sizeable_type_name {
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 			  reset_type_attrs();
@@ -2188,36 +2305,51 @@ char_type_decl_entity:symbolic_name
 
 /*---------------------------addition----------------------------*/
 
-use_handle	:	tok_USE
-		;
+use_stmt    :	use_decl
+        |   use_decl ',' rename_list
+        |   use_decl ',' tok_ONLY ':' only_list
+        ;
 
-use_stmt	:	use_handle use_decl
-			{
-			}
-		;
+use_decl    :   tok_USE symbolic_name
+        |   tok_USE module_nature_option symbolic_name
+        ;
 
-use_decl	:	symbolic_name
-		|	symbolic_name ',' module_rename_list
-		| 	symbolic_name ',' tok_ONLY ':' module_only_list
-		;
+module_nature_option:   ':' ':'
+        |   ',' module_nature ':' ':'
+        ;
 
-module_rename_list:	module_rename_item
-		|	module_rename_list ',' module_rename_item 
-		;
+module_nature   :   tok_INTRINSIC
+        |   tok_NONINTRINSIC
+        ;
 
-module_rename_item	:	symbolic_name '=''>' symbolic_name
-		;
+rename_list :   rename
+        |   rename_list ',' rename
+        ;
 
-module_only_list    :   module_only_item	
-                    |   module_only_list ',' module_only_item
-		;
- 
-module_only_item    :   symbolic_name
-                    |   module_rename_item
+rename  :   symbolic_name tok_rightarrow symbolic_name
+        |   tok_OPERATOR '(' local_defined_operator ')'
+                tok_rightarrow tok_OPERATOR '(' use_defined_operator ')'
+        ;
+
+local_defined_operator  :   symbolic_name
+        ;
+                      
+use_defined_operator    :   symbolic_name
+        ;
+
+only_list   :   only
+        |   only_list ',' only
+        ;
+
+only    :   generic_spec
+        |   rename
+        ;
+
+generic_spec    :   tok_OPERATOR '(' local_defined_operator ')'
+        |   '(' '=' ')'
         ;
 
 /*---------------------------------------------------------------*/
-
 
 
 
@@ -4590,6 +4722,7 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	global_save = FALSE;
 	prev_token_class = EOS;
 	complex_const_allowed = FALSE;
+	subprog_suffix_allowed = FALSE;
 	stmt_sequence_no = 0;
 	f90_stmt_sequence_no = 0;
 	true_prev_stmt_line_num = 0;

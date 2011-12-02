@@ -1513,9 +1513,6 @@ do_assigned_GOTO(id)		/* Process assigned_goto */
 }/*do_assigned_GOTO*/
 
 
-
-
-
 void
 #if HAVE_STDC
 do_ENTRY(Token *id, Token *args, int hashno)	/* Processes ENTRY statement */
@@ -1604,6 +1601,12 @@ do_RETURN(hashno,keyword)
 	}
 	return valid;
 }/*do_RETURN*/
+
+/* process suffix part of subprogram declaration */
+void
+do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix)
+{
+}
 
 void
 #if HAVE_STDC

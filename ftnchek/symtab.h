@@ -666,6 +666,10 @@ typedef struct hashEntry {
 		*com_glob_symtab;/* Global symtab entry for common blocks */
 } HashTable;
 
+// used in blockstack to differentiate module and internal subprograms
+typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
+
+
 SYM_SHARED
     int current_prog_unit_hash	/* hashtable index of current prog unit name */
 #ifdef SYMTAB
@@ -980,6 +984,7 @@ PROTO(void do_ASSIGN,( Token *id ));
 PROTO(void do_assigned_GOTO,( Token *id ));
 PROTO(void do_ENTRY,( Token *id, Token *args, int hashno ));
 PROTO(int do_RETURN,( int hashno, Token *keyword ));
+PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix));
 PROTO(void equivalence,( Token *id1, Token *id2 ));
 PROTO(DBLVAL float_expr_value,( Token *t ));
 PROTO(int get_size,( const Lsymtab *symt, int type ));

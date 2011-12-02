@@ -41,7 +41,8 @@ as the "MIT License."
 #include "tokdefs.h"
 #include "forlex.h"
 
-extern int in_attrbased_typedecl; /* shared with fortran.y */
+extern int in_attrbased_typedecl, /* shared with fortran.y */
+	subprog_suffix_allowed;
 
 PROTO( PRIVATE int is_keyword,( int i ));
 
@@ -66,6 +67,7 @@ PROTO( PRIVATE int is_keyword,( int i ));
 		   this flag if there is support in the parser.) */
 #define MB 0x100/* Blanks mandatory between two words (in free form) */
 #define TK 0x200/* Type name that can be followed by kind-spec or len-spec */ 
+#define SX 0x400/* keyword that can only occur in subprogram suffix */
 
 				/* Bisection search done at each
 				   length step requires fixed-length
@@ -113,6 +115,7 @@ PRIVATE struct {
 {"ALLOCATE",	tok_ALLOCATE,	IK | MP | NI | EK,		0},
 {"ASSIGN",	tok_ASSIGN,	IK | NP | EK | NA,		0},
 {"BACKSPACE",	tok_BACKSPACE,	IK | EK,			0},
+{"BIND",	tok_BIND,	NI | EK | MP | NA | SX,		0},
 {"BLOCKDATA",	tok_BLOCKDATA,	IK | EK | NP | NI,		5},
 {"BYTE",	tok_BYTE,	IK | NI | EK | TY,		0},
 {"CALL",	tok_CALL,	IK | NP | EK,			0},
@@ -132,6 +135,7 @@ PRIVATE struct {
 {"DOUBLECOMPLEX",tok_DOUBLECOMPLEX,	IK | NI | EK | TY,	6},
 {"DOUBLEPRECISION",tok_DOUBLEPRECISION,	IK | NI | EK | TY,	6},
 {"DOWHILE",	tok_DOWHILE,	IK | NI | EK | MB,		2},
+{"ELEMENTAL",   tok_ELEMENTAL,  IK | NP | NI,   0},
 {"ELSE",	tok_ELSE,	IK | NP | NI,			0},
 #if 0	/* ELSEIF not lexed: lexes ELSE and IF separately */
 {"ELSEIF",	tok_ELSEIF,	IK | NI | EK | MP | NA,		4},
@@ -155,17 +159,24 @@ PRIVATE struct {
 {"GOTO",	tok_GOTO,	IK | EK,			2},
 {"IF",		tok_IF,		IK | NI | EK | MP | NA | CN,	0},
 {"IMPLICIT",	tok_IMPLICIT,	IK | NP | NI,			0},
+{"IMPURE",  tok_IMPURE,     IK | NP | NI,   0},
+{"IN",	    tok_IN,	IK | NI | NA,		0},
+{"INOUT",	tok_INOUT,	IK | NI | NA,		0},
 {"INCLUDE",	tok_INCLUDE,	IK | NP | NI | EK | NA,		0},
 {"INQUIRE",	tok_INQUIRE,	IK | EK | MP | NA,		0},
 {"INTEGER",	tok_INTEGER,	IK | NI | EK | TY | TK,		0},
+{"INTENT",	tok_INTENT,	    IK | MP | NI | EK,		0},
 {"INTRINSIC",	tok_INTRINSIC,	IK | NP | NI | EK,		0},
 {"LOGICAL",	tok_LOGICAL,	IK | NI | EK | TY | TK,		0},
 {"MODULE",	tok_MODULE,		IK | NP | NI | EK,		0},
 {"NAMELIST",	tok_NAMELIST,	IK | NP | NI | EK,		0},
 {"NONE",	tok_NONE,	IK | NI | EK | TY | NA,		0},
+{"NON_INTRINSIC",	tok_NONINTRINSIC,	IK | NP | NI | EK,		0},
 {"NULLIFY",	tok_NULLIFY,	IK | MP | NI | EK,		0},
 {"ONLY",	tok_ONLY,	IK | NP | NI | EK,		0},
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
+{"OPERATOR",	tok_OPERATOR,	IK | MP | NI | EK,		0},
+{"OUT",	    tok_OUT,	IK | NI | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
 #ifdef ALLOW_CRAY_POINTERS
@@ -173,9 +184,11 @@ PRIVATE struct {
 #endif
 {"PRINT",	tok_PRINT,	IK | EK,			0},
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
+{"PURE",    tok_PURE,   IK | NP | NI,   0},
 {"READ",	tok_READ,	IK | EK,			0},
 {"REAL",	tok_REAL,	IK | NI | EK | TY | TK,		0},
-{"RESULT",	tok_RESULT,	NI | EK | MP | NA,		0},
+{"RECURSIVE",   tok_RECURSIVE,   IK | NP | NI,   0},
+{"RESULT",	tok_RESULT,	NI | EK | MP | NA | SX,		0},
 {"RETURN",	tok_RETURN,	IK | EK,			0},
 {"REWIND",	tok_REWIND,	IK | EK,			0},
 {"SAVE",	tok_SAVE,	IK | NP | NI | EK,		0},
@@ -639,6 +652,14 @@ is_keyword(i)
 	&& (curr_char == ',' || curr_char == ':'));
   }
 
+  /*--------------------- addition ------------------------------*/
+
+  /* look for BIND, RESULT which can only occur in subprog suffix */
+  else if(MATCH(MP) && MATCH(SX) && curr_char == '(') {
+    ans = subprog_suffix_allowed;
+  }
+
+  /*-------------------------------------------------------------*/
 
 				/* END DO: handle its DO here */
   else if( putative_keyword_class == tok_DO && curr_char == EOS ) {
