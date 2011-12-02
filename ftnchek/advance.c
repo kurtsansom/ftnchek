@@ -1,4 +1,4 @@
-/* $Id: advance.c,v 1.30 2005/02/06 21:35:44 moniot Rel $
+/* $Id: advance.c,v 1.30 2005/02/06 21:35:44 moniot Exp $
 
 	Low-level input routines for Fortran program checker.
 
@@ -1499,12 +1499,12 @@ if(debug_lexer && getenv("VERBOSE"))
 
 
 		/* get_comments() in makehtml.c needs to be able to locate
-		 * the source line where the current module is defined.
+		 * the source line where the current prog unit is defined.
 		 * This routine saves a bookmark for it. Called by
-		 * def_curr_module() in symtab.c.  Location can be wrong on
+		 * def_curr_prog_unit() in symtab.c.  Location can be wrong on
 		 * source with #line making nonmonotonic line numbers.
 		 */
-void mark_module_srcline( LINENO_t line_num )
+void mark_prog_unit_srcline( LINENO_t line_num )
 {
      mkhtml_bookmark = curr_srcLine;
      /* due to readahead, curr_srcLine may be after declaration */

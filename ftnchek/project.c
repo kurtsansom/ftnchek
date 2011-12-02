@@ -62,7 +62,7 @@ as the "MIT License."
    definitions, those external references not defined in the current
    file, and only one instance of each common block.  In non-library
    mode, keep, besides the above, one call of a given routine from
-   each module, and all common block declarations.  Setting
+   each prog unit, and all common block declarations.  Setting
    proj_trim_calls to FALSE causes all definitions and calls to be
    kept.  Setting proj_trim_common to FALSE causes all common block
    instances to be kept.  (In this case the action is the same whether
@@ -217,8 +217,8 @@ proj_file_out(fd)
 		  sym_list[i]->set_this_file,
 		  sym_list[i]->invoked_as_func_this_file,
 		  sym_list[i]->declared_external_this_file,
-		  /* N.B. library_module included here but is not restored */
-		  sym_list[i]->library_module,
+		  /* N.B. library_prog_unit included here but is not restored */
+		  sym_list[i]->library_prog_unit,
 		  0,	/* Flags for possible future use */
 		  0,
 		  0);
@@ -276,32 +276,32 @@ proj_alist_out(gsymt,fd,do_defns,locally_defined)
   ArgListElement *arg;
   int i,n;
   unsigned long diminfo;
-  Gsymtab *last_calling_module;
+  Gsymtab *last_calling_prog_unit;
 
 
 		/* This loop runs thru only those arglists that were
 		    created in the current top file. */
-    last_calling_module = NULL;
+    last_calling_prog_unit = NULL;
     while( a != NULL && a->topfile == top_filename) {
 		/* do_defns mode: output only definitions */
      if( (do_defns && a->is_defn) || (!do_defns && !a->is_defn) )
 
 		/* keep only externals not satisfied in this file in -lib
-		   mode, otherwise keep one actual call from each module. */
+		   mode, otherwise keep one actual call from each prog unit. */
     if( ! proj_trim_calls || 
 	(a->is_defn
        || !locally_defined
        || (!library_mode && (a->is_call || a->actual_arg)
-	   && a->module != last_calling_module)) )
+	   && a->prog_unit != last_calling_prog_unit)) )
 
      {
-      last_calling_module = a->module;
+      last_calling_prog_unit = a->prog_unit;
       if(a->is_defn)
 	 (void)fprintf(fd," defn\n");
       else
 	 (void)fprintf(fd," call\n");
 
-      WRITE_STR(" module",a->module->name);
+      WRITE_STR(" prog unit",a->prog_unit->name);
       WRITE_STR(" file",a->filename);
       WRITE_NUM(" line",(long)a->line_num);
       WRITE_NUM(" top",(long)a->top_line_num);
@@ -388,7 +388,7 @@ proj_clist_out(gsymt,fd)
       WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
       WRITE_NUM(" type",(long)datatype_of(gsymt->type));
       NEXTLINE;
-      WRITE_STR(" module",c->module->name);
+      WRITE_STR(" prog unit",c->prog_unit->name);
       WRITE_STR(" file",c->filename);
       WRITE_NUM(" line",(long)c->line_num);
       WRITE_NUM(" top",(long)c->top_line_num);
@@ -569,7 +569,7 @@ proj_arg_info_in(fd,filename,is_defn)
     int is_defn;
 #endif /* HAVE_STDC */
 {
-    char id_name[MAXNAME+1],module_name[MAXNAME+1],sentinel[6];
+    char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1],sentinel[6];
     char file_name[MAXNAME+1];
     char arg_name[MAXNAME+1];
 
@@ -584,11 +584,11 @@ proj_arg_info_in(fd,filename,is_defn)
 	      id_set_flag,
 	      id_invoked,
 	      id_declared,
-	      id_library_module,
+	      id_library_prog_unit,
 	      future1,future2,future3;
 
     unsigned h;
-    Gsymtab *gsymt, *module;
+    Gsymtab *gsymt, *prog_unit;
     unsigned alist_class,alist_type,alist_is_defn,alist_is_call,
        alist_external_decl,alist_actual_arg;
     unsigned alist_line, alist_topline;
@@ -621,7 +621,7 @@ proj_arg_info_in(fd,filename,is_defn)
 	      &id_set_flag,
 	      &id_invoked,
 	      &id_declared,
-	      &id_library_module,
+	      &id_library_prog_unit,
 	      &future1,&future2,&future3) != 8) READ_ERROR;
     NEXTLINE;
 
@@ -639,10 +639,10 @@ id_name,id_class,id_type);
     else if(is_defn)
       gsymt->size = id_size;
 
-		/* Set library_module flag if project file was created
+		/* Set library_prog_unit flag if project file was created
 		   with -lib mode in effect, or is now taken in -lib mode */
-    if(is_defn && (library_mode || id_library_module)) {
-      gsymt->library_module = TRUE;
+    if(is_defn && (library_mode || id_library_prog_unit)) {
+      gsymt->library_prog_unit = TRUE;
     }
     if(is_defn)
       gsymt->defined = TRUE;
@@ -670,7 +670,7 @@ id_name,id_class,id_type);
 
       NEXTLINE;
 
-      READ_STR(" module",module_name);
+      READ_STR(" prog unit",prog_unit_name);
       READ_STR(" file",file_name);
       READ_NUM(" line",alist_line); /* line number */
       READ_NUM(" top",alist_topline); /* topfile line number */
@@ -687,30 +687,30 @@ id_name,id_class,id_type);
  printf("read alist class %d type %d line %d\n",
 alist_class,alist_type,alist_line);
 #endif
-		/* Find current module in symtab. If not there, make
+		/* Find current prog unit in symtab. If not there, make
 		   a global symtab entry for it. It will be filled
 		   in eventually when processing corresponding entry.
 		 */
 
-      h = hash_lookup(module_name);
-      if( (module = hashtab[h].glob_symtab) == NULL) {
-	module = install_global((int)h,type_UNDECL,class_SUBPROGRAM);
+      h = hash_lookup(prog_unit_name);
+      if( (prog_unit = hashtab[h].glob_symtab) == NULL) {
+	prog_unit = install_global((int)h,type_UNDECL,class_SUBPROGRAM);
       }
-      if(module->internal_entry) {
+      if(prog_unit->internal_entry) {
 	warning(NO_LINE_NUM,NO_COL_NUM,
-		"entry point redefined as module");
-	msg_tail(module->name);
+		"entry point redefined as prog unit");
+	msg_tail(prog_unit->name);
 	msg_tail(": redefinition ignored");
       }
       else {
 	if(is_defn) {
-	  if(module != gsymt) {
+	  if(prog_unit != gsymt) {
 #ifdef DEBUG_PROJECT
-	    printf("\nLinking entry %s to module %s",
-		   gsymt->name,module->name);
+	    printf("\nLinking entry %s to prog unit %s",
+		   gsymt->name,prog_unit->name);
 #endif
 	    gsymt->internal_entry = TRUE;
-	    gsymt->link.module=module; /* interior entry: link it to module */
+	    gsymt->link.prog_unit=prog_unit; /* interior entry: link it to prog unit */
 	  }
 	}
 	else {			/* call: add to child list */
@@ -719,19 +719,19 @@ alist_class,alist_type,alist_line);
 		   so it will be the first child on the list.
 		*/
 #ifdef DEBUG_PROJECT
-	  printf("\nChild %s of module %s",
-		 gsymt->name,module->name);
+	  printf("\nChild %s of prog unit %s",
+		 gsymt->name,prog_unit->name);
 #endif
-	  if(module->link.child_list == NULL
-	     || module->link.child_list->child != gsymt) {
+	  if(prog_unit->link.child_list == NULL
+	     || prog_unit->link.child_list->child != gsymt) {
 	    ChildList *node=
 	      (ChildList *)calloc(1,sizeof(ChildList));
 #ifdef DEBUG_PROJECT
 	    printf(" linked in");
 #endif
 	    node->child = gsymt;
-	    node->next = module->link.child_list;
-	    module->link.child_list = node;
+	    node->next = prog_unit->link.child_list;
+	    prog_unit->link.child_list = node;
 	  }
 #ifdef DEBUG_PROJECT
 	  else {
@@ -771,7 +771,7 @@ alist_class,alist_type,alist_line);
       ahead->size = alist_size;
       ahead->numargs = (short)numargs;
       ahead->arg_array = (numargs==0? NULL: alist);
-      ahead->module = module;
+      ahead->prog_unit = prog_unit;
       ahead->topfile = filename;
 			/* try to avoid reallocating space for same name */
       ahead->filename =
@@ -877,7 +877,7 @@ proj_com_info_in(fd,filename)
      char *filename;
 #endif /* HAVE_STDC */
 {
-    char id_name[MAXNAME+1],module_name[MAXNAME+1];
+    char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1];
     char file_name[MAXNAME+1];
     char var_name[MAXNAME+1];
     unsigned id_class,id_type;
@@ -900,7 +900,7 @@ proj_com_info_in(fd,filename)
 		var_future_1;
     long var_size;
       int h;
-      Gsymtab *gsymt, *module;
+      Gsymtab *gsymt, *prog_unit;
       ComListHeader *chead,*prev_chead;
       ComListElement *clist,*prev_clist;
 
@@ -914,7 +914,7 @@ id_name,id_class,id_type);
 #endif
     NEXTLINE;
 
-    READ_STR(" module",module_name);
+    READ_STR(" prog unit",prog_unit_name);
     READ_STR(" file",file_name);
     READ_NUM(" line",clist_line);
     READ_NUM(" top",clist_topline);
@@ -927,7 +927,7 @@ id_name,id_class,id_type);
 
     READ_NUM(" vars",numvars);
 #ifdef DEBUG_PROJECT
- printf("read module %s file %s",module_name,file_name);
+ printf("read prog unit %s file %s",prog_unit_name,file_name);
  printf(" flags %d %d %d %d line %d\n",
 	clist_any_used,
 	clist_any_set,
@@ -952,14 +952,14 @@ id_name,id_class,id_type);
 			     "out of malloc space for common list");
       }
 
-		/* Find current module in symtab. If not there, make
+		/* Find current prog unit in symtab. If not there, make
 		   a global symtab entry for it.  This is bogus, since
-		   all modules should have been defined previously. */
+		   all prog units should have been defined previously. */
 
-      h = hash_lookup(module_name);
-      if( (module = hashtab[h].glob_symtab) == NULL) {
+      h = hash_lookup(prog_unit_name);
+      if( (prog_unit = hashtab[h].glob_symtab) == NULL) {
 	(void)fprintf(stderr,"\nWarning-- something's bogus in project file\n");
-	module = install_global(h,type_UNDECL,class_SUBPROGRAM);
+	prog_unit = install_global(h,type_UNDECL,class_SUBPROGRAM);
       }
 
 			/* Initialize arglist and link it to symtab */
@@ -967,7 +967,7 @@ id_name,id_class,id_type);
       chead->line_num = clist_line;
       chead->top_line_num = clist_topline;
       chead->com_list_array = (numvars==0? NULL: clist);
-      chead->module = module;
+      chead->prog_unit = prog_unit;
       chead->topfile = filename;
       chead->any_used = clist_any_used;
       chead->any_set = clist_any_set;

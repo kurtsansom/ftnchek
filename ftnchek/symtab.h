@@ -388,13 +388,13 @@ SYM_SHARED
   LINENO_t top_file_line_num;
 
 SYM_SHARED
-  int global_save;	/* module contains SAVE with no list */
+  int global_save;	/* prog unit contains SAVE with no list */
 
 		/* Define names for anonymous things */
 #ifdef SYMTAB
 char blank_com_name[] = "%BLANK",  /* id for blank common entry in symtab */
-     unnamed_prog[]="%MAIN",	  /* id for unnamed program module */
-     unnamed_block_data[]="%DAT00";  /* id for unnamed block data module */
+     unnamed_prog[]="%MAIN",	  /* id for unnamed program prog unit */
+     unnamed_block_data[]="%DAT00";  /* id for unnamed block data prog unit */
 int  block_data_number=0;       /* count of multiple anonymous block data */
 #else
 extern char blank_com_name[],
@@ -442,7 +442,7 @@ typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	BYTE type;
 	short numargs;
 	ArgListElement *arg_array;
-	struct gSymtEntry *module;
+	struct gSymtEntry *prog_unit;
 	char *filename,*topfile;
 	LINENO_t line_num,top_line_num;
 	unsigned
@@ -472,7 +472,7 @@ typedef struct CMHead {	/* ComListHeader: head node of common var list */
 	short numargs;
 	LINENO_t line_num,top_line_num;
 	ComListElement *com_list_array;
-	struct gSymtEntry *module;
+	struct gSymtEntry *prog_unit;
 	char *filename,*topfile;
 	struct CMHead *next;
 	unsigned
@@ -601,8 +601,8 @@ typedef struct lSymtEntry{
 	     set_flag: 1,	/* variable is set or passed as subr arg */
 	     assigned_flag: 1,	/* value is really set (by assignment stmt) */
 	     used_before_set: 1,/* set_flag is not set when used_flag is set */
-	     is_current_module: 1, /* this symtab entry is the main module */
-	     library_module: 1,	/* module was processed in -library mode */
+	     is_current_prog_unit: 1, /* this symtab entry is the main prog unit */
+	     library_prog_unit: 1,	/* prog unit was processed in -library mode */
 	     active_do_var: 1,	/* variable is an active DO index */
 	     array_var: 1,	/* variable is dimensioned */
 	     common_var: 1,	/* variable is in common */
@@ -627,8 +627,8 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	char *name;             /* Identifier name in stringspace */
 	InfoUnion info;
 	union {
-	  struct childlist *child_list; /* List of callees (for module) */
-	  struct gSymtEntry *module; /* Module (for interior entry) */
+	  struct childlist *child_list; /* List of callees (for prog unit) */
+	  struct gSymtEntry *prog_unit; /* Prog unit (for interior entry) */
 	} link;
 	long size;
 	BYTE  type;		/* Type & storage class: see macros below */
@@ -638,11 +638,11 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     set_flag: 1,
 	     assigned_flag: 1,
 	     recursive: 1,
-	     library_module: 1,
+	     library_prog_unit: 1,
 	     internal_entry: 1,	/* entry point other than at the top */
 	     invoked_as_func: 1,
 	     visited: 1,	   /* this entry point is in call tree */
-	     visited_somewhere: 1, /* some entry point of module is in call tree */
+	     visited_somewhere: 1, /* some entry point of prog unit is in call tree */
 	     defined: 1,	/* is defined somewhere */
 	     defined_in_include: 1,
 	     declared_external: 1,
@@ -667,7 +667,7 @@ typedef struct hashEntry {
 } HashTable;
 
 SYM_SHARED
-    int current_module_hash	/* hashtable index of current module name */
+    int current_prog_unit_hash	/* hashtable index of current prog unit name */
 #ifdef SYMTAB
  = -1
 #endif
@@ -933,7 +933,7 @@ PROTO(int intrins_arg_cmp,( IntrinsInfo *defn, Token *t));
 
 			/* in advance.c */
 PROTO(int see_double_colon,( void ));
-PROTO(void mark_module_srcline,( LINENO_t line_num ));
+PROTO(void mark_prog_unit_srcline,( LINENO_t line_num ));
 
 			/* in forlex.c */
 PROTO(void implied_id_token,( Token *t, char *s ));
@@ -949,7 +949,7 @@ PROTO(void check_seq_header,( Token *t ));
 PROTO(void print_loc_symbols,( void ));
 
 			/* in makehtml.c */
-PROTO(void make_html,(Lsymtab **sym_list, char *mod_name, Lsymtab *module ));
+PROTO(void make_html,(Lsymtab **sym_list, char *mod_name, Lsymtab *prog_unit ));
 
 			/* in makedcls.c */
 PROTO(void make_declarations,( Lsymtab *sym_list[], char *mod_name ));
@@ -965,7 +965,7 @@ PROTO(void def_arg_name,( Token *id ));
 PROTO(void def_array_dim,( Token *id, Token *arg ));
 PROTO(void def_com_block,( Token *id, Token *comlist ));
 PROTO(void def_com_variable,( Token *id ));
-PROTO(int def_curr_module,( Token *id ));
+PROTO(int def_curr_prog_unit,( Token *id ));
 PROTO(void def_do_variable,( Token *id ));
 PROTO(void def_equiv_name,( Token *id ));
 PROTO(void def_ext_name,( Token *id ));

@@ -54,9 +54,9 @@ as the "MIT License."
 
 				/* Local routines defined. */
 
-PROTO(PRIVATE int block_is_volatile,( ComListHeader *clist, Gsymtab *main_module ));
+PROTO(PRIVATE int block_is_volatile,( ComListHeader *clist, Gsymtab *main_prog_unit ));
 PROTO(PRIVATE ComListHeader * com_tree_check,( Gsymtab *comblock, Gsymtab
-				       *module, int level ));
+				       *prog_unit, int level ));
 PROTO(PRIVATE void visit_child,( Gsymtab *gsymt, int level ));
 PROTO(PRIVATE void visit_child_reflist,( Gsymtab *gsymt ));
 #ifdef VCG_SUPPORT
@@ -68,8 +68,8 @@ PROTO(PRIVATE void print_cycle_nodes,( Gsymtab gsymt[], int nsym, Gsymtab
 			       *node_list[], int node_count, int
 			       parent_count[] ));
 PROTO(PRIVATE int toposort,( Gsymtab gsymt[], int nsym ));
-PROTO(PRIVATE ComListHeader * com_declared_by,( Gsymtab *comblock, Gsymtab *module ));
-PROTO(PRIVATE void print_modules,( unsigned n, Gsymtab *list[] ));
+PROTO(PRIVATE ComListHeader * com_declared_by,( Gsymtab *comblock, Gsymtab *prog_unit ));
+PROTO(PRIVATE void print_prog_units,( unsigned n, Gsymtab *list[] ));
 
 
 
@@ -229,7 +229,7 @@ com_xref_list(VOID)	/* Print cross-reference list of com blocks */
 
 	         if(! irrelevant(cmlist)  &&
 		    (cmlist->any_used || cmlist->any_set))
-		   gsymlist[numentries++] = cmlist->module;
+		   gsymlist[numentries++] = cmlist->prog_unit;
 #ifdef DEBUG_COM_USAGE
 		 print_comvar_usage(cmlist);
 #endif
@@ -237,15 +237,15 @@ com_xref_list(VOID)	/* Print cross-reference list of com blocks */
 
 	      }  /* end of while */
 
-	     if (numentries >0){ /* print modules that declare this block*/
+	     if (numentries >0){ /* print prog units that declare this block*/
 
 	       (void)fprintf(list_fd, "\nCommon Block %s used in:\n" ,
 			blocklist[i]->name );
 
-				/* Sort modules that declare this block */
+				/* Sort prog units that declare this block */
 	       sort_gsymbols(gsymlist,numentries);
 
-	       print_modules((unsigned)numentries,gsymlist);
+	       print_prog_units((unsigned)numentries,gsymlist);
 
 	     }  /* end of if numentries >0 */
 
@@ -263,8 +263,8 @@ visit_children(VOID)
 {
   int i,
 	num_mains,		/* number of main programs */
-	num_roots;		/* number of uncalled nonlibrary modules */
-  Gsymtab* main_module;
+	num_roots;		/* number of uncalled nonlibrary prog units */
+  Gsymtab* main_prog_unit;
   
   num_roots =  0;
   for(i=0; i<glob_symtab_top; i++) {
@@ -272,9 +272,9 @@ visit_children(VOID)
        && ! glob_symtab[i].internal_entry) {
       glob_symtab[i].link.child_list=
 	sort_child_list(glob_symtab[i].link.child_list);
-	/* Count defined but uncalled non-library modules for use later */
+	/* Count defined but uncalled non-library prog units for use later */
       if(glob_symtab[i].defined && !glob_symtab[i].used_flag &&
-	 !glob_symtab[i].library_module)
+	 !glob_symtab[i].library_prog_unit)
 	  ++num_roots;	/* Count tree roots for use if no mains */
     }
   }
@@ -297,15 +297,15 @@ visit_children(VOID)
 				/* Visit children of all main progs */
   for(i=0,num_mains=0; i<glob_symtab_top; i++) {
     if(glob_symtab[i].type == type_byte(class_SUBPROGRAM,type_PROGRAM)) {
-      main_module = &glob_symtab[i];
+      main_prog_unit = &glob_symtab[i];
       if(print_ref_list)
-	visit_child_reflist(main_module);
+	visit_child_reflist(main_prog_unit);
 #ifdef VCG_SUPPORT
       else if(print_vcg_list)
-	visit_child_vcg(main_module,1);
+	visit_child_vcg(main_prog_unit,1);
 #endif
       else
-	visit_child(main_module,0);
+	visit_child(main_prog_unit,0);
       ++num_mains;
     }
   }
@@ -325,14 +325,14 @@ visit_children(VOID)
     }
 		/* If no main, visit trees rooted at uncalled
 		   nonlibrary routines, as the next best thing.
-		   If there are no uncalled nonlib modules, use
+		   If there are no uncalled nonlib prog units, use
 		   uncalled library routines.  If there are no uncalled
 		   routines, then there is a cycle!
 		 */
     for(i=0; i<glob_symtab_top; i++) {
       if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM
 	&& glob_symtab[i].defined && !glob_symtab[i].used_flag &&
-	 (num_roots == 0 || !glob_symtab[i].library_module) ) {
+	 (num_roots == 0 || !glob_symtab[i].library_prog_unit) ) {
 	if(print_ref_list)
 	  visit_child_reflist(&glob_symtab[i]);
 #ifdef VCG_SUPPORT
@@ -353,13 +353,13 @@ visit_children(VOID)
 
 
 			/* Print list of callers of all visited
-			   or non-library modules, if -crossref
+			   or non-library prog units, if -crossref
 			   flag given. */
   if(print_xref_list) {
     print_crossrefs();
   }
 
-			/* Print linkage-order list of modules. */
+			/* Print linkage-order list of prog units. */
   if( print_topo_sort ) {
     (void) toposort(glob_symtab,(int)glob_symtab_top);
   }
@@ -383,7 +383,7 @@ visit_children(VOID)
       }
       for(i=0; i<glob_symtab_top; i++) {
 	if(storage_class_of(glob_symtab[i].type) == class_COMMON_BLOCK) {
-	  if( block_is_volatile(glob_symtab[i].info.comlist,main_module) ) {
+	  if( block_is_volatile(glob_symtab[i].info.comlist,main_prog_unit) ) {
 	    if(comcheck_volatile) {
 	      (void)fprintf(list_fd,
 		   "\nCommon block %s is volatile",
@@ -391,7 +391,7 @@ visit_children(VOID)
 	    }
 	    if(check_com_tree) {
 	      com_tree_error=0;
-	      (void)com_tree_check(&glob_symtab[i],main_module,0);
+	      (void)com_tree_check(&glob_symtab[i],main_prog_unit,0);
 	    }
 	  }
 	}
@@ -400,22 +400,22 @@ visit_children(VOID)
   }
 }
 
-	/* Returns TRUE unless block is SAVED by any module, or declared by
+	/* Returns TRUE unless block is SAVED by any prog unit, or declared by
 	   the actual main program or in a BLOCK DATA subprogram. */
 PRIVATE int
 #if HAVE_STDC
-block_is_volatile(ComListHeader *clist, Gsymtab *main_module)
+block_is_volatile(ComListHeader *clist, Gsymtab *main_prog_unit)
 #else /* K&R style */
-block_is_volatile(clist,main_module)
+block_is_volatile(clist,main_prog_unit)
      ComListHeader *clist;
-     Gsymtab *main_module;
+     Gsymtab *main_prog_unit;
 #endif /* HAVE_STDC */
 {
   int t;
   while(clist != NULL) {
     if( clist->saved ||
-       (t=datatype_of(clist->module->type)) == type_BLOCK_DATA
-       || (t == type_PROGRAM && clist->module == main_module)) {
+       (t=datatype_of(clist->prog_unit->type)) == type_BLOCK_DATA
+       || (t == type_PROGRAM && clist->prog_unit == main_prog_unit)) {
       return FALSE;
     }
     clist = clist->next;
@@ -423,19 +423,19 @@ block_is_volatile(clist,main_module)
   return TRUE;
 }
 
- /* If block declared by module, returns pointer to the comlist
+ /* If block declared by prog unit, returns pointer to the comlist
     header which describes it.  Otherwise returns NULL. */
 PRIVATE ComListHeader *
 #if HAVE_STDC
-com_declared_by(Gsymtab *comblock, Gsymtab *module)
+com_declared_by(Gsymtab *comblock, Gsymtab *prog_unit)
 #else /* K&R style */
-com_declared_by(comblock,module)
-     Gsymtab *comblock,*module;
+com_declared_by(comblock,prog_unit)
+     Gsymtab *comblock,*prog_unit;
 #endif /* HAVE_STDC */
 {
   ComListHeader *clist=comblock->info.comlist;
   while(clist != NULL) {
-    if(clist->module == module) {
+    if(clist->prog_unit == prog_unit) {
       if(clist->saved) {
 	com_tree_error = TRUE;	/* not so, but causes bailout */
       }
@@ -448,16 +448,16 @@ com_declared_by(comblock,module)
 
 
 		/* Checks whether common block can become undefined
-		   between activations of some module that declares it.
+		   between activations of some prog unit that declares it.
 		   Should only be done for blocks that are volatile, i.e.
 		   that are not SAVED or declared in main or block_data.
 		   Rules used are:
 		     (1) Block is declared in two subtrees whose roots
-		         are called by a given module, and not in
-			 the given module itself or above.
-		     (2) Block is declared and elements accessed in a module
-		         called by a given module, and not declared in the
-			 module itself or above.  (Module that declares it but
+		         are called by a given prog unit, and not in
+			 the given prog unit itself or above.
+		     (2) Block is declared and elements accessed in a prog unit
+		         called by a given prog unit, and not declared in the
+			 prog unit itself or above.  (Prog unit that declares it but
 			 does not access elements, can be holding the
 			 block active for its children.)
 		   Since Rule 2 is likely to be wrong often due to Ftnchek's
@@ -466,10 +466,10 @@ com_declared_by(comblock,module)
 		*/
 PRIVATE ComListHeader *
 #if HAVE_STDC
-com_tree_check(Gsymtab *comblock, Gsymtab *module, int level)
+com_tree_check(Gsymtab *comblock, Gsymtab *prog_unit, int level)
 #else /* K&R style */
-com_tree_check(comblock,module,level)
-     Gsymtab *comblock,*module;
+com_tree_check(comblock,prog_unit,level)
+     Gsymtab *comblock,*prog_unit;
      int level;
 #endif /* HAVE_STDC */
 {
@@ -479,16 +479,16 @@ com_tree_check(comblock,module,level)
 	   a full-fledged cycle detector just a stopper. */
   if(level > numvisited) {
     (void)fprintf(list_fd,
-	    "\nWarning: Call tree has a cycle containing module %s\n",
-	    module->name);
+	    "\nWarning: Call tree has a cycle containing prog unit %s\n",
+	    prog_unit->name);
     com_tree_error = TRUE;
     return NULL;
   }
 
-		/* If this module declares the block, return its clist */
-  if( (clist=com_declared_by(comblock,module)) != NULL) {
+		/* If this prog unit declares the block, return its clist */
+  if( (clist=com_declared_by(comblock,prog_unit)) != NULL) {
 #ifdef DEBUG_SAVE
-      (void)fprintf(list_fd,"\n%s declared by %s",comblock->name,module->name);
+      (void)fprintf(list_fd,"\n%s declared by %s",comblock->name,prog_unit->name);
 #endif
     return clist;
   }
@@ -500,7 +500,7 @@ com_tree_check(comblock,module,level)
     any_child_declares_it=FALSE;
     declaring_clist=NULL;
 				/* Scan list of children */
-    child_list = (module->internal_entry?module->link.module:module)
+    child_list = (prog_unit->internal_entry?prog_unit->link.prog_unit:prog_unit)
 		   ->link.child_list;
     while(child_list != NULL) {
       this_clist = com_tree_check(comblock,child_list->child,level+1);
@@ -524,8 +524,8 @@ com_tree_check(comblock,module,level)
 	  }
 	  (void)fprintf(list_fd,"\n        ");
 	  (void)fprintf(list_fd,
-		  "Not declared in parent module %s",
-		  module->name);
+		  "Not declared in parent prog unit %s",
+		  prog_unit->name);
 	  com_tree_error = TRUE;
 	  return NULL;
 	}
@@ -596,7 +596,7 @@ visit_child(gsymt,level)
             else
                ( void ) fprintf( htmlcalltree_fd, "%*.*s<A href=\"%s#%s\">",
                                  level * 4, level * 4, " ",
-                                 fname, gsymt->link.module->name );
+                                 fname, gsymt->link.prog_unit->name );
             terminate_href = 1;
             }
          else
@@ -609,10 +609,10 @@ visit_child(gsymt,level)
     }
     if(gsymt->internal_entry)
       {
-      (void)fprintf(list_fd,"%s entry ",gsymt->link.module->name);
+      (void)fprintf(list_fd,"%s entry ",gsymt->link.prog_unit->name);
          if ( htmlcalltree_fd )
             ( void ) fprintf( htmlcalltree_fd, "%s entry ",
-                              gsymt->link.module->name );      
+                              gsymt->link.prog_unit->name );      
       }
     (void)fprintf(list_fd,"%s",gsymt->name);
     if ( htmlcalltree_fd )
@@ -623,7 +623,7 @@ visit_child(gsymt,level)
             {
 	       if(fname)
 		  ( void ) fprintf( htmlcalltree_fd, "<A href=\"%s#%s\">%s",
-                              fname, gsymt->link.module->name, gsymt->name );
+                              fname, gsymt->link.prog_unit->name, gsymt->name );
             }
           else
             {  
@@ -643,9 +643,9 @@ visit_child(gsymt,level)
 
 				/* Visit its unvisited children.  Note
 				   that children of internal entry are
-				   taken as those of its superior module.
+				   taken as those of its superior prog unit.
 				 */
-  child_list = (gsymt->internal_entry?gsymt->link.module:gsymt)
+  child_list = (gsymt->internal_entry?gsymt->link.prog_unit:gsymt)
 		   ->link.child_list;
 
 				/* If already visited, do not visit its
@@ -669,10 +669,10 @@ visit_child(gsymt,level)
   else {
 				/* Mark node as visited */
     gsymt->visited = TRUE;
-				/* Record that containing module
+				/* Record that containing prog unit
 				   is visited via this entry point*/
     if(gsymt->internal_entry)
-      gsymt->link.module->visited_somewhere = TRUE;
+      gsymt->link.prog_unit->visited_somewhere = TRUE;
     else
       gsymt->visited_somewhere = TRUE;
 
@@ -722,7 +722,7 @@ visit_child_reflist(gsymt)
 {
   ChildList *child_list;
 
-  child_list = (gsymt->internal_entry?gsymt->link.module:gsymt)
+  child_list = (gsymt->internal_entry?gsymt->link.prog_unit:gsymt)
                    ->link.child_list;
 
                                 /* If already visited, do not visit its
@@ -731,10 +731,10 @@ visit_child_reflist(gsymt)
   if(!gsymt->visited) {
                                 /* Mark node as visited */
     gsymt->visited = TRUE;
-                                /* Record that containing module
+                                /* Record that containing prog unit
                                    is visited via this entry point*/
     if(gsymt->internal_entry)
-      gsymt->link.module->visited_somewhere = TRUE;
+      gsymt->link.prog_unit->visited_somewhere = TRUE;
     else
       gsymt->visited_somewhere = TRUE;
 
@@ -770,7 +770,7 @@ visit_child_reflist(gsymt)
 	    (void)fprintf(list_fd," none");
       else {
 	    (void)fprintf(list_fd,"\n");
-	    print_modules(numcalls,gsymlist);
+	    print_prog_units(numcalls,gsymlist);
       }
 #ifdef DYNAMIC_TABLES
       (void) cfree(gsymlist);
@@ -809,7 +809,7 @@ visit_child_vcg(gsymt,level)
   ArgListHeader *arglist;
   ChildList *child_list;
 
-  child_list = (gsymt->internal_entry?gsymt->link.module:gsymt)
+  child_list = (gsymt->internal_entry?gsymt->link.prog_unit:gsymt)
                    ->link.child_list;
 
                                 /* If already visited, do not visit its
@@ -818,10 +818,10 @@ visit_child_vcg(gsymt,level)
   if(!gsymt->visited) {
                                 /* Mark node as visited */
     gsymt->visited = TRUE;
-                                /* Record that containing module
+                                /* Record that containing prog unit
                                    is visited via this entry point*/
     if(gsymt->internal_entry)
-      gsymt->link.module->visited_somewhere = TRUE;
+      gsymt->link.prog_unit->visited_somewhere = TRUE;
     else
       gsymt->visited_somewhere = TRUE;
 
@@ -916,9 +916,9 @@ PRIVATE void
 print_crossrefs(VOID)
 {
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
-      Gsymtab  **gsymlist, **modulelist;
+      Gsymtab  **gsymlist, **prog_unitlist;
 #else
-  Gsymtab  *gsymlist[GLOBSYMTABSZ], *modulelist[GLOBSYMTABSZ];
+  Gsymtab  *gsymlist[GLOBSYMTABSZ], *prog_unitlist[GLOBSYMTABSZ];
 #endif
   ArgListHeader *args;
   int  i,numentries;
@@ -927,7 +927,7 @@ print_crossrefs(VOID)
 #ifdef DYNAMIC_TABLES
       if( (gsymlist=(Gsymtab **)calloc(glob_symtab_top,sizeof(Gsymtab *)))
 	 == (Gsymtab **)NULL ||
-	 (modulelist=(Gsymtab **)calloc(glob_symtab_top,sizeof(Gsymtab *)))
+	 (prog_unitlist=(Gsymtab **)calloc(glob_symtab_top,sizeof(Gsymtab *)))
 	 == (Gsymtab **)NULL) {
 	  oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
 		       "Cannot malloc space for crossref list");
@@ -937,7 +937,7 @@ print_crossrefs(VOID)
 				/* Gather up all relevant subprograms */
   for(i=0,numentries=0; i<glob_symtab_top; i++) {
     if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM
-       && (glob_symtab[i].visited || !glob_symtab[i].library_module)) {
+       && (glob_symtab[i].visited || !glob_symtab[i].library_prog_unit)) {
       gsymlist[numentries++] = &glob_symtab[i];
     }
   }
@@ -952,7 +952,7 @@ print_crossrefs(VOID)
     for(i=0; i<numentries; i++) {
       (void)fprintf(list_fd,"\n");
       if(gsymlist[i]->internal_entry)
-	(void)fprintf(list_fd,"%s entry ",gsymlist[i]->link.module->name);
+	(void)fprintf(list_fd,"%s entry ",gsymlist[i]->link.prog_unit->name);
       (void)fprintf(list_fd,"%s",gsymlist[i]->name);
 
       numcalls=0;
@@ -960,8 +960,8 @@ print_crossrefs(VOID)
       while(args != NULL) {		/* Gather up callers */
 	if(!args->is_defn) {
 				/* (eliminate duplicates) */
-	  if(numcalls==0 || args->module != modulelist[numcalls-1])
-	    modulelist[numcalls++] = args->module;
+	  if(numcalls==0 || args->prog_unit != prog_unitlist[numcalls-1])
+	    prog_unitlist[numcalls++] = args->prog_unit;
 	}
 	args = args->next;
       }
@@ -973,15 +973,15 @@ print_crossrefs(VOID)
       }
       else {
 	(void)fprintf(list_fd," called by:\n");
-	sort_gsymbols(modulelist,numcalls); /* Sort the callers */
-	print_modules(numcalls,modulelist);
+	sort_gsymbols(prog_unitlist,numcalls); /* Sort the callers */
+	print_prog_units(numcalls,prog_unitlist);
       }
     }
     (void)fprintf(list_fd,"\n");
   }
 #ifdef DYNAMIC_TABLES
       (void) cfree(gsymlist);
-      (void) cfree(modulelist);
+      (void) cfree(prog_unitlist);
 #endif
 }
 
@@ -1003,7 +1003,7 @@ toposort(gsymt,nsym)
 {
   int i,num_nodes, node_count;
   ChildList *child_list;
-  Gsymtab *child_module;	/* Called module's top entry point */
+  Gsymtab *child_prog_unit;	/* Called prog unit's top entry point */
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
   int *parent_count;
   Gsymtab **node_list;
@@ -1018,12 +1018,12 @@ toposort(gsymt,nsym)
 	 (node_list=(Gsymtab **)calloc(glob_symtab_top,sizeof(Gsymtab *)))
 	 == (Gsymtab **)NULL) {
 	  oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
-		       "Cannot malloc space for module sort");
+		       "Cannot malloc space for prog unit sort");
       }
 #endif
 			/* Initialize array of links/counts */
   for(i=0; i<nsym; i++)
-    parent_count[i] = 0;	/* In-order of module as node */
+    parent_count[i] = 0;	/* In-order of prog unit as node */
 
 			/* Traverse child lists, incrementing their
 			   parent counts.
@@ -1035,9 +1035,9 @@ toposort(gsymt,nsym)
       while(child_list != NULL) {
 				/* If child is an internal entry, substitute
 				   top entry point of its subprogram unit. */
-	if( (child_module=child_list->child)->internal_entry )
-	  child_module = child_module->link.module;
-	++parent_count[child_module - gsymt]; /* index into table */
+	if( (child_prog_unit=child_list->child)->internal_entry )
+	  child_prog_unit = child_prog_unit->link.prog_unit;
+	++parent_count[child_prog_unit - gsymt]; /* index into table */
 	child_list = child_list->next;
       }
     }
@@ -1049,7 +1049,7 @@ toposort(gsymt,nsym)
 
     for(i=0; i<nsym; i++) {
       if(gsymt[i].visited_somewhere && parent_count[i] == 0) {
-	parent_count[i] = top;	/* Link now-parentless module into stack */
+	parent_count[i] = top;	/* Link now-parentless prog unit into stack */
 	top = i+1;
       }
     }
@@ -1064,7 +1064,7 @@ toposort(gsymt,nsym)
       j = top-1;
       top = parent_count[j];	/* Recover the link */
 
-				/* Print the next module */
+				/* Print the next prog unit */
       if(print_topo_sort) {
 	node_list[node_count++] = &gsymt[j];
 	parent_count[j] = -1;
@@ -1072,9 +1072,9 @@ toposort(gsymt,nsym)
 			/* Decrease parent count of its children */
       child_list = gsymt[j].link.child_list;
       while(child_list != NULL) {
-	if( (child_module=child_list->child)->internal_entry )
-	  child_module = child_module->link.module;
-	k = child_module - gsymt;
+	if( (child_prog_unit=child_list->child)->internal_entry )
+	  child_prog_unit = child_prog_unit->link.prog_unit;
+	k = child_prog_unit - gsymt;
 	if(--parent_count[k] == 0) { /* Now parentless? Stack it*/
 	  parent_count[k] = top;
 	  top = k+1;
@@ -1085,8 +1085,8 @@ toposort(gsymt,nsym)
   }/*end sort*/
 
   if(print_topo_sort && node_count > 0) {
-    (void)fprintf(list_fd,"\nList of called modules in prerequisite order:\n");
-    print_modules(node_count,node_list);
+    (void)fprintf(list_fd,"\nList of called prog units in prerequisite order:\n");
+    print_prog_units(node_count,node_list);
     (void)fprintf(list_fd,"\n");
   }
 
@@ -1122,8 +1122,8 @@ print_cycle_nodes(gsymt,nsym,node_list,node_count,parent_count)
     }
   }
   if(k > node_count)
-    (void)fprintf(list_fd," containing some of the following modules:\n");
-  print_modules(k-node_count,node_list+node_count);
+    (void)fprintf(list_fd," containing some of the following prog units:\n");
+  print_prog_units(k-node_count,node_list+node_count);
 }
 
 
@@ -1187,9 +1187,9 @@ sort_child_list(child_list)
 
 PRIVATE void
 #if HAVE_STDC
-print_modules(unsigned int n, Gsymtab **list)    /* formatting of module names */
+print_prog_units(unsigned int n, Gsymtab **list)    /* formatting of prog unit names */
 #else /* K&R style */
-print_modules(n,list)    /* formatting of module names */
+print_prog_units(n,list)    /* formatting of prog unit names */
 	unsigned n;
 	Gsymtab *list[];
 #endif /* HAVE_STDC */
@@ -1199,13 +1199,13 @@ print_modules(n,list)    /* formatting of module names */
 
         for (j=0;j<n;j++){
 	  if(list[j]->internal_entry) {
-		 len=strlen(list[j]->link.module->name);
+		 len=strlen(list[j]->link.prog_unit->name);
 		 col+= len= (len<=10? 10:len) +9;
 		 if (col >78){
 			fprintf(list_fd, "\n");
 			col = len;
 		 } /* end of if */
-		 fprintf(list_fd,"   %10s entry",list[j]->link.module->name);
+		 fprintf(list_fd,"   %10s entry",list[j]->link.prog_unit->name);
 		 len=strlen(list[j]->name)+1;
 		 col+= len;
 		 if (col >78){

@@ -144,13 +144,16 @@ extern LINENO_t prev_stmt_line_num; /* shared with advance */
 LINENO_t true_prev_stmt_line_num;	/* shared with symtab.c */
 
 PRIVATE int
-    current_module_type,
+    current_prog_unit_type,
     executable_stmt=FALSE,
     prev_stmt_class=0,		 /* flags for lexer */
     labeled_stmt_type,		 /* for label handling */
     if_line_num, if_col_num,	/* for picky construct-usage warnings */
     prev_goto=FALSE,
-    goto_flag=FALSE;	/* if unconditional GOTO was encountered */
+    goto_flag=FALSE,	/* if unconditional GOTO was encountered */
+/*---------------addition-----------------------------*/
+    inside_function=FALSE;	/* is inside a function */
+/*----------------------------------------------------*/
 
 int 
     complex_const_allowed=FALSE, /* for help in lookahead for these */
@@ -390,7 +393,7 @@ stmt_list_item	:	ordinary_stmt
 				/* Create id token for prog if unnamed.  NOTE:
 				   this clobbers $1.class, value, src_text.
 				 */
-			  if(current_module_hash == -1) {
+			  if(current_prog_unit_hash == -1) {
 			    implied_id_token(&($1),unnamed_prog);
 			    def_function(
 					 type_PROGRAM,	/* type */
@@ -398,9 +401,9 @@ stmt_list_item	:	ordinary_stmt
 					 (char *)NULL,	/* size text */
 					 &($1),		/* name */
 					 (Token*)NULL);	/* args */
-			    current_module_hash =
-			      def_curr_module(&($1));
-			    current_module_type = type_PROGRAM;
+			    current_prog_unit_hash =
+			      def_curr_prog_unit(&($1));
+			    current_prog_unit_type = type_PROGRAM;
 
 				/* Pretend this is a PROGRAM statement */
 			    if(style_req_prog_stmt) {
@@ -408,7 +411,7 @@ stmt_list_item	:	ordinary_stmt
 			"Program does not start with a PROGRAM statement");
 			    }
 			    push_block(&($$),tok_PROGRAM,subprog,
-				       hashtab[current_module_hash].name,
+				       hashtab[current_prog_unit_hash].name,
 				       NO_LABEL);
 				/* It is possible for a block construct to
 				   be the initial statement, and if so it
@@ -430,7 +433,7 @@ stmt_list_item	:	ordinary_stmt
 					 */
 			  if(curr_stmt_class == tok_END) {
 			    if(prev_stmt_class != tok_RETURN)
-			      (void)do_RETURN(current_module_hash,&($1));
+			      (void)do_RETURN(current_prog_unit_hash,&($1));
 			    pop_block(&($$),$$.tclass,
 				      curr_stmt_name,NO_LABEL);
 
@@ -522,7 +525,7 @@ unlabeled_stmt	:	subprogram_header
 			    executable_stmt = FALSE;
 			    labeled_stmt_type = LAB_SPECIFICATION;
 			    push_block(&($1),$1.tclass,subprog,
-				       hashtab[current_module_hash].name,
+				       hashtab[current_prog_unit_hash].name,
 				       NO_LABEL);
 			}
 		|	specification_stmt
@@ -571,29 +574,36 @@ unlabeled_stmt	:	subprogram_header
 			}
 		|	module_stmt
 			{
-
+			    exec_stmt_count = 0;
+			    executable_stmt = FALSE;
+			    labeled_stmt_type = LAB_SPECIFICATION;
+			    push_block(&($1),$1.tclass,subprog,
+				       hashtab[current_prog_unit_hash].name,
+				       NO_LABEL);
+				current_prog_unit_type = type_MODULE;
 			}
 		|	contains_stmt
 			{
-				executable_stmt = FALSE;
 			}
 		;
 
 subprogram_header:	prog_stmt
 			{
-			    current_module_type = type_PROGRAM;
+			    current_prog_unit_type = type_PROGRAM;
 			}
 		|	function_stmt
 			{
-			    current_module_type = type_SUBROUTINE;
+			    current_prog_unit_type = type_SUBROUTINE;
+				inside_function = TRUE;
 			}
 		|	subroutine_stmt
 			{
-			    current_module_type = type_SUBROUTINE;
+			    current_prog_unit_type = type_SUBROUTINE;
+				inside_function = FALSE;
 			}
 		|	block_data_stmt
 			{
-			    current_module_type = type_BLOCK_DATA;
+			    current_prog_unit_type = type_BLOCK_DATA;
 			}
 		;
 
@@ -963,8 +973,8 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 					  (char *)NULL,	/* size text */
 					  &($3),	/* name */
 					  (Token*)NULL);/* args */
-			     current_module_hash =
-			       def_curr_module(&($3));
+			     current_prog_unit_hash =
+			       def_curr_prog_unit(&($3));
 			}
 		;
 
@@ -975,12 +985,12 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 entry_stmt	:	tok_ENTRY symbolic_name EOS
 			{
 			  do_ENTRY(&($2),(Token*)NULL
-				   ,current_module_hash);
+				   ,current_prog_unit_hash);
 			}
 		|	tok_ENTRY symbolic_name '(' dummy_argument_list ')' EOS
 			{
 			  do_ENTRY(&($2),&($4)
-				   ,current_module_hash);
+				   ,current_prog_unit_hash);
 #ifdef DEBUG_PARSER
 			     if(debug_parser)
 				print_exprlist("entry stmt",&($4));
@@ -1009,8 +1019,8 @@ unlabeled_function_stmt
 				      current_len_text,
 				      &($2),
 				      (Token*)NULL);
-			 current_module_hash=
-			   def_curr_module(&($2));
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($2));
 			}
 		|	typed_function_handle symbolic_name
 				'(' dummy_argument_list ')' EOS
@@ -1021,8 +1031,8 @@ unlabeled_function_stmt
 				      current_len_text,
 				      &($2),
 				      &($4));
-			 current_module_hash=
-			   def_curr_module(&($2));
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
 			 if(debug_parser)
 			   print_exprlist("function stmt",&($4));
@@ -1042,8 +1052,8 @@ unlabeled_function_stmt
 				      (char *)NULL,
 				      &($2),
 				      (Token*)NULL);
-			 current_module_hash=
-			   def_curr_module(&($2));
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($2));
 			}
 		|	plain_function_handle symbolic_name
 				'(' dummy_argument_list ')' EOS
@@ -1054,8 +1064,8 @@ unlabeled_function_stmt
 				      (char *)NULL,	/* size text */
 				      &($2),		/* name */
 				      &($4));		/* args */
-			 current_module_hash=
-			   def_curr_module(&($2));
+			 current_prog_unit_hash=
+			   def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
 			 if(debug_parser)
 			   print_exprlist("function stmt",&($4));
@@ -1087,11 +1097,7 @@ type_name	:	arith_type_name
 /* 11 not present: see 9 */
 
 /*---------------- addition------------------*/
-module_stmt	:	unlabeled_module_stmt
-		;
-
-unlabeled_module_stmt
-		:	module_handle symbolic_name EOS
+module_stmt	: tok_MODULE symbolic_name EOS
 			{
 			  def_function(
 				       type_MODULE,
@@ -1099,18 +1105,12 @@ unlabeled_module_stmt
 				       (char *)NULL,
 				       &($2),
 				       (Token*)NULL);
-			  current_module_hash=
-			    def_curr_module(&($2));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
 			}
 		;
 
-module_handle:	tok_MODULE
-			{
-			  check_seq_header(&($1));
-			}
-		;
 /*-----------------------------------------------------*/
-
 
 /* 12 */
 subroutine_stmt	:	unlabeled_subroutine_stmt
@@ -1125,8 +1125,8 @@ unlabeled_subroutine_stmt
 				       (char *)NULL,
 				       &($2),
 				       (Token*)NULL);
-			  current_module_hash=
-			    def_curr_module(&($2));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
 			}
 		|	subroutine_handle symbolic_name
 				'(' dummy_argument_list ')' EOS
@@ -1137,8 +1137,8 @@ unlabeled_subroutine_stmt
 				       (char *)NULL,
 				       &($2),
 				       &($4));
-			  current_module_hash=
-			    def_curr_module(&($2));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
 			  if(debug_parser)
 			    print_exprlist("subroutine stmt",&($4));
@@ -1201,8 +1201,8 @@ block_data_stmt	:	block_data_handle EOS
 				       (char *)NULL,
 				       &($1),
 				       (Token*)NULL);
-			  current_module_hash=
-			    def_curr_module(&($1));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($1));
 			}
 		|	block_data_handle symbolic_name EOS
 			{
@@ -1212,8 +1212,8 @@ block_data_stmt	:	block_data_handle EOS
 				       (char *)NULL,
 				       &($2),
 				       (Token*)NULL);
-			  current_module_hash=
-			    def_curr_module(&($2));
+			  current_prog_unit_hash=
+			    def_curr_prog_unit(&($2));
 			}
 		;
 
@@ -3688,11 +3688,11 @@ subr_arg	:	expr
 /* 72 */
 return_stmt	:	tok_RETURN EOS
 			{
-			  (void)do_RETURN(current_module_hash,&($1));
+			  (void)do_RETURN(current_prog_unit_hash,&($1));
 			}
 		|	tok_RETURN integer_expr EOS
 			{
-			  if( do_RETURN(current_module_hash,&($1)) ) {
+			  if( do_RETURN(current_prog_unit_hash,&($1)) ) {
 
 				/* Warn if alternate return value is a constant
 				   that is not between 0 and the number of
@@ -4735,7 +4735,7 @@ process_attrs(Token *t,Token *dim_bounds)
 	/* After having parsed end_stmt, common block lists and
 	   subprogram argument lists are copied over into global symbol
 	   table, the local symbol table is printed out and then cleared,
-	   and stmt_sequence_no is set to zero for start of next module.
+	   and stmt_sequence_no is set to zero for start of next prog_unit.
 	*/
 
 PRIVATE void
@@ -4746,14 +4746,64 @@ END_processing(t)
 	Token *t;
 #endif /* HAVE_STDC */
 {
-  ++tot_module_count;
-  if(current_module_hash != -1) {
+  ++tot_prog_unit_count;
+  if(current_prog_unit_hash != -1) {
         if(exec_stmt_count == 0 &&
-	   current_module_type != type_BLOCK_DATA) {
+	   current_prog_unit_type != type_BLOCK_DATA) {
+/*------------------ addition ------------------ */
+	   //current_prog_unit_type != type_MODULE) {
+/*----------------------------------------------*/
 	  if(misc_warn)
+/*
 	    warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
 		  "Module contains no executable statements");
+*/
+		switch (current_prog_unit_type) {
+		case type_PROGRAM:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Program");
+			break;
+		case type_MODULE:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Module");
+			break;
+/* functions and subroutines are type_SUBROUTINE */
+		case type_SUBROUTINE:
+			if (inside_function)
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Function");
+			else
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Subroutine");
+			break;
+		default:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Unrecognized END statement");
+		}
+		msg_tail("contains no executable statements");
+
+/*------------------ addition -----------------------*
+		switch (t->tclass) {
+		case tok_ENDPROGRAM:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Program");
+			break;
+		case tok_ENDSUBROUTINE:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Subroutine");
+			break;
+		case tok_ENDFUNCTION:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Function");
+			break;
+		default:
+	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
+		  	"Unrecognized END statement");
+		}
+		msg_tail("contains no executable statements");
+*-----------------------------------------------------*/
 	}
+
 	if(do_list && t != (Token *)NULL) {
 	    (void)flush_end_stmt(t->line_num);
 	}
@@ -4761,9 +4811,9 @@ END_processing(t)
 	doing_end_proc = TRUE;	/* Set flag for special error message mode */
 
 			/* Catch things that had to wait till now */
-	check_loose_ends(current_module_hash);
+	check_loose_ends(current_prog_unit_hash);
 			/* Put arg and com lists into global table */
-	process_lists(current_module_hash);
+	process_lists(current_prog_unit_hash);
 			/* Print symbol table for debug */
 	debug_symtabs();
 			/* Print local symbol table and do local warnings */
@@ -4776,7 +4826,7 @@ END_processing(t)
   exec_stmt_count = 0;
   stmt_sequence_no = 0;
   f90_stmt_sequence_no = 0;
-  current_module_hash = -1;
+  current_prog_unit_hash = -1;
   implicit_type_given = FALSE;
   implicit_none = FALSE;
   true_prev_stmt_line_num = 0;
@@ -5005,6 +5055,7 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
       if(opener_class != tok_SUBROUTINE
 	 && opener_class != tok_FUNCTION
 	 && opener_class != tok_PROGRAM
+	 && opener_class != tok_MODULE
 	 && opener_class != tok_BLOCKDATA) {
 	  syntax_error(t->line_num,t->col_num,
 		       "Block not closed when END statement encountered");

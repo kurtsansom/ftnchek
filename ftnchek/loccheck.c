@@ -160,7 +160,7 @@ check_mixed_common(sym_list,n)
 	if(chead == NULL)
 	  continue;
 
-	mod_name = chead->module->name;
+	mod_name = chead->prog_unit->name;
 	clist=chead->com_list_array;
 	nvars = chead->numargs;
 
@@ -259,7 +259,7 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	    if((unsigned)flag_combo(list[i]->used_flag,list[i]->set_flag,
 	       list[i]->used_before_set) == pattern) {
 
-				/* Brief report style gives module name
+				/* Brief report style gives prog unit name
 				   followed by simple list of offenders.
 				 */
 	       if( brief ) {
@@ -453,7 +453,7 @@ void
 check_loose_ends(int curmodhash)
 #else /* K&R style */
 check_loose_ends(curmodhash)
-     int curmodhash;    /* current_module_hash from fortran.y */
+     int curmodhash;    /* current_prog_unit_hash from fortran.y */
 #endif /* HAVE_STDC */
 {
   int i;

@@ -401,12 +401,12 @@ arg_array_cmp(name,args1,args2)
 			/* Find out if block is defined in called routine */
 		  ComListHeader *clist = a2[i].common_block->info.comlist;
 		  while( clist != NULL ) {
-		    if( clist->module == args1->module ) {
+		    if( clist->prog_unit == args1->prog_unit ) {
 		      break;	/* found it */
 		    }
 		    clist = clist->next;
 		  }
-		  if( clist != NULL ) {	/* block is defined in called module */
+		  if( clist != NULL ) {	/* block is defined in called prog unit */
 		      if( comcheck_by_name ) { /* Exact common: find the var */
 				/* It is not yet an error unless the block
 				   is also long enough to include the variable
@@ -443,7 +443,7 @@ arg_array_cmp(name,args1,args2)
 if(debug_latest) {
 (void)fprintf(list_fd,
 "\nUsage check: %s[%d] dummy asgnd %d ubs %d  actual lvalue %d set %d do %d",
-args1->module->name,
+args1->prog_unit->name,
 i+1,
 a1[i].assigned_flag,
 a1[i].used_before_set,
@@ -567,8 +567,8 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 	    if(storage_class_of(glob_symtab[i].type) != class_SUBPROGRAM)
 		continue;
 
-				/* Skip unvisited library modules */
-	    if(glob_symtab[i].library_module && !glob_symtab[i].visited)
+				/* Skip unvisited library prog units */
+	    if(glob_symtab[i].library_prog_unit && !glob_symtab[i].visited)
 		continue;
 
 
@@ -607,7 +607,7 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 				/* Here treat use as actual arg like call */
 			if(list_item->is_call || list_item->actual_arg){
 				 /* Use last call by a visited or nonlibrary
-				    module as defn if no defn found */
+				    prog unit as defn if no defn found */
 			  if(!defn_list->is_defn
 			     && !irrelevant(list_item) )
 			    defn_list = list_item;
@@ -618,7 +618,7 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 		}
 		if(num_defns == 0){
 				/* If no defn found, and all calls are
-				   from unvisited library modules, skip. */
+				   from unvisited library prog units, skip. */
 		  if(irrelevant(defn_list))
 		    continue;
 
@@ -645,12 +645,12 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 		      }
 		   }
 		}
-				/* If definition is found but module is
+				/* If definition is found but prog unit is
 				   not in call tree, report it unless -lib */
 		else{	/* num_defns != 0 */
 		    if(!glob_symtab[i].visited
 		       && datatype_of(glob_symtab[i].type) != type_BLOCK_DATA
-		       && !glob_symtab[i].library_module
+		       && !glob_symtab[i].library_prog_unit
 		       && usage_ext_unused ) {
 			cmp_error_count = 0;
 			(void)argcmp_error_head(glob_symtab[i].name,
@@ -663,7 +663,7 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 			/* Now check defns/invocations for consistency.  If
 			   no defn, 1st invocation will serve. Here treat
 			   use as actual arg like call.  Ignore calls & defns
-			   in unvisited library modules. */
+			   in unvisited library prog units. */
 		if( argcheck_functype &&
 		   (defn_list->is_defn || !defn_list->external_decl)) {
 		  cmp_error_count = 0;

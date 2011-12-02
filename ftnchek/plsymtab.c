@@ -1,4 +1,4 @@
-/* $Id: plsymtab.c,v 1.33 2003/03/26 01:16:28 moniot Rel $
+/* $Id: plsymtab.c,v 1.33 2003/03/26 01:16:28 moniot Exp $
 
 		Routines associated with printing of local symbol table info
 
@@ -38,8 +38,8 @@ as the "MIT License."
 /*
   Shared functions defined:
 
-	local_err_head		Prints module name and file name (for errors)
-	local_warn_head		Prints module name and file name (for warnings)
+	local_err_head		Prints prog unit name and file name (for errors)
+	local_warn_head		Prints prog unit name and file name (for warnings)
 	debug_symtabs()		Prints debugging info about symbol tables
 	choose_tag		Decides on tag & line no to use
 	print_lsyms		Prints symbol lists
@@ -140,7 +140,7 @@ local_err_head(const char *mod_name, const char *filename, LINENO_t lineno, cons
 	       int force_lineno, const char *msg)
 #else /* K&R style */
 local_err_head(mod_name, filename, lineno, symt, force_lineno, msg)
-     char *mod_name;	        /* name of module where warning reported */
+     char *mod_name;	        /* name of prog unit where warning reported */
      char *filename;            /* -1 if not an include file */
      LINENO_t lineno;
      Lsymtab *symt;		/* line number for expert-style warnings */
@@ -161,7 +161,7 @@ local_warn_head(const char *mod_name, const char *filename, LINENO_t lineno, con
 		int force_lineno, const char *msg)
 #else /* K&R style */
 local_warn_head(mod_name, filename, lineno, symt, force_lineno, msg)
-     char *mod_name;		/* name of module where warning reported */
+     char *mod_name;		/* name of prog unit where warning reported */
      char *filename;		/* file name within which problem occurred */
      LINENO_t lineno;		/* line number for expert-style warnings */
      Lsymtab *symt;		/* symbol table entry of the item */
@@ -182,7 +182,7 @@ local_msg_head(const char *problem, const char *mod_name, const char *filename, 
 #else /* K&R style */
 local_msg_head(problem, mod_name, filename, lineno, symt, force_lineno, msg)
      char *problem;             /* Error or Warning */
-     char *mod_name;		/* name of module where warning reported */
+     char *mod_name;		/* name of prog unit where warning reported */
      char *filename;		/* file name within which problem occurred */
      LINENO_t lineno;		/* line number for expert-style warnings */
      Lsymtab *symt;		/* symbol table entry of the item */
@@ -212,7 +212,7 @@ local_msg_head(problem, mod_name, filename, lineno, symt, force_lineno, msg)
 
     if( ! quiet )		/* space between warning blocks */
 	(void)fprintf(list_fd,"\n");
-    (void)sprintf(intro,"%s in module %s",problem,mod_name);
+    (void)sprintf(intro,"%s in prog unit %s",problem,mod_name);
     local_message(filename,lineno,msg,intro);
 
 }
@@ -487,8 +487,8 @@ print_arg_array(arglist)	/* prints type and flag info for arguments */
 	  count = 0;
 	a = arglist->arg_array;
 	(void)fprintf(list_fd,
-		"\n     Arg list in module %s file %s line %u",
-		arglist->module->name,
+		"\n     Arg list in prog unit %s file %s line %u",
+		arglist->prog_unit->name,
 		arglist->filename,
 		arglist->line_num
 	);
@@ -559,8 +559,8 @@ print_com_array(cmlist)
 	count = cmlist->numargs;
 	c = cmlist->com_list_array;
 	(void)fprintf(list_fd,
-		"\n     Com list in module %s file %s line %u",
-		cmlist->module->name,
+		"\n     Com list in prog unit %s file %s line %u",
+		cmlist->prog_unit->name,
 		cmlist->filename,
 		cmlist->line_num
 	);
@@ -721,7 +721,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 		glob_symtab[i].set_flag,
 		glob_symtab[i].assigned_flag,
 		glob_symtab[i].recursive,
-		glob_symtab[i].library_module,
+		glob_symtab[i].library_prog_unit,
 		glob_symtab[i].internal_entry,
 		glob_symtab[i].invoked_as_func,
 		glob_symtab[i].visited,
@@ -761,7 +761,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 			   if symbol is an external, its line_declared
 			   is not set, so we need to change to
 			   line_used and say "referenced" instead of
-			   "defined"; if current module is a function
+			   "defined"; if current prog unit is a function
 			   it has class_VAR but should say "declared"
 			   even if not typed.
 			 */
@@ -785,7 +785,7 @@ choose_tag(tag_type, symt, tag, lineno)
 	case class_VAR:
 	    if(datatype_of(symt->type) == type_UNDECL
 	       && !(symt->argument) /* args are considered declared */
-	       && symt != hashtab[current_module_hash].loc_symtab)
+	       && symt != hashtab[current_prog_unit_hash].loc_symtab)
 		(*tag) = "first occurrence";
 	    else
 		(*tag) = "declared";

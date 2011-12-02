@@ -1131,7 +1131,7 @@ OPT(int,decls_required,FALSE);	/* List all undeclared identifiers */
 OPT(int,div_check,FALSE);	/* Check for possible division by zero */
 OPT(int,ext_def_check,TRUE);	/* Check defined status of externals*/
 OPT(int,help_screen,FALSE);	/* Print out help screen */
-OPT(int,library_mode,FALSE);	/* Set used-flag for all modules in file */
+OPT(int,library_mode,FALSE);	/* Set used-flag for all prog units in file */
 OPT(int,brief,FALSE);		/* Briefer form of local error messages */
 OPT(int,do_list,FALSE);		/* Listing flag */
 OPT(int,novice_help,TRUE);	/* Extra help for novices */
@@ -1142,7 +1142,7 @@ OPT(int,novice_help,TRUE);	/* Extra help for novices */
 //OPT(int,pure_functions,TRUE); 
 OPT(int,quiet,FALSE);		/* Less verbose output format */
 OPT(int,sixclash,FALSE);	/* To check if names unique in 1st 6 chars */
-OPT(int,print_topo_sort,FALSE);	/* Topological sort of modules */
+OPT(int,print_topo_sort,FALSE);	/* Topological sort of prog units */
 OPT(int,do_symtab,FALSE);	/* For symbol table printout */
 OPT(int,print_version,FALSE);	/* Print version number and quit */
 		/* Debugging flags */
@@ -1241,10 +1241,10 @@ SHARED unsigned long
     tot_line_count,	/* total source lines (stmts + comments) */
     tot_stmt_line_count,/* total source stmt lines  */
     tot_exec_stmt_count,/* count of executable stmts in program */
-    tot_module_count,	/* count of subprograms in program */
+    tot_prog_unit_count,	/* count of subprograms in program */
     tot_label_count,	/* total number of statement labels defined */
-    exec_stmt_count,	/* count of executable stmts in module */
-    max_exec_stmt_count,/* max number of executable stmts in any module */
+    exec_stmt_count,	/* count of executable stmts in prog unit */
+    max_exec_stmt_count,/* max number of executable stmts in any prog unit */
     max_loc_strings,	/* chars of local stringspace used */
     max_srctextspace,	/* chars of source text space used */
     max_paraminfo,	/* number of param info structs used */

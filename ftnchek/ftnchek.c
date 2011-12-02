@@ -1,4 +1,4 @@
-/* $Id: ftnchek.c,v 1.47 2004/12/29 19:27:25 moniot Rel $
+/* $Id: ftnchek.c,v 1.47 2004/12/29 19:27:25 moniot Exp $
 
 	Main program for Fortran Syntax Checker.
 */
@@ -793,16 +793,16 @@ resource_summary(VOID)
 		tot_line_count);
 
   (void)fprintf(list_fd,
-   "\nTotal executable statements = %lu, max in any module = %lu",
+   "\nTotal executable statements = %lu, max in any prog unit = %lu",
 		tot_exec_stmt_count,
 		max_exec_stmt_count);
 
   (void)fprintf(list_fd,
-   "\nTotal number of modules in program = %lu",
-		tot_module_count);
+   "\nTotal number of prog units in program = %lu",
+		tot_prog_unit_count);
 
   (void)fprintf(list_fd,
-   "\nTotal statement labels defined = %lu, max in any module = %lu",
+   "\nTotal statement labels defined = %lu, max in any prog unit = %lu",
 		tot_label_count, max_labels);
 
   (void)fprintf(list_fd,

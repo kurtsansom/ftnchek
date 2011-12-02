@@ -1,4 +1,4 @@
-/*      $Id: makehtml.c,v 1.17 2004/12/29 19:33:30 moniot Rel $
+/*      $Id: makehtml.c,v 1.17 2004/12/29 19:33:30 moniot Exp $
 
    Routines to create HTML documents from FORTRAN analysis and comments
 
@@ -164,7 +164,7 @@ PRIVATE int first_variable_column;
 
 PRIVATE char stmt_fragment[MAX_STMT];
 
-PRIVATE Lsymtab *current_module;
+PRIVATE Lsymtab *current_prog_unit;
 
 PRIVATE char comment_char = 'C'; /* default value */
 
@@ -734,20 +734,20 @@ void
 make_html(
    Lsymtab  **sym_list,
    char     *mod_name,
-   Lsymtab  *module )                  /* entry of current module in symtab */
+   Lsymtab  *prog_unit )                  /* entry of current prog unit in symtab */
 #else /* K&R style */
-make_html( sym_list, mod_name, module )
+make_html( sym_list, mod_name, prog_unit )
    Lsymtab  *sym_list[];
    char     *mod_name;
-   Lsymtab  *module;                   /* entry of current module in symtab */
+   Lsymtab  *prog_unit;                   /* entry of current prog unit in symtab */
 
 #endif /* HAVE_STDC */
    {
    char *header;
-   char module_str[256];
+   char prog_unit_str[256];
    char modname[256];
    char *base_curr_filename;           /* basename of current input file */
-   int mod_type;                       /* datatype of this module */
+   int mod_type;                       /* datatype of this prog unit */
    int n, nargs;
 
    if ( ! ANY_HTML_DECLARATIONS() )   /* Just return if no work to be done */
@@ -766,28 +766,28 @@ make_html( sym_list, mod_name, module )
 
    comment_char = ' ';
 
-   /* Set up name & type, and see what kind of module it is */
+   /* Set up name & type, and see what kind of prog unit it is */
 
-   module = hashtab[current_module_hash].loc_symtab;
-   current_module = module;
+   prog_unit = hashtab[current_prog_unit_hash].loc_symtab;
+   current_prog_unit = prog_unit;
 
-   strcpy( modname, module->name );
-   mod_type = get_type(module);
+   strcpy( modname, prog_unit->name );
+   mod_type = get_type(prog_unit);
 
-   /* Print name & type of the module */
+   /* Print name & type of the prog unit */
 
    switch ( mod_type )
       {
       case type_PROGRAM:
-         (void)sprintf( module_str, "PROGRAM %s", modname );
+         (void)sprintf( prog_unit_str, "PROGRAM %s", modname );
          break;
 
       case type_SUBROUTINE:
-         (void)sprintf( module_str, "SUBROUTINE %s", modname );
+         (void)sprintf( prog_unit_str, "SUBROUTINE %s", modname );
          break;
 
       case type_BLOCK_DATA:
-         n = sprintf( module_str, "BLOCK DATA FUNCTION" );
+         n = sprintf( prog_unit_str, "BLOCK DATA FUNCTION" );
          /*
          *  ftnchek assigns "%DAT0n" to unnamed common. We don't want this
          *  appearing in the HTML so fix it.  Named block data is fine
@@ -795,29 +795,29 @@ make_html( sym_list, mod_name, module )
          if ( strncmp( modname, "%DAT", 4 ) == 0 )
             strcpy( modname, "BLOCKDATA" );
          else
-            sprintf( &module_str[n], " %s", modname );
+            sprintf( &prog_unit_str[n], " %s", modname );
 
          break;
 
       default:
-         (void)sprintf( module_str, "%s FUNCTION %s", type_table[mod_type],
+         (void)sprintf( prog_unit_str, "%s FUNCTION %s", type_table[mod_type],
                         modname );
          break;
       }
 
-   (void)fprintf( html_fd, "<a name=\"%s\"><h3>%s", modname, module_str );
-   nargs = module->info.arglist->numargs;
+   (void)fprintf( html_fd, "<a name=\"%s\"><h3>%s", modname, prog_unit_str );
+   nargs = prog_unit->info.arglist->numargs;
 
    if ( mod_type == type_BLOCK_DATA )     /* Don't end BLOCK DATA with parens */
       {
       (void)fprintf( html_fd, "</h3></a>\n<blockquote>\n" );
       }
-   else     /* Not BLOCK DATA module type */
+   else     /* Not BLOCK DATA prog unit type */
       {
       fprintf( html_fd, " ( " );
       for ( n = 0;n < nargs; n++ )
          {
-         fprintf( html_fd,"%s%s", module->info.arglist->arg_array[n].name,
+         fprintf( html_fd,"%s%s", prog_unit->info.arglist->arg_array[n].name,
                         (n<nargs-1)?", ":" " );
          }
 
@@ -1726,7 +1726,7 @@ select_arguments(sym_entry)
     Lsymtab *sym_entry;
 #endif /* HAVE_STDC */
 {
-    /* return (symbol is a module argument) */
+    /* return (symbol is a prog unit argument) */
     if (sym_entry->declared_external ||
         sym_entry->invoked_as_func)
         return (0);
@@ -1747,9 +1747,9 @@ PRIVATE int
 #endif /* HAVE_STDC */
    {
    /* Select subroutines and external function calls that are NOT the current
-   *  Module.
+   *  Prog unit.
    */
-   if ( sym_entry == current_module )
+   if ( sym_entry == current_prog_unit )
       return( 0 );
    else if (sym_entry->declared_intrinsic) /* must appear first, because symbols */
       return (0); /* can be both declared_intrinsic and declared_external*/
@@ -1778,7 +1778,7 @@ select_intrinsics_by_name(sym_entry)
 #endif /* HAVE_STDC */
 {
     /* return (symbol is intrinsic and must appear in INTRINSIC declaration) */
-    if (sym_entry->entry_point && ! sym_entry->is_current_module )
+    if (sym_entry->entry_point && ! sym_entry->is_current_prog_unit )
         return (1);
     else
         return (0);
@@ -2157,7 +2157,7 @@ set_access_and_format_code( sav_info )
 
 /*=================================================================================
 *
-*  Routine to summarize I/O usage for the HTML output module.  ftnchek generates
+*  Routine to summarize I/O usage for the HTML output prog unit.  ftnchek generates
 *  internal lists of I/O operations by line number.  This is too verbose for the
 *  HTML summary so this routine produces a report of all I/O operations by each
 *  unique combination of unit name, unit number, access type and format type.

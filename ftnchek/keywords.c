@@ -602,7 +602,7 @@ is_keyword(i)
 
   }
   else if(putative_keyword_class == tok_FUNCTION /* A non-IK case */
-    && (stmt_sequence_no != 0 /* not the first statement of module */
+    && (stmt_sequence_no != 0 /* not the first statement of prog unit */
 
 	|| !(initial_flag  /* if not initial can only be preceded by type */
 	     || is_a_type_token(curr_stmt_class)) )) {

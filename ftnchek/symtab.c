@@ -48,7 +48,7 @@ this Software without prior written authorization from the author.
 	   def_array_dim(id,arg) Handles dimensioning declarations.
 	   def_com_block(id)	 Handles common blocks and SAVE stmts.
 	   def_com_variable(id)	 Handles common block lists.
-       int def_curr_module(id)	 Identifies symbol as current module.
+       int def_curr_prog_unit(id)	 Identifies symbol as current prog unit.
      	   def_equiv_name(id)	 Initializes equivalence list items.
 	   def_ext_name(id)	 Handles external lists.
 	   def_function(datatype,size,size_text,id,args)
@@ -756,7 +756,7 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	     && curr_stmt_class != tok_COMMON
 	     && strncmp(symt->name,"FUNCTION",8) == 0) {
 	      warning(id->line_num,id->col_num,
-		"Possible intended function declaration is not first line of module");
+		"Possible intended function declaration is not first line of prog unit");
 	  }
 				/* If character type, store size expr
 				   text in tail of list. */
@@ -923,25 +923,25 @@ def_com_variable(id)		/* Process items in common block list */
 
 
 	/* This guy sets the flag in symbol table saying the id is the
-	   current module.  It returns the hash code for later reference.
+	   current prog unit.  It returns the hash code for later reference.
 	   Also bookmarks the source line so the declaration can be found
 	   in src buffer (currently only used by mkhtml).
 	 */
 int
 #if HAVE_STDC
-def_curr_module(Token *id)
+def_curr_prog_unit(Token *id)
 #else /* K&R style */
-def_curr_module(id)
+def_curr_prog_unit(id)
 	Token *id;
 #endif /* HAVE_STDC */
 {
 	int hashno = id->value.integer;
-	hashtab[hashno].loc_symtab->is_current_module = TRUE;
+	hashtab[hashno].loc_symtab->is_current_prog_unit = TRUE;
 
-	mark_module_srcline(id->line_num);	/* save mkhtml_bookmark */
+	mark_prog_unit_srcline(id->line_num);	/* save mkhtml_bookmark */
 
 	return hashno;
-}/*def_curr_module*/
+}/*def_curr_prog_unit*/
 
 
 void
@@ -1145,9 +1145,9 @@ def_function(datatype,size,size_text,id,args)
 		/* library mode: set the flag so no complaint will
 		   be issued if function never invoked. */
 	if(library_mode)
-		symt->library_module = TRUE;
+		symt->library_prog_unit = TRUE;
 	if(datatype == type_PROGRAM) {
-#ifdef VCG_SUPPORT		/* Get name of file containing main module */
+#ifdef VCG_SUPPORT		/* Get name of file containing main prog unit */
 		main_filename = top_filename;
 #endif
 	}
@@ -1561,11 +1561,11 @@ do_ENTRY(id,args,hashno)	/* Processes ENTRY statement */
 int
 #if HAVE_STDC
 do_RETURN(int hashno, Token *keyword)
-	           	/* current module hash number */
+	           	/* current prog unit hash number */
 	               	/* tok_RETURN, or tok_END if implied RETURN */
 #else /* K&R style */
 do_RETURN(hashno,keyword)
-	int hashno;	/* current module hash number */
+	int hashno;	/* current prog unit hash number */
 	Token *keyword;	/* tok_RETURN, or tok_END if implied RETURN */
 #endif /* HAVE_STDC */
 {

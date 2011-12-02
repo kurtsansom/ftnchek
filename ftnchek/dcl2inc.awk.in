@@ -56,9 +56,9 @@
 
 BEGIN					{ dcn_file_name = "" }
 
-/^[cC*!]====>Begin Module/		{ begin_module() }
+/^[cC*!]====>Begin Prog Unit/		{ begin_prog_unit() }
 
-/^[cC*!]====>End Module/		{ end_module() }
+/^[cC*!]====>End Prog Unit/		{ end_prog_unit() }
 
 /^[cC*!]     Common variables/		{ begin_common() }
 
@@ -79,7 +79,7 @@ function add_common()
 
 function begin_common()
 {
-    end_module()
+    end_prog_unit()
     in_common = 1
     common_block = substr($0,1,1) 	# start with empty comment line
     common_name = ""
@@ -88,11 +88,11 @@ function begin_common()
     sub(/[.].*$/,"",basename)
 }
 
-function begin_module()
+function begin_prog_unit()
 {
-    end_module()
+    end_prog_unit()
     # Typical line:
-    # c====>Begin Module PROB5_4DIM   File dp5_4dim.f     All variables
+    # c====>Begin Prog Unit PROB5_4DIM   File dp5_4dim.f     All variables
     last_dcn_file_name = dcn_file_name
     dcn_file_name = $5
     sub(/[.].*$/,".dcn",dcn_file_name)
@@ -135,7 +135,7 @@ function end_common( name)
     common_name = ""
 }
 
-function end_module()
+function end_prog_unit()
 {
     end_common()
 }

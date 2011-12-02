@@ -1,4 +1,4 @@
-/* $Id: makedcls.c,v 1.15 2003/03/17 23:15:49 moniot Rel $
+/* $Id: makedcls.c,v 1.15 2003/03/17 23:15:49 moniot Exp $
 
    Routines  for declaration file output
 
@@ -63,7 +63,7 @@ PROTO(PRIVATE void append_char_to_fragment,( int c ));
 PROTO(PRIVATE void append_string_to_fragment,( char *s ));
 PROTO(PRIVATE void append_expr_text_to_fragment,( char *s ));
 
-PROTO(PRIVATE void maybe_print_module_header,( void ));
+PROTO(PRIVATE void maybe_print_prog_unit_header,( void ));
 PROTO(PRIVATE void new_fragment,( void ));
 PROTO(PRIVATE void print_blanks,( int nblanks ));
 PROTO(PRIVATE void print_common_decls,( Lsymtab *sym_entry ));
@@ -148,7 +148,7 @@ PRIVATE int first_variable_column;
 #define makelower(C) (isupper((int)(C)) ? tolower((int)(C)) : (int)(C))
 #define makeupper(C) (islower((int)(C)) ? toupper((int)(C)) : (int)(C))
 
-PRIVATE char *begin_module;
+PRIVATE char *begin_prog_unit;
 
 #define MAX_STMT		(72 + 19*72 + 1) /* longest Fortran stmt */
 
@@ -389,20 +389,20 @@ make_declarations(sym_list,mod_name)
        the declaration file to be empty, because that reduces the
        number of files that the user has to deal with.  In fact, if it
        IS empty, it will be deleted on close.  Instead of printing the
-       module header comment here, we point a global pointer at it,
+       prog unit header comment here, we point a global pointer at it,
        and then in the print_xxx() functions, print the header before
        the first declaration that is output.
 
        We also need to take care not be overwrite the begin[] array,
-       which could happen if the module name or file name are
+       which could happen if the prog unit name or file name are
        exceptionally long.  We therefore take at most 20 characters
-       from the start of the module name, and at most 25 (so the
+       from the start of the prog unit name, and at most 25 (so the
        total length of 72 is not surpassed) from the END of the base
        of the filename, discarding the directory path prefix. */
 
 
     (void)sprintf(begin,
-		  "%c====>Begin Module %-20.20s   File %-25.25s\n%c---->Makedcls Options: %-48s\n%c\n",
+		  "%c====>Begin Prog Unit %-20.20s   File %-25.25s\n%c---->Makedcls Options: %-48s\n%c\n",
 		  comment_char,
 		  mod_name,
 		  (len_base_curr_filename > 25) ?
@@ -417,7 +417,7 @@ make_declarations(sym_list,mod_name)
 			"Undeclared variables" :
 			"All variables"),
 		  comment_char);
-    begin_module = &begin[0];
+    begin_prog_unit = &begin[0];
 
     print_selected_declarations(sym_list,
 				make_sym_list(sym_list,
@@ -464,9 +464,9 @@ make_declarations(sym_list,mod_name)
 			    make_sym_list(sym_list,select_common_blocks),
 			    "Common blocks","COMMON");
 
-    if (begin_module == (char*)NULL) /* then need a trailer comment */
+    if (begin_prog_unit == (char*)NULL) /* then need a trailer comment */
 	(void)fprintf(dcl_fd,
-		      "%c====>End Module   %-20.20s   File %-25.25s\n",
+		      "%c====>End Prog Unit   %-20.20s   File %-25.25s\n",
 		      comment_char,
 		      mod_name,
 		      (len_base_curr_filename > 25) ?
@@ -478,12 +478,12 @@ make_declarations(sym_list,mod_name)
 
 
 PRIVATE void
-maybe_print_module_header(VOID)
+maybe_print_prog_unit_header(VOID)
 {
-    if (begin_module != (char*)NULL)
-    {		/* print module header comment only once */
-	(void)fputs(begin_module, dcl_fd);
-	begin_module = (char*)NULL;
+    if (begin_prog_unit != (char*)NULL)
+    {		/* print prog unit header comment only once */
+	(void)fputs(begin_prog_unit, dcl_fd);
+	begin_prog_unit = (char*)NULL;
     }
 }
 
@@ -693,7 +693,7 @@ print_list_name(list_type_name,name)
     int column, len;
     char *p;
 
-    maybe_print_module_header();
+    maybe_print_prog_unit_header();
 
 				/* Compact mode:   COMMON /blknam/
 				   Padded mode:    COMMON / blknam /
@@ -821,7 +821,7 @@ print_one_list_decls(sym_entry, list_type_name, pheader, pnd)
         symt = hashtab[h].loc_symtab;
         if (column == 0)		/* at beginning of line, so */
           {			/* we need a type name */
-            maybe_print_module_header();
+            maybe_print_prog_unit_header();
             if ((*pheader != (char*)NULL) &&
                 (strcmp(list_type_name,"COMMON") != 0))
               {				/* print header only once */
@@ -1001,7 +1001,7 @@ print_selected_declarations(sym_list, n, the_type, the_type_name, pheader)
 	}
 	if (column == 0)		/* at beginning of line, so */
 	{				/* we need a type name */
-	    maybe_print_module_header();
+	    maybe_print_prog_unit_header();
 	    if (*pheader != (char*)NULL)
 	    {				/* print header only once */
 		(void)fprintf(dcl_fd,"%c     %s\n",comment_char,*pheader);
@@ -1108,7 +1108,7 @@ Lsymtab *symt;
     const char *p;
     char *size_expression;
 
-    maybe_print_module_header();
+    maybe_print_prog_unit_header();
     print_blanks(dcl_indent);
     column = dcl_indent;
 
@@ -1174,7 +1174,7 @@ select_arguments(sym_entry)
     Lsymtab *sym_entry;
 #endif /* HAVE_STDC */
 {
-    /* return (symbol is a module argument) */
+    /* return (symbol is a prog unit argument) */
     if (sym_entry->declared_external ||
 	sym_entry->invoked_as_func)
 	return (0);

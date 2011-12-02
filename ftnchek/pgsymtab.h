@@ -55,7 +55,7 @@ PG_SHARED int cmp_error_count;
 
 		/* Macro for testing whether an arglist or comlist header is
 		   irrelevant for purposes of error checking: i.e. it comes
-		   from an unvisited library module. */
-#define irrelevant(list) ((list)->module->library_module &&\
-				!(list)->module->visited_somewhere)
+		   from an unvisited library prog unit. */
+#define irrelevant(list) ((list)->prog_unit->library_prog_unit &&\
+				!(list)->prog_unit->visited_somewhere)
 

@@ -637,7 +637,7 @@ with the extension \fI.\|for\fP for VMS systems, \fI.\|f\fP for UNIX systems.
 \}
 More than one file name can be given to \fBftnchek\fP,
 and it will process the
-modules in all files as if they were in a single file.
+program units in all files as if they were in a single file.
 .PP
 .ie \nh \{
 Wildcards are allowed in the specification of filenames on the command
@@ -919,7 +919,7 @@ To have the subtree printed for each occurrence of the routine,
 use option \fBno\-prune\fP.
 .PP
 Note that the call tree will be incomplete if any of the input files
-are project files containing more than one module
+are project files containing more than one program unit
 that were created in \fB\-library\fP mode.  See the
 discussion of project files below.
 .PP
@@ -931,7 +931,7 @@ If no main program is found, a report to that effect is printed out,
 and the call trees of any top-level non-library routines are printed.
 This flag only controls the printing of the call tree: \fBftnchek\fP
 constructs the call tree in any case because it is used to determine
-which library modules will be cross-checked.  See the discussion
+which library program units will be cross-checked.  See the discussion
 of the \fB\-library\fP flag.
 .PP
 For compatibility with previous versions of \fBftnchek\fP,  a numeric
@@ -994,7 +994,7 @@ has the effect of turning these special warnings back on, and does not
 restore all the checks it turned off.  These warnings are:
 .TP \w'1.'u+2n
 o
-Module contains no executable statements.
+Prog unit contains no executable statements.
 .TP
 o
 In free source form, missing space where space is required
@@ -1128,7 +1128,7 @@ warn if different declarations of the same block are not equal in
 total length.
 The Fortran 77 Standard requires each named common block, but not
 blank common, to be
-the same length in all modules of the program.
+the same length in all program units of the program.
 .TP \w'1.'u+2n
 \fBtype\fP:
 in each declaration of a given COMMON block,
@@ -1145,8 +1145,8 @@ once assigned a value, they retain that value permanently until
 assigned a different value by the program.  However, in fact the
 Fortran 77 Standard does not require this to be the case.
 Local variables may
-become undefined between activations of a module in which they are
-declared.  Similarly, COMMON blocks may become undefined if no module
+become undefined between activations of a subprogram in which they are
+declared.  Similarly, COMMON blocks may become undefined if no subprogram
 in which they are declared is active.  (The technical term for
 entities with this behavior is ``automatic'',
 but \fBftnchek\fP uses the word ``volatile'' since it
@@ -1162,10 +1162,10 @@ a volatile COMMON block.  If, at the same time, the
 \fB\-usage=com\-block\-volatile \fP option is turned on (which is the default),
 \fBftnchek\fP will try to check whether
 such a block can lose its defined status between activations of the
-modules where it is declared.  \fBftnchek\fP does not do a very good job of
+subprogram where it is declared.  \fBftnchek\fP does not do a very good job of
 this: the rule used is to see whether the block is declared in two
 separated subtrees of the call tree.  For instance, this would be the
-case if two modules, both called from the main program, shared a
+case if two program units, both called from the main program, shared a
 volatile COMMON block.  A block can also become undefined between two
 successive calls of the same subprogram, but \fBftnchek\fP is not smart
 enough to tell whether a subprogram can be called more than once, so
@@ -1201,7 +1201,7 @@ The keywords with their meanings are as follows:
 .TP \w'128:'u+2n
 \fBcalls\fP:
 table lists each subprogram followed by a list of routines that call
-it.  This listing omits library modules that are not in the call tree
+it.  This listing omits library program units that are not in the call tree
 of the main program.  The list is alphabetized.
 .TP
 \fBcommon\fP:
@@ -1232,9 +1232,9 @@ See also: \fB\-calltree\fP, \fB\-reference\fP, \fB\-sort\fP,
 .RS
 \}
 If this flag is set, all identifiers whose datatype is
-not declared in each module will be listed.  This flag is useful for
+not declared in each program unit will be listed.  This flag is useful for
 helping to find misspelled variable names, etc.  The same listing will
-be given if the module contains an \fCIMPLICIT NONE\fR statement.
+be given if the program unit contains an \fCIMPLICIT NONE\fR statement.
 Default = no.
 .PP
 See also: \fB\-sixchar\fP, \fB\-usage\fP.
@@ -2046,7 +2046,7 @@ declarations as well.
 by any other routine, and use these as substitutes for the main
 program in constructing the call tree and deciding what to check.
 If no such top-level non-library routines are found, then
-all inter-module calls and all COMMON declarations will be checked.)
+all inter-subprogram calls and all COMMON declarations will be checked.)
 .PP
 See also: \fB\-arguments\fP, \fB\-calltree\fP, \fB\-common\fP,
 \fB\-extern\fP, \fB\-usage\fP.
@@ -2629,7 +2629,7 @@ trim options should not be turned off.
 .PP
 Project files contain only information needed for checking
 agreement between files.  This means that a project file is of no use if all
-modules of the complete program are contained in a single file.
+program units of the complete program are contained in a single file.
 .PP
 A more detailed discussion is given in the
 section on Using Project Files.
@@ -2706,7 +2706,7 @@ routines it calls.  This switch is equivalent to \fB\-calltree=reference\fP.
 Default = no.
 .PP
 The reference list omits routines
-called by unused library modules.  Thus it contains the same
+called by unused library program units.  Thus it contains the same
 information as for the call-tree format, namely the hierarchy of
 subprogram calls, but printed in a different way.  This prints out
 a breadth-first traversal of the call tree whereas \fB\-calltree=tree\fP prints
@@ -2752,10 +2752,10 @@ time the file is included.
 Number of statements in the program, other than specification, data,
 statement-function, FORMAT, ENTRY, and END statements.
 .TP \w'1.'u+2n
-.I "Total number of modules:"
-A module is any external subprogram, including the main program,
-subroutines, functions, and block data units.  This count is of
-modules defined within the source, not modules referenced.  Statement
+.I "Total number of prog units:"
+A prog unit is any external subprogram, including the main program,
+subroutines, functions, modules and block data units.  This count is of
+program units defined within the source, not program units referenced.  Statement
 functions are not included.  A subprogram with multiple entry points
 is only counted once.
 .TP \w'1.'u+2n
@@ -2772,7 +2772,7 @@ global names refer
 to subprogram and common block names, as well as dummy argument names
 and common variable names.  Actual argument text (up to 15 characters
 for each argument) is also included here.  The space used for local
-names is not recovered at the end of each module, so this number, like
+names is not recovered at the end of each program unit, so this number, like
 global space,
 grows until the whole program is analyzed.  Unfortunately, this figure
 may include some text stored more than
@@ -2783,18 +2783,18 @@ cases.
 A token is the smallest syntactic unit of the FORTRAN language above
 the level of individual characters. For instance a token can be a
 variable name, a numerical constant, a quoted text string, or a
-punctuation character.  Token text is stored while a module is being
+punctuation character.  Token text is stored while a program unit is being
 processed.  For technical reasons, single-character tokens are not
 included in this total.  Items that are not represented in the
 symbol table may be duplicated.  The space for token text is recovered
-at the end of each module, so this figure represents the maximum for
-any one module.
+at the end of each program unit, so this figure represents the maximum for
+any one program unit.
 .TP \w'1.'u+2n
 .I "Max local symbols:"
 This is the largest number of entries in the local symbol table for
-any module.  Local symbol table entries include all variables and
+any program unit.  Local symbol table entries include all variables and
 parameters, common block names, statement functions, external
-subprograms and intrinsic functions referenced by the module.  Literal
+subprograms and intrinsic functions referenced by the program unit.  Literal
 constants are not stored in the local symbol table.
 .TP \w'1.'u+2n
 .I "Max global symbols:"
@@ -2808,33 +2808,33 @@ A token list is a sequence of tokens representing the actual or dummy
 argument list of a subprogram, or the list of variables in a common
 block or namelist.  Therefore this number represents the largest sum
 of COMMON, CALL, NAMELIST and ENTRY statements and function invocations for any
-one module.  The space is recovered at the end of each module.
+one program unit.  The space is recovered at the end of each program unit.
 .TP \w'1.'u+2n
 .I "Max token list/tree space:"
 This is the largest number of tokens in all the token lists and token
-trees of any one module.  A token tree is formed when analyzing an
+trees of any one program unit.  A token tree is formed when analyzing an
 expression: each operand is a leaf of the tree, and the operators are
 the nodes.  Therefore this number is a measure of the maximum
-complexity of an individual module.  For instance a module with many
+complexity of an individual program unit.  For instance a program unit with many
 long arithmetic expressions will have a high number.  Note that unlike
 token text described above, the number of tokens is independent of the
 length of the variable names or literal constants in the expressions.
 .TP \w'1.'u+2n
 .I "Number of subprogram invocations:"
-This is the sum over all modules of the number of
+This is the sum over all program units of the number of
 CALL statements and function invocations (except intrinsic functions
 and statement functions).
 .TP \w'1.'u+2n
 .I "Number of common block decls:"
-This is the sum over all modules of the number of common block
+This is the sum over all program units of the number of common block
 declarations.  That is, each declaration of a block in a different
-module is counted separately.  (The standard allows multiple
-declarations of a block within the same module; these are counted as
+program unit is counted separately.  (The standard allows multiple
+declarations of a block within the same program unit; these are counted as
 only one declaration since they are equivalent to a single long
 declaration.)
 .TP \w'1.'u+2n
 .I "Number of array dim & param ptrs:"
-This is the sum over all modules of the number of array dimension and
+This is the sum over all program units of the number of array dimension and
 parameter definition text strings saved for use by the
 \fB\-makedcls\fP option.  The length of the text strings is not
 counted.  Each dimension of a multidimensional array is counted separately.
@@ -2883,11 +2883,11 @@ See also: \fB\-f77\fP, \fB\-portability\fP.
 .B \-sort
 .RS
 \}
-Specifies that a sorted list of all modules used in the
+Specifies that a sorted list of all program units used in the
 program be printed.  This list is in ``prerequisite'' order, i.e. each
-module is printed only after all the modules from which it is called
+program unit is printed only after all the program units from which it is called
 have been printed.  This is also called a ``topological sort'' of the
-call tree.  Each module is listed only once.  Routines that are not in
+call tree.  Each program unit is listed only once.  Routines that are not in
 the call tree of the main program are omitted.  If there are any
 cycles in the call graph (illegal in standard Fortran) they
 will be detected and diagnosed.  Default = no.
@@ -3115,20 +3115,20 @@ See also: \fB\-f77\fP, \fB\-f90\fP, \fB\-f95\fP, \fB\-pretty\fP,
 .B \-symtab
 .RS
 \}
-A symbol table will be printed out for each module,
-listing all identifiers mentioned in the module.  This table gives the
+A symbol table will be printed out for each program unit,
+listing all identifiers mentioned in the program unit.  This table gives the
 name of each variable, its datatype, and the number of dimensions for
 arrays.  An asterisk (*) indicates that the variable has been
 implicitly typed, rather than being named in an explicit type
 declaration statement.  The table also lists all subprograms invoked
-by the module, all COMMON blocks declared, etc.  Default = no.
+by the program unit, all COMMON blocks declared, etc.  Default = no.
 .PP
-Also, for each module, a label table will be printed.  The table lists
-each label defined in the module; the line on which said statement
+Also, for each program unit, a label table will be printed.  The table lists
+each label defined in the program unit; the line on which said statement
 label is defined; and the statement type (executable, format, or
 specification).  The labels are listed in sequential order.
 .PP
-Also printed is a table describing the I/O units used by the module,
+Also printed is a table describing the I/O units used by the program unit,
 together with information about how they are used: what operations
 are performed, whether the access is sequential or direct, and whether
 the I/O is formatted or unformatted.
@@ -3346,7 +3346,7 @@ an external (a subroutine or function) is defined more than once.
 Definition of an external means providing the body of its source code.
 .TP
 \fBext\-declared\-only\fP:
-a name is declared in an \fCEXTERNAL\fR statement in some module, but
+a name is declared in an \fCEXTERNAL\fR statement in some program unit, but
 is not defined or used anywhere.
 .TP
 \fBext\-undefined\fP:
@@ -3390,7 +3390,7 @@ any array element is treated as a reference to all elements of the array.
 .TP
 \fBvar\-unused\fP:
 a local variable is declared (for instance, in a type declaration) but
-is not used in the module.  Does not apply to dummy arguments: warnings
+is not used in the program unit.  Does not apply to dummy arguments: warnings
 about them are controlled by the keyword \fBarg\-unused\fP described above.
 .PP
 Note: In versions of \fBftnchek\fP prior to 2.10, the
@@ -3699,7 +3699,7 @@ for large programs, when many subprograms seldom if ever change.
 It is best when using project files to place each subprogram
 in a separate source file.  If each source file may contain more than one
 subprogram,  it complicates the definition of ``local'' and ``global''
-checking because there is some inter-module checking that is contained
+checking because there is some inter-program unit checking that is contained
 within a file.  \fBftnchek\fP tries to do the right thing in this
 case, but there are some complications (described below) due to the
 trade-off between avoiding re-doing cross-checks and preserving
@@ -3734,9 +3734,9 @@ the information listed above, one invocation of each subprogram by
 any other subprogram in the same file, and all COMMON block
 declarations.  This means that the project file will be larger than
 necessary, and that when it is read in, \fBftnchek\fP may repeat some
-inter-module checks that it already did when the project file was
+inter-program unit checks that it already did when the project file was
 created.  If each project file contains only one
-module, there is no loss of information in creating the project
+program unit, there is no loss of information in creating the project
 files in library mode.
 .PP
 Because of the possible loss of information entailed by creating a project file
@@ -3897,7 +3897,7 @@ are not needed.  \fBftnchek\fP also warns the user that an integer
 quotient has been converted to a real. This may assist the user in
 catching an unintended roundoff error.  Since the \fB\-symtab\fP flag
 was given, \fBftnchek\fP prints out a table containing identifiers from
-the local module and their corresponding datatype and number of
+the local program unit and their corresponding datatype and number of
 dimensions.  Finally, \fBftnchek\fP warns that the function
 \fCCOMPAV\fR is not used
 with the proper type of arguments.
@@ -4023,7 +4023,7 @@ These messages can be suppressed by turning off the \fB\-pretty\fP
 flag, which is on by default.
 .PP
 Other messages that are given after all the files are processed,
-and having to do with agreement between modules, do not use the word
+and having to do with agreement between program units, do not use the word
 ``warning'' but generally fall into that category.
 Examples include type mismatches between corresponding variables in
 different COMMON
@@ -4091,7 +4091,7 @@ in two different declarations of the COMMON block.  By default
 (\fB\-common\fP strictness level 3), \fBftnchek\fP is very picky about
 COMMON blocks: the variables listed in them must match exactly
 by data type and array dimensions.  That is, the legal pair of
-declarations in different modules:
+declarations in different program units:
 .nf
 \fC     COMMON /COM1/ A,B\fR
 and
@@ -4134,7 +4134,7 @@ This is not
 necessarily an error, but it may indicate that a variable is missing
 from one of the lists.  Note that according to the Fortran 77 Standard,
 it is an error for named COMMON blocks (but not blank COMMON) to differ
-in number of words in declarations in different modules.
+in number of words in declarations in different program units.
 Given for \fB\-common\fP setting 2 or 3.
 
 .TP
@@ -4147,13 +4147,13 @@ end with a period (e.g. \fC.EQ.\fR), or the start of a numeric constant,
 but did not succeed in finding a complete item of that kind.
 
 .TP
-.I "Error: cannot be adjustable size in module NAME"
+.I "Error: cannot be adjustable size in prog unit NAME"
 A character variable cannot be declared with a size that is an
 asterisk in parentheses unless it is a dummy argument, a parameter, or
-the name of the function defined in the module.
+the name of the function defined in the program unit.
 
 .TP
-.I "Error: cannot be declared in SAVE statement in module NAME"
+.I "Error: cannot be declared in SAVE statement in prog unit NAME"
 Only local variables and common blocks can be declared in a
 \fCSAVE\fR statement.
 
@@ -4299,12 +4299,12 @@ When checking an argument which is a subprogram, \fBftnchek\fP must be
 able to determine whether it is a function or a subroutine.  The rules
 used by \fBftnchek\fP to do this are as follows: If the subprogram,
 besides being passed as an actual argument, is also invoked directly
-elsewhere in the same module, then its type is determined by that
+elsewhere in the same program unit, then its type is determined by that
 usage.  If not, then if the name of the subprogram does not appear in
 an explicit type declaration, it is assumed to be a subroutine; if it
 is explicitly typed it is taken as a function.  Therefore, subroutines
 passed as actual arguments need only be declared by an \fCEXTERNAL\fR
-statement in the calling module, whereas functions must also be
+statement in the calling program unit, whereas functions must also be
 explicitly typed in order to avoid generating this error message.
 Controlled by \fB\-arguments\fP setting.
 
@@ -4335,7 +4335,7 @@ A dummy argument is an argument as named in a \fCSUBROUTINE\fR or
 \fCFUNCTION\fR statement and used within the subprogram.  An actual
 argument is an argument as passed to a subroutine or function by the
 caller.  \fBftnchek\fP is saying that a dummy argument is modified by
-the subprogram, implying that its value is changed in the calling module.
+the subprogram, implying that its value is changed in the calling program unit.
 The corresponding actual argument should not be a constant or
 expression, but rather a variable or array element which can be
 legitimately assigned to.
@@ -4360,13 +4360,13 @@ used and as defined. For instance, if the user declares
 .nf
 \fC     INTEGER FUNCTION COUNT(A)\fR
 .fi
-and invokes \fCCOUNT\fR in another module as
+and invokes \fCCOUNT\fR in another subprogram as
 .nf
 \fC     N = COUNT(A)\fR
 .fi
 .br
 without declaring its datatype, it will default to real type, based on
-the first letter of its name.  The calling module should have included
+the first letter of its name.  The calling subprogram should have included
 the declaration
 .nf
 \fC     INTEGER COUNT\fR
@@ -4388,7 +4388,7 @@ Given for \fB\-arguments\fP setting 1 or 3.
 
 .TP
 .I "Variable not declared.  Type has been implicitly defined"
-When printing the symbol table for a module,
+When printing the symbol table for a program unit,
 \fBftnchek\fP will flag with an asterisk
 all identifiers that are not explicitly typed
 and will show the datatype that was assigned through implicit typing.
@@ -4721,7 +4721,7 @@ corresponding to those in VMS Fortran.
 The \fCIMPLICIT NONE\fR statement is supported.  The meaning of this
 statement is that all variables must have their data types explicitly
 declared.  Rather than flag the occurrences of such variables with
-syntax error messages, \fBftnchek\fP waits till the end of the module,
+syntax error messages, \fBftnchek\fP waits till the end of the program unit,
 and then prints out a list of all undeclared variables,
 as it does for the \fB\-declare\fP option.  (F90)
 .PP

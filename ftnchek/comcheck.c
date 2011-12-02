@@ -99,7 +99,7 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 		while( (clist=clist->next) != NULL ){
 		    if(clist->numargs >= model_n /* if tie, use earlier */
 			/* also if model is from an unvisited library
-			   module, take another */
+			   prog unit, take another */
 		       || irrelevant(model) ) {
 			model = clist;
 			model_n = clist->numargs;
@@ -110,7 +110,7 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 		  continue;	/* skip if irrelevant */
 
 			/* Check consistent SAVEing of block:
-			   If SAVEd in one module, must be SAVEd in all.
+			   If SAVEd in one prog unit, must be SAVEd in all.
 			   Main prog is an exception: SAVE ignored there. */
 	      {
 		ComListHeader *saved_list, *unsaved_list;
@@ -118,7 +118,7 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 		clist = first_list;
 		while( clist != NULL ){
 
-		    if(!irrelevant(clist) && clist->module->type !=
+		    if(!irrelevant(clist) && clist->prog_unit->type !=
 		       type_byte(class_SUBPROGRAM,type_PROGRAM) ) {
 
 		      if(clist->saved)
@@ -370,13 +370,13 @@ com_cmp_strict(name,c1,c2)
 #ifdef DEBUG_PGSYMTAB
 if(debug_latest){
 (void)fprintf(list_fd,"block %s",name);
-(void)fprintf(list_fd,"\n\t1=in module %s line %u file %s (%s)",
-		    c1->module->name,
+(void)fprintf(list_fd,"\n\t1=in prog unit %s line %u file %s (%s)",
+		    c1->prog_unit->name,
 		    c1->line_num,
 		    c1->topfile
 	            c1->filename);
-(void)fprintf(list_fd,"\n\t2=in module %s line %u file %s (%s)",
-		    c2->module->name,
+(void)fprintf(list_fd,"\n\t2=in prog unit %s line %u file %s (%s)",
+		    c2->prog_unit->name,
 		    c2->line_num,
 		    c2->topfile,
 	            c2->filename);
@@ -528,10 +528,10 @@ PRIVATE void print_comvar_usage(comlist)
   	count = comlist->numargs;
   	c = comlist->com_list_array;
 
-/* prints out caller module and any_used, any_set flags in CLhead */
+/* prints out caller prog unit and any_used, any_set flags in CLhead */
 
-	(void)fprintf(list_fd, "\nModule %s  any_used %u any_set %u\n",
-                comlist->module->name, comlist->any_used, comlist->any_set);
+	(void)fprintf(list_fd, "\nProg unit %s  any_used %u any_set %u\n",
+                comlist->prog_unit->name, comlist->any_used, comlist->any_set);
 
         if((comlist->any_used || comlist-> any_set||1) ){
            for (i=0; i<count; i++){
@@ -554,7 +554,7 @@ PRIVATE void print_comvar_usage(comlist)
 
 	/* Check used, set status of common block.  First it looks for
 	   whether the block is totally unused, and if so prints a warning
-	   and returns.  Otherwise, if block is unused by some modules,
+	   and returns.  Otherwise, if block is unused by some prog units,
 	   it says which ones.  Meanwhile, it finds the declaration with
 	   the most elements to use as reference.  If common strictness
 	   is 3 (variable by variable) then it OR's the usage flags of
@@ -596,7 +596,7 @@ com_block_usage(name,cl1)
 		block_any_set = TRUE;
 	    }
 	    if( ! (cur_cl->any_used || cur_cl->any_set) &&
-		! cur_cl->module->defined_in_include ) {
+		! cur_cl->prog_unit->defined_in_include ) {
 	      block_unused_somewhere = TRUE;
 	    }
    /* if any_set and any_used false after this loop block never used */
@@ -609,7 +609,7 @@ com_block_usage(name,cl1)
 	  cur_cl = cur_cl->next;
 	}
 
-        if(irrelevant(ref_cl))	/* Block not declared by modules in calltree */
+        if(irrelevant(ref_cl))	/* Block not declared by prog units in calltree */
 	  return;
 
      if(! (block_any_used || block_any_set) ) {	/* Totally unused */
@@ -624,13 +624,13 @@ com_block_usage(name,cl1)
         if(block_unused_somewhere && usage_com_block_unused) {
 	  cmp_error_count = 0;
 	  (void)comcmp_error_head(name,ref_cl,
-			       "unused in the following modules:");
+			       "unused in the following prog units:");
 
 	  cur_cl = cl1;
 	  while (cur_cl!=NULL){  /* traverses CLheads */
 	    if(! irrelevant(cur_cl) ) {
 	      if( ! (cur_cl->any_used || cur_cl->any_set) &&
-		  ! cur_cl->module->defined_in_include ) {
+		  ! cur_cl->prog_unit->defined_in_include ) {
 		  com_error_report(cur_cl,"Unused");
 	      }
 	    }

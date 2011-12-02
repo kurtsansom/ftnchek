@@ -1,4 +1,4 @@
-/* $Id: prlists.c,v 1.10 2003/03/30 18:35:14 moniot Rel $
+/* $Id: prlists.c,v 1.10 2003/03/30 18:35:14 moniot Exp $
 
   Definition of process_lists() and associated routines that transfer
   argument and common-block lists from local to global symbol table
@@ -65,9 +65,9 @@ process_lists(curmodhash)  /* Places pointer to linked list of arrays in
 #endif /* HAVE_STDC */
 
 #if HAVE_STDC
-	                   /* current_module_hash from fortran.y */
+	                   /* current_prog_unit_hash from fortran.y */
 #else /* K&R style */
-	int curmodhash;    /* current_module_hash from fortran.y */
+	int curmodhash;    /* current_prog_unit_hash from fortran.y */
 #endif /* HAVE_STDC */
 {
 	int i, h;
@@ -81,14 +81,14 @@ process_lists(curmodhash)  /* Places pointer to linked list of arrays in
 	     (curmodhash == -1) ? NULL:hashtab[curmodhash].glob_symtab)
 	   == NULL) {
 	  oops_message(OOPS_NONFATAL,NO_LINE_NUM,NO_COL_NUM,
-		  "module not in global symtab:");
+		  "prog unit not in global symtab:");
 	  oops_tail(hashtab[curmodhash].name);
 	}
 	else {
 	  if(curr_gsymt->internal_entry) {/* protect ourself */
 	    if(misc_warn) {
 	      warning(NO_LINE_NUM,NO_COL_NUM,
-		    "entry point redefined as module");
+		    "entry point redefined as prog unit");
 	      msg_tail(curr_gsymt->name);
 	      msg_tail(": previous definition overridden");
 	    }
@@ -125,7 +125,7 @@ else {
 
 				/* First we link up possibly multiple
 				   declarations of the same common block
-				   in this module into one big list */
+				   in this prog unit into one big list */
 		    	while (tok_ptr = head_ptr->tokenlist,
 			       (head_ptr = head_ptr->next) != NULL){
 			    while(tok_ptr->next_token != NULL){
@@ -144,7 +144,7 @@ else {
 
 				/* Now make it into array for global table */
 		        c=make_com_array(head_ptr->tokenlist);
-			c->module = curr_gsymt;
+			c->prog_unit = curr_gsymt;
 			c->filename = head_ptr->filename;
 			c->topfile = top_filename;
 			c->line_num = head_ptr->line_num;
@@ -188,7 +188,7 @@ else {
 			     a->type = type_byte(
 			         class_SUBPROGRAM,implied_type);
 			     a->size = get_size(&(loc_symtab[i]),implied_type);
-			     a->module = curr_gsymt;
+			     a->prog_unit = curr_gsymt;
 			     a->filename = head_ptr->filename;
 			     a->topfile = top_filename;
 			     a->line_num = head_ptr->line_num;
@@ -208,12 +208,12 @@ else {
 			  if(loc_symtab[i].set_flag)
 			         gsymt->set_flag =
 				   gsymt->set_this_file = TRUE;
-			  if(loc_symtab[i].library_module)
-				 gsymt->library_module = TRUE;
+			  if(loc_symtab[i].library_prog_unit)
+				 gsymt->library_prog_unit = TRUE;
 			  gsymt->defined = TRUE;
 			  if(gsymt != curr_gsymt) {
 			    gsymt->internal_entry = TRUE;
-			    gsymt->link.module = curr_gsymt;
+			    gsymt->link.prog_unit = curr_gsymt;
 			  }
 }
 			}/* end if(loc_symtab[i].entry_point) */
@@ -260,7 +260,7 @@ else {
 			  a->type = type_byte(
 			         class_SUBPROGRAM,implied_type);
 			  a->size = get_size(&(loc_symtab[i]),implied_type);
-			  a->module = curr_gsymt;
+			  a->prog_unit = curr_gsymt;
 			  a->filename = head_ptr->filename;
 			  a->topfile = top_filename;
 			  a->line_num = head_ptr->line_num;
@@ -302,7 +302,7 @@ else {
 
 				/* Link up possibly multiple
 				   declarations of the same namelist
-				   in this module into one big list */
+				   in this prog unit into one big list */
 			  while (tok_ptr = head_ptr->tokenlist,
 			       (head_ptr = head_ptr->next) != NULL){
 			    while(tok_ptr->next_token != NULL){

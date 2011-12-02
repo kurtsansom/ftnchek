@@ -293,7 +293,7 @@ free_textvec(p)		/*ARGSUSED0*/
 #endif /* HAVE_STDC */
 {
 	/* No action necessary since all the space is freed in
-	   a lump at end of processing module */
+	   a lump at end of processing prog unit */
 }
 
 char **

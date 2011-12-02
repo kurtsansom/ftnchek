@@ -235,7 +235,7 @@ PRIVATE struct {
 	{"sixchar",	&sixclash,
 		 "catch nonunique names",IS_A_CHECK},
 	{"sort",	&print_topo_sort,
-		 "prerequisite-order sort of modules",NOT_A_CHECK},
+		 "prerequisite-order sort of prog units",NOT_A_CHECK},
 	{"symtab",	&do_symtab,
 		 "print symbol table info",NOT_A_CHECK},
 #ifdef VCG_SUPPORT

@@ -62,13 +62,13 @@ print_loc_symbols(VOID)
 #else
     Lsymtab *sym_list[LOCSYMTABSZ]; /* temp. list of symtab entries to print */
 #endif
-    int	mod_type,		/* datatype of this module */
+    int	mod_type,		/* datatype of this prog unit */
 	this_is_a_function;	/* flag for treating funcs specially */
-    Lsymtab *module;	 	/* entry of current module in symtab */
-    char *mod_name;		/* module name */
+    Lsymtab *prog_unit;	 	/* entry of current prog unit in symtab */
+    char *mod_name;		/* prog unit name */
     int
 	imps=0,			/* count of implicitly declared identifiers */
-	numentries;		/* count of entry points of module */
+	numentries;		/* count of entry points of prog unit */
 
     if (dcl_fd == (FILE*)NULL)
 	dcl_fd = stdout;
@@ -118,12 +118,12 @@ print_loc_symbols(VOID)
     max_glob_symtab = glob_symtab_top;
 
 
-		/* Set up name & type, and see what kind of module it is */
+		/* Set up name & type, and see what kind of prog unit it is */
 
-	      module = hashtab[current_module_hash].loc_symtab;
+	      prog_unit = hashtab[current_prog_unit_hash].loc_symtab;
 
-	      mod_name = module->name;
-	      mod_type = get_type(module);
+	      mod_name = prog_unit->name;
+	      mod_type = get_type(prog_unit);
 
 	      if(  mod_type != type_PROGRAM
 		&& mod_type != type_SUBROUTINE
@@ -133,7 +133,7 @@ print_loc_symbols(VOID)
 	      else
 			this_is_a_function = FALSE;
 
-				/* Print name & type of the module */
+				/* Print name & type of the prog unit */
     if(do_symtab) {
       int i;
       for(i=0,numentries=0;i<loc_symtab_top;i++) {
@@ -146,11 +146,11 @@ print_loc_symbols(VOID)
 	   }
 
 
-	  (void)fprintf(list_fd,"\n\nModule %s:",mod_name);
+	  (void)fprintf(list_fd,"\n\nProg unit %s:",mod_name);
 	  if( this_is_a_function ) (void)fprintf(list_fd," func:");
 	  (void)fprintf(list_fd," %4s",type_name[mod_type]);
 			/* Print a * next to non-declared function name */
-	  if(datatype_of(module->type) == type_UNDECL ) {
+	  if(datatype_of(prog_unit->type) == type_UNDECL ) {
 			(void)fprintf(list_fd,"*");
 			imps++;
 	  }
@@ -158,13 +158,13 @@ print_loc_symbols(VOID)
 
 
 				/* Print Entry Points (skip if only one,
-				   since it is same as module name) */
+				   since it is same as prog unit name) */
       if(do_symtab && numentries > 1) {
 	      (void)fprintf(list_fd,"\nEntry Points\n");
 	      (void) print_lsyms_briefly(sym_list,numentries,FALSE);
       }
 
-			/* End of printing module name and entry points */
+			/* End of printing prog unit name and entry points */
     }/*if(do_symtab)*/
 
 
@@ -573,8 +573,8 @@ print_loc_symbols(VOID)
       }
    }
    
-   /* Call make_html to create an individual html doc for this FORTRAN module */
-   make_html(sym_list,mod_name, module);
+   /* Call make_html to create an individual html doc for this FORTRAN prog unit */
+   make_html(sym_list,mod_name, prog_unit);
    
 }/* print_loc_symbols */
 

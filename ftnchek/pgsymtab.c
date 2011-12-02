@@ -64,11 +64,11 @@ PROTO(PRIVATE void arg_error_locate,( ArgListHeader *alh ));
 PROTO(PRIVATE int cmp_error_head,(const char *name, const char *tag, const char *filename,
 				  LINENO_t lineno, const char *msg ));
 PROTO(PRIVATE void com_error_locate,( ComListHeader *clh ));
-PROTO(PRIVATE void error_report,( const char *module_name,
+PROTO(PRIVATE void error_report,( const char *prog_unit_name,
 				  const char *filename, LINENO_t lineno,
 				  const char *topfile, LINENO_t top_lineno,
 	     int i, const char *item_tag, const char *item_name, const char *msg ));
-PROTO(PRIVATE void module_locate, (const char *name));
+PROTO(PRIVATE void prog_unit_locate, (const char *name));
 PROTO(PRIVATE void novice_err_locate,( const char *filename, LINENO_t linenum ));
 PROTO(PRIVATE void novice_inc_locate,( const char *filename, const char *topfile,
 				       LINENO_t top_linenum ));
@@ -131,7 +131,7 @@ arg_error_report(alh, argtype, i, msg)
     char *msg;
 #endif /* HAVE_STDC */
 {
-    error_report(alh->module->name,
+    error_report(alh->prog_unit->name,
 		 alh->filename,alh->line_num,alh->topfile,alh->top_line_num,
 		 i,argtype,alh->arg_array[i].name,msg);
 }
@@ -184,7 +184,7 @@ comvar_error_report(clh, i, msg)
     char *msg;
 #endif /* HAVE_STDC */
 {
-    error_report(clh->module->name,
+    error_report(clh->prog_unit->name,
 		 clh->filename,clh->line_num,clh->topfile,clh->top_line_num,
 		 i,"Variable",clh->com_list_array[i].name,msg);
 }
@@ -251,14 +251,14 @@ cmp_error_head(name, tag,
 
 PRIVATE void
 #if HAVE_STDC
-error_report(const char *module_name, const char *filename, LINENO_t lineno,
+error_report(const char *prog_unit_name, const char *filename, LINENO_t lineno,
 	     const char *topfile, LINENO_t top_lineno,
 	     int i, const char *item_tag, const char *item_name, const char *msg)
 #else /* K&R style */
-error_report(module_name, filename, lineno,
+error_report(prog_unit_name, filename, lineno,
 	     topfile, top_lineno,
 	     i, item_tag, item_name, msg)
-    char *module_name;
+    char *prog_unit_name;
     char *filename;
     LINENO_t lineno;
     char *topfile;
@@ -280,10 +280,10 @@ error_report(module_name, filename, lineno,
     msg_tail(item_tag);
 
     msg_tail(item_name);
-		/* Print module name, and for -novice mode, location info
+		/* Print prog unit name, and for -novice mode, location info
 		   that was suppressed before.
 		 */
-    module_locate(module_name);
+    prog_unit_locate(prog_unit_name);
 
     if( novice_help ) {
 				/* Error location itself */
@@ -322,7 +322,7 @@ report_intro(filename, lineno,
     }
 }
 
-	/* Gives module and in novice mode line, filename for error messages
+	/* Gives prog unit and in novice mode line, filename for error messages
 	 */
 PRIVATE void
 #if HAVE_STDC
@@ -332,9 +332,9 @@ arg_error_locate(alh)
      ArgListHeader *alh;
 #endif /* HAVE_STDC */
 {
-				/* Module (subprogram) containing the error.
+				/* Prog unit (subprogram) containing the error.
 				   This gets printed in both modes. */
-    module_locate(alh->module->name);
+    prog_unit_locate(alh->prog_unit->name);
 
     if( novice_help ) {
 				/* Error location itself */
@@ -352,9 +352,9 @@ com_error_locate(clh)
      ComListHeader *clh;
 #endif /* HAVE_STDC */
 {
-				/* Module (subprogram) containing the error.
+				/* Prog unit (subprogram) containing the error.
 				   This gets printed in both modes. */
-    module_locate(clh->module->name);
+    prog_unit_locate(clh->prog_unit->name);
 
     if( novice_help ) {
 				/* Error location itself */
@@ -366,13 +366,13 @@ com_error_locate(clh)
 
 PRIVATE void
 #if HAVE_STDC
-module_locate(const char *name)
+prog_unit_locate(const char *name)
 #else /* K&R style */
-module_locate(name)
+prog_unit_locate(name)
     const char *name;
 #endif /* HAVE_STDC */
 {
-    msg_tail("in module");
+    msg_tail("in prog unit");
     msg_tail(name);
 }
 
