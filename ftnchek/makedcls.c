@@ -350,11 +350,11 @@ get_size_expression(symt)
 
 void
 #if HAVE_STDC
-make_declarations(Lsymtab **sym_list, char *mod_name)
+make_declarations(Lsymtab **sym_list, char *prog_unit_name)
 #else /* K&R style */
-make_declarations(sym_list,mod_name)
+make_declarations(sym_list,prog_unit_name)
      Lsymtab *sym_list[];
-     char *mod_name;
+     char *prog_unit_name;
 #endif /* HAVE_STDC */
 {
     const char *header;
@@ -395,16 +395,16 @@ make_declarations(sym_list,mod_name)
 
        We also need to take care not be overwrite the begin[] array,
        which could happen if the prog unit name or file name are
-       exceptionally long.  We therefore take at most 20 characters
+       exceptionally long.  We therefore take at most 18 characters
        from the start of the prog unit name, and at most 25 (so the
        total length of 72 is not surpassed) from the END of the base
        of the filename, discarding the directory path prefix. */
 
 
     (void)sprintf(begin,
-		  "%c====>Begin Prog Unit %-20.20s   File %-25.25s\n%c---->Makedcls Options: %-48s\n%c\n",
+		  "%c====>Begin Prog Unit %-18.18s  File %-25.25s\n%c---->Makedcls Options: %-48s\n%c\n",
 		  comment_char,
-		  mod_name,
+		  prog_unit_name,
 		  (len_base_curr_filename > 25) ?
 			(base_curr_filename + len_base_curr_filename - 25) :
 			base_curr_filename,
@@ -466,9 +466,9 @@ make_declarations(sym_list,mod_name)
 
     if (begin_prog_unit == (char*)NULL) /* then need a trailer comment */
 	(void)fprintf(dcl_fd,
-		      "%c====>End Prog Unit   %-20.20s   File %-25.25s\n",
+		      "%c====>End Prog Unit   %-18.18s  File %-25.25s\n",
 		      comment_char,
-		      mod_name,
+		      prog_unit_name,
 		      (len_base_curr_filename > 25) ?
 			    (base_curr_filename + len_base_curr_filename - 25) :
 			    base_curr_filename);

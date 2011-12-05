@@ -31,7 +31,7 @@ as the "MIT License."
 
 /* I. */
 
-/* $Id: exprtype.c,v 1.15 2005/02/07 00:38:01 moniot Rel $
+/* $Id: exprtype.c,v 1.15 2005/02/07 00:38:01 moniot Exp $
 
 	Routines to propagate datatype through expressions.
 
@@ -545,10 +545,6 @@ if(debug_latest) {
     }
 
 
-    if( is_true(EVALUATED_EXPR,term1->TOK_flags)
-	 && is_true(EVALUATED_EXPR,term2->TOK_flags) ) {
-		make_true(EVALUATED_EXPR,result->TOK_flags);
-    }
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest)
 (void)fprintf(list_fd,"\nconst param eval: (%d %d %d) %s (%d %d %d) = (%d %d %d)",
@@ -614,7 +610,9 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 	use_variable(term2);
 
 		/* Propagate the value of integer constant expressions */
-    if(is_true(EVALUATED_EXPR,result->TOK_flags)) {
+
+    if( is_true(EVALUATED_EXPR,term1->TOK_flags)
+	&& is_true(EVALUATED_EXPR,term2->TOK_flags) ) {
 	if(result_type == type_INTEGER) {	/* Only ints propagated */
 	  int a = int_expr_value(term1),
 	      b = int_expr_value(term2),

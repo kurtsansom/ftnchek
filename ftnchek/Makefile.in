@@ -301,7 +301,7 @@ clean mostlyclean:
 	-$(RM) \#*
 	-$(RM) a.out
 	-$(RM) *~
-	-$(RM) core
+	-$(RM) core core.*
 	-$(RM) y.tab.h
 	-$(RM) config.status config.log config.cache
 	-$(RM) ftnchek.html.orig ftnchek.html.rej
@@ -366,7 +366,7 @@ fortran.c: fortran.y
 	fi
 
 # If tokdefs.h changes, update the lookup table used by block-balancing code.
-block_match.h: tokdefs.h
+block_match.h: tokdefs.h make_blockmatch.pl
 	./make_blockmatch.pl > block_match.h
 
 # This target makes an enum type for doing reverse lookup in the iokeywords table.

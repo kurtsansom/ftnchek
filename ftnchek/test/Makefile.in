@@ -263,7 +263,7 @@ clean mostlyclean clobber distclean realclean spotless: clearfail
 	-$(RM) $(RCFILE)
 	-$(RM) *.o
 	-$(RM) *~ \#*
-	-$(RM) a.out core
+	-$(RM) a.out core core.*
 	-$(RM) $(VARY)/*
 
 # checklistings checks listing output on programs in LISTOUT and FREEFORM
