@@ -161,12 +161,13 @@ PRIVATE int
 int 
     complex_const_allowed=FALSE, /* for help in lookahead for these */
     construct_name_seen=FALSE,	/* for help recognizing DO */
-    subprog_suffix_allowed = FALSE,	/* help for recognizing RESULT, BIND */
     param_noparen=FALSE,	/* for different PARAMETER stmt semantics */
     in_assignment_stmt=FALSE,
     in_attrbased_typedecl=FALSE,/* help is_keyword lex type, attr :: list */
     inside_format=FALSE,	/* when inside parens of FORMAT  */
-    integer_context=FALSE;	/* says integers-only are to follow */
+    integer_context=FALSE,	/* says integers-only are to follow */
+    use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
+    generic_spec_allowed=FALSE; /* help for recognizing generic_spec */
 
 
 		/* Macro for initializing attributes of type decl. */
@@ -291,6 +292,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_NOT
 %token tok_power	/*   **   */
 %token tok_concat	/*   //   */
+%token tok_double_colon /*   ::   */
 %token tok_lparen	/* special left paren to avoid s/r conflicts */
 %token tok_rightarrow /* => */
 %token tok_ABSTRACT
@@ -345,8 +347,6 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_IF
 %token tok_IMPLICIT
 %token tok_IMPURE
-%token tok_IN
-%token tok_INOUT
 %token tok_INCLUDE
 %token tok_INQUIRE
 %token tok_INTEGER
@@ -357,13 +357,12 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 %token tok_MODULE
 %token tok_NAMELIST
 %token tok_NONE
-%token tok_NONINTRINSIC
+%token tok_NON_INTRINSIC
 %token tok_NULLIFY
 %token tok_ONLY
 %token tok_OPEN
 %token tok_OPERATOR
 %token tok_OPTIONAL
-%token tok_OUT
 %token tok_PARAMETER
 %token tok_PAUSE
 %token tok_POINTER
@@ -667,7 +666,8 @@ non_subprogram_header
 			    if(f90_stmt_sequence_no == 0)
 			      f90_stmt_sequence_no = SEQ_HEADER;
 			    complex_const_allowed = FALSE; /* turn off flags */
-			    subprog_suffix_allowed = FALSE;
+			    use_keywords_allowed = FALSE;
+                generic_spec_allowed = FALSE;
 			    inside_format=FALSE;
 			    integer_context = FALSE;
 			    in_assignment_stmt = FALSE;
@@ -697,6 +697,9 @@ non_subprogram_header
 subprogram_header:	prog_stmt
 			{
 			    current_prog_unit_type = type_PROGRAM;
+                if (interface_block)
+                    syntax_error($1.line_num,$1.col_num,
+                        "block data statment invalid inside interface block");
 			}
 		|	function_stmt
 			{
@@ -1156,7 +1159,6 @@ function_stmt	:   unlabeled_function_stmt EOS
                     do_suffix(tok_FUNCTION, internal_subprog,
                         current_prog_unit_hash,&($2));
                 }
-				subprog_suffix_allowed = FALSE;
 			} 
             EOS
 		;
@@ -1179,7 +1181,7 @@ unlabeled_function_stmt
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 
-             subprog_suffix_allowed = TRUE;
+             initial_flag = TRUE;
 			}
 		|	prefixed_function_handle symbolic_name
 				'(' dummy_argument_list ')' 
@@ -1196,7 +1198,7 @@ unlabeled_function_stmt
 			 if(debug_parser)
 			   print_exprlist("function stmt",&($4));
 #endif
-             subprog_suffix_allowed = TRUE;
+             initial_flag = TRUE;
 			}
 		|	plain_function_handle symbolic_name 
 			{
@@ -1214,8 +1216,9 @@ unlabeled_function_stmt
 				      (Token*)NULL);
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
+            
+             initial_flag = TRUE;
 
-             subprog_suffix_allowed = TRUE;
 			}
 		|	plain_function_handle symbolic_name 
 				'(' dummy_argument_list ')' 
@@ -1233,7 +1236,7 @@ unlabeled_function_stmt
 			   print_exprlist("function stmt",&($4));
 #endif
 
-            subprog_suffix_allowed = TRUE;
+             initial_flag = TRUE;
 			}
 		;
 
@@ -1289,6 +1292,7 @@ suffix_item : proc_language_binding_spec
         |   tok_RESULT '(' result_argument ')'
             {   
                 $$ = $3;		/* replace RESULT token by identifier token */
+		initial_flag = TRUE;	/* so BIND will be lexed */
             }
         
 
@@ -1302,8 +1306,6 @@ result_argument	:	symbolic_name
 	    ;
 
 proc_language_binding_spec: language_binding_spec
-            {
-            }
         ;
 
 language_binding_spec  :    unnamed_bind    
@@ -1312,13 +1314,17 @@ language_binding_spec  :    unnamed_bind
                 /* create tree with C keyword as left child, bind name as right */
                 $$.left_token = add_tree_node(&($1),&($3),&($5));
 
+		initial_flag = TRUE;	/* so RESULT will be lexed */
+
             }
         ;
 
+/* separate production needed for this to give token for tree node */
 unnamed_bind    :   tok_BIND '(' C_keyword ')'
             {
                 /* make C keyword the sole child of BIND */
                 $$.left_token = add_tree_node(&($1),&($3),(Token *)NULL);
+		initial_flag = TRUE;	/* so RESULT will be lexed */
             }
         ;
 
@@ -1338,9 +1344,7 @@ bind_name   :   symbolic_name '=' expr
             }
         ;
 
-intent_spec :   tok_IN
-        |   tok_OUT
-        |   tok_INOUT
+intent_spec :   symbolic_name		/* IN, OUT, or INOUT */
         ;
 
 /*--------------------------------------------------------*/
@@ -1398,7 +1402,6 @@ subroutine_stmt	:   unlabeled_subroutine_stmt EOS
                 else {
                     do_bind_spec(($2).left_token,internal_subprog);
                 }
-				subprog_suffix_allowed = FALSE;
 			} EOS
 		;
 
@@ -1414,7 +1417,7 @@ unlabeled_subroutine_stmt
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 			  
-              subprog_suffix_allowed = TRUE;
+              initial_flag = TRUE;
 			}
 		|	prefixed_subroutine_handle symbolic_name
 				'(' dummy_argument_list ')' 
@@ -1431,8 +1434,7 @@ unlabeled_subroutine_stmt
 			  if(debug_parser)
 			    print_exprlist("subroutine stmt",&($4));
 #endif
-
-              subprog_suffix_allowed = TRUE;
+              initial_flag = TRUE;
 			}
 		|	plain_subroutine_handle symbolic_name 
 			{
@@ -1444,8 +1446,8 @@ unlabeled_subroutine_stmt
 				       (Token*)NULL);
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
-
-              subprog_suffix_allowed = TRUE;
+              
+              initial_flag = TRUE;
 			}
 		|	plain_subroutine_handle symbolic_name
 				'(' dummy_argument_list ')' 
@@ -1462,8 +1464,8 @@ unlabeled_subroutine_stmt
 			  if(debug_parser)
 			    print_exprlist("subroutine stmt",&($4));
 #endif
-
-              subprog_suffix_allowed = TRUE;
+              
+              initial_flag = TRUE;
 			}
 		;
 
@@ -1870,7 +1872,7 @@ type_stmt	:	arith_type_name arith_type_decl_list EOS
 
 				/* Attribute-based type declarations */
 attrbased_type_stmt:	arith_attrbased_type_handle
-			    ':' ':' arith_type_decl_list EOS
+			    tok_double_colon arith_type_decl_list EOS
 			{
 			  if(f77_attrbased_typedecl) {
 			    nonstandard($2.line_num, $2.col_num,0,0);
@@ -1878,7 +1880,7 @@ attrbased_type_stmt:	arith_attrbased_type_handle
 			  }
 			}
 		|	char_attrbased_type_handle
-			    ':' ':' char_type_decl_list EOS
+			    tok_double_colon char_type_decl_list EOS
 			{
 			  if(f77_attrbased_typedecl) {
 			    nonstandard($2.line_num, $2.col_num,0,0);
@@ -2399,87 +2401,143 @@ char_type_decl_entity:symbolic_name
 contains_stmt:  tok_CONTAINS EOS
         ;
 
-use_stmt    : use_handle use_spec
-	;
-
-use_handle: use_intro
-	| use_intro ':' ':'
-	;
-
-use_intro: tok_USE
-	| tok_USE ',' module_nature
+use_stmt    :   use_handle use_spec
+            {
+                generic_spec_allowed = FALSE;
+            }
         ;
+
+use_handle  :   use_intro
+        |   use_intro tok_double_colon
+        ;
+
+use_intro   :  tok_USE
+	|  use_keyword_comma  module_nature
+	;
+
+use_keyword_comma: tok_USE ','
+            {
+		initial_flag = TRUE; /* enable lexing [NON_]INTRINSIC */
+            }
+	    ;
+
 
 module_nature   :   tok_INTRINSIC 
-        |   tok_NONINTRINSIC 
+        |   tok_NON_INTRINSIC 
         ;
 
-use_spec: module_name
-	| module_name ',' rename_list
-	| module_name ',' use_only
+use_spec    :   module_name
+	| module_name_comma use_only
+	| module_name_comma rename_list
 	;
 
-module_name: symbolic_name
-	;
+
+module_name_comma: module_name ','
+	    {
+		use_keywords_allowed = TRUE; /* enable lexing ONLY keyword */
+	    }
+        ;
+
+module_name :   symbolic_name
+            {
+                generic_spec_allowed = TRUE;
+            }
+        ;
 
 rename_list :   rename
         |   rename_list ',' rename
         ;
 
 rename  :   symbolic_name tok_rightarrow symbolic_name
-        |   tok_OPERATOR '(' defined_operator ')'
-                tok_rightarrow tok_OPERATOR '(' defined_operator ')'
+        |   tok_OPERATOR '(' operator ')'
+            tok_rightarrow tok_OPERATOR '(' operator ')'
         ;
 
-use_only:  tok_ONLY ':' EOS
-	|  tok_ONLY ':' only_list EOS
+use_only    :   only_keywd ':' EOS
+        |   only_keywd ':' only_list EOS
+        ;
+
+only_keywd: tok_ONLY
+	    {
+		use_keywords_allowed = FALSE; 
+	    }
 	;
 
 only_list   : only_item  
         |   only_list ',' only_item
         ;
 
-only_item    :   generic_spec
+only_item   :   generic_spec
         |   rename
         ;
 
 generic_spec    :   symbolic_name
-        |   tok_OPERATOR '(' defined_operator ')'
+        |   tok_OPERATOR '(' operator ')'
         |   tok_ASSIGNMENT '(' '=' ')'
         |   defined_io_generic_spec
         ;
 
-/* need to define more of these */
-defined_operator    :   '+' | '-' | '*' | '/' | tok_concat | tok_power | tok_relop 
+operator    :   tok_power | '*' | '/' | '+' | '-' | tok_concat 
+        | tok_relop | tok_NOT | tok_AND | tok_OR | tok_EQV | tok_NEQV 
+			/*        | defined_operator */
             {
-                /* is a public entity in the module */
-                /* can be defined_unary_op or defined_binary_op */
+                /* defined unary or binary operator of the form
+                   .myoperator. */
             }
         ;
 
+defined_io_generic_spec :   tok_READ '(' symbolic_name ')'
+        |   tok_WRITE '(' symbolic_name ')'
+            {
+
+                /*
 defined_io_generic_spec :   symbolic_name '(' symbolic_name ')'
             {
-                /* 1st symbolic_name can be READ or WRITE
-                   2nd symbolic_name can be FORMATTED or UNFORMATTED
-                   */
+            if ((strcmp(hashtab[($1).value.integer].name, "READ") != 0)
+               && (strcmp(hashtab[($1).value.integer].name, "WRITE") != 0))
+                    syntax_error(($1).line_num, ($1).col_num,
+                      "defined-io-generic-spec : READ or WRITE");
+
+          if ((strcmp(hashtab[($3).value.integer].name,"FORMATTED") != 0)
+            &&(strcmp(hashtab[($3).value.integer].name,"UNFORMATTED")!=0))
+                    syntax_error(($3).line_num, ($3).col_num,
+                      "defined-io-generic-spec : [UN]FORMATTED");
+            }
+        ;
+        */
+
             }
         ;
 
 interface_stmt  :   interface_handle EOS
+            {
+                generic_spec_allowed = FALSE;
+            }
         |   interface_handle generic_spec EOS
+            {
+                generic_spec_allowed = FALSE;
+            }
         ;
 
 interface_handle    :   tok_INTERFACE
+            {
+                generic_spec_allowed = TRUE;
+            }
         |   tok_ABSTRACT tok_INTERFACE
+            {
+                /* needed to simplify matching in pop_block */
+                $$ = $2;
+                generic_spec_allowed = TRUE;
+            }
         ;
 
 procedure_stmt  :   procedure_stmt_handle non_empty_arg_list
         ;
 
 procedure_stmt_handle  :   tok_PROCEDURE 
-        |   tok_PROCEDURE ':' ':' 
+        |   tok_PROCEDURE tok_double_colon 
         |   tok_MODULE tok_PROCEDURE 
-        |   tok_MODULE tok_PROCEDURE ':' ':' 
+        |   tok_MODULE tok_PROCEDURE tok_double_colon 
         ;
 
 endinterface_stmt   :   tok_ENDINTERFACE EOS
@@ -2495,9 +2553,12 @@ endderived_type_stmt:   tok_ENDTYPE EOS
         |   tok_ENDTYPE symbolic_name
         ;
 
-derived_type_handle :   tok_TYPE
-        |   tok_TYPE ':' ':'
-        |   tok_TYPE ',' type_attr_spec_list ':' ':'
+derived_type_handle :   derived_type_keyword
+        |   derived_type_keyword tok_double_colon
+        |   derived_type_keyword ',' type_attr_spec_list tok_double_colon
+        ;
+
+derived_type_keyword    :   tok_TYPE 
         ;
 
 type_attr_spec_list :   type_attr_spec
@@ -2772,7 +2833,11 @@ parameter_defn_item:	symbolic_name {complex_const_allowed = TRUE;}
 		;
 
 /* 24 */
-external_stmt	:	tok_EXTERNAL external_name_list EOS
+external_stmt	:	external_handle external_name_list EOS
+		;
+
+external_handle:	tok_EXTERNAL
+		|	tok_EXTERNAL tok_double_colon
 		;
 
 external_name_list:	symbolic_name
@@ -2786,8 +2851,13 @@ external_name_list:	symbolic_name
 		;
 
 /* 25 */
-intrinsic_stmt	:	tok_INTRINSIC intrinsic_name_list EOS
+intrinsic_stmt	:	intrinsic_handle intrinsic_name_list EOS
 		;
+
+intrinsic_handle :	tok_INTRINSIC
+		|	tok_INTRINSIC tok_double_colon
+		;
+
 
 intrinsic_name_list:	symbolic_name
 			{
@@ -2830,7 +2900,7 @@ pointer_stmt    :       tok_POINTER attr_decl_list EOS
                 ;
 
 attr_decl_list	:	attr_decl_item
-		|	':' ':' attr_decl_item
+		|	tok_double_colon attr_decl_item
 		|	attr_decl_list ',' attr_decl_item
 		;
 
@@ -4014,6 +4084,7 @@ fmt_item_separator:	','
 		|	'/'
 		|	tok_concat	/* since lexer spots "//" */
 		|	':'
+		|	tok_double_colon /* not likely but not illegal */
 		|	'.'		/* Occurs when variable w.d is used */
 		|	nonstandard_fmt_item
 			{
@@ -4907,7 +4978,8 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	global_save = FALSE;
 	prev_token_class = EOS;
 	complex_const_allowed = FALSE;
-	subprog_suffix_allowed = FALSE;
+    use_keywords_allowed = FALSE;
+    generic_spec_allowed = FALSE;
 	stmt_sequence_no = 0;
 	f90_stmt_sequence_no = 0;
 	true_prev_stmt_line_num = 0;

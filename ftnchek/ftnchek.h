@@ -1265,6 +1265,8 @@ SHARED long
 SHARED int
     equivalence_flag,   /* true while parsing EQUIVALENCE statement */
     initial_flag,	/* true while only label or initial keywords read */
+    use_keywords_allowed,	/* help for recognizing module nature 
+                                       and ONLY in USE stmt */
     implicit_flag,	/* true while parsing IMPLICIT statement */
     implicit_letter_flag, /* true while getting letters in IMPLICIT list */
     implicit_type_given,/* true if IMPLICIT type statement found */

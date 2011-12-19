@@ -165,7 +165,7 @@ COL		= @COL@
 
 # Editor tags file support
 CTAGS		= @CTAGS@
-CTAGSFLAGS	= -t
+CTAGSFLAGS	= 
 ETAGS		= @ETAGS@
 
 # The following suffixes are for making various forms of documentation
@@ -352,6 +352,7 @@ fortran.c: fortran.y
 	then \
 	  $(SED) -e '/yytname\[] =/,/^};/s/tok_//g' \
 	         -e '/yytname\[] =/,/^};/s/_/ /g' \
+		 -e '/yytname\[] =/,/^};/s/NON INTRINSIC/NON_INTRINSIC/g' \
 	         -e '/yytname\[] =/,/^};/s/EOS/end of statement/g' \
 		 -e  ':CAT'  -e '/^# *if.*\\$$/N' -e 's/\\\n//' -e tCAT \
 		y.tab.c > fortran.c ; \

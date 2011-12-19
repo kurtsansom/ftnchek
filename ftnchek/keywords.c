@@ -42,7 +42,8 @@ as the "MIT License."
 #include "forlex.h"
 
 extern int in_attrbased_typedecl, /* shared with fortran.y */
-	subprog_suffix_allowed;
+    generic_spec_allowed,
+    use_keywords_allowed;
 
 PROTO( PRIVATE int is_keyword,( int i ));
 
@@ -58,7 +59,7 @@ PROTO( PRIVATE int is_keyword,( int i ));
 #define NP 0x02	/* Never followed by ( or =  */
 #define MP 0x04	/* Must be followed by ( */
 #define NI 0x08	/* Disallowed in logical IF */
-#define EK 0x10	/* Cannot be followed by IK keyword: turns off initial_flag */
+#define EK 0x10	/* Cannot be followed by IK keyword: turns off initial_flag** */
 #define TY 0x20	/* Data type name */
 #define NA 0x40	/* Never followed by alphabetic.  Put this onto any that
 		   can stand alone or be followed by a second keyword, so
@@ -67,7 +68,10 @@ PROTO( PRIVATE int is_keyword,( int i ));
 		   this flag if there is support in the parser.) */
 #define MB 0x100/* Blanks mandatory between two words (in free form) */
 #define TK 0x200/* Type name that can be followed by kind-spec or len-spec */ 
-#define SX 0x400/* keyword that can only occur in subprogram suffix */
+#define UK 0x400/* Keyword that can only occur in use stmt, ONLY */
+#define GN 0x800/* Generic specification keywords*/
+/* **note: initial_flag is turned back on after comma when inside
+  an attr-based type decl or USE statement or derived type decl. */
 
 				/* Bisection search done at each
 				   length step requires fixed-length
@@ -110,14 +114,14 @@ PRIVATE struct {
 	      context;		/* local-context flags */
 	short split_pos;	/* where keyword may have space */
 } keywords[]={
-{"ABSTRACT",	tok_ABSTRACT,	IK | NI, 	0},
+{"ABSTRACT",	tok_ABSTRACT,	IK | NP | NI, 	0},
 {"ACCEPT",	tok_ACCEPT,	IK | EK,			0},
 {"ALLOCATABLE", tok_ALLOCATABLE,        IK | NI | EK | NP,      0},
 {"ALLOCATE",	tok_ALLOCATE,	IK | MP | NI | EK,		0},
 {"ASSIGN",	tok_ASSIGN,	IK | NP | EK | NA,		0},
-{"ASSIGNMENT",	tok_ASSIGNMENT,	IK | NI | MP, 		0},
+{"ASSIGNMENT",	tok_ASSIGNMENT,	NI | MP | EK | GN, 		0},
 {"BACKSPACE",	tok_BACKSPACE,	IK | EK,			0},
-{"BIND",	tok_BIND,	NI | EK | MP | NA | SX,		0},
+{"BIND",	tok_BIND,	IK | NI | EK | MP | NA,		0},
 {"BLOCKDATA",	tok_BLOCKDATA,	IK | EK | NP | NI,		5},
 {"BYTE",	tok_BYTE,	IK | NI | EK | TY,		0},
 {"CALL",	tok_CALL,	IK | NP | EK,			0},
@@ -157,7 +161,7 @@ PRIVATE struct {
 {"ENTRY",	tok_ENTRY,	IK | NP | NI | EK,		0},
 {"EQUIVALENCE",	tok_EQUIVALENCE,IK | NI | EK | MP | NA,		0},
 {"EXIT",	tok_EXIT,	IK | NP | EK,			0},
-{"EXTENDS",	tok_EXTENDS,	IK | NI | MP,  		0},
+{"EXTENDS",	tok_EXTENDS,	IK | NI | MP | EK,  		0},
 {"EXTERNAL",	tok_EXTERNAL,	IK | NP | NI | EK,		0},
 {"FORMAT",	tok_FORMAT,	IK | NI | EK | MP | NA,		0},
 {"FUNCTION",	tok_FUNCTION,	NP | NI | EK,			0},
@@ -165,41 +169,38 @@ PRIVATE struct {
 {"IF",		tok_IF,		IK | NI | EK | MP | NA | CN,	0},
 {"IMPLICIT",	tok_IMPLICIT,	IK | NP | NI,			0},
 {"IMPURE",  tok_IMPURE,     IK | NP | NI,   0},
-{"IN",	    tok_IN,	IK | NI | NA,		0},
 {"INCLUDE",	tok_INCLUDE,	IK | NP | NI | EK | NA,		0},
-{"INOUT",	tok_INOUT,	IK | NI | NA,		0},
 {"INQUIRE",	tok_INQUIRE,	IK | EK | MP | NA,		0},
 {"INTEGER",	tok_INTEGER,	IK | NI | EK | TY | TK,		0},
 {"INTENT",	tok_INTENT,	    IK | MP | NI | EK,		0},
-{"INTERFACE",	tok_INTERFACE,		IK | NI,		0},
-{"INTRINSIC",	tok_INTRINSIC,	IK | NP | NI | EK,		0},
+{"INTERFACE",	tok_INTERFACE,   IK | NP | NI | EK,		0},
+{"INTRINSIC",	tok_INTRINSIC,	 IK | NP | NI | EK, 		0},
 {"LOGICAL",	tok_LOGICAL,	IK | NI | EK | TY | TK,		0},
 {"MODULE",	tok_MODULE,		IK | NP | NI | EK,		0},
 {"NAMELIST",	tok_NAMELIST,	IK | NP | NI | EK,		0},
 {"NONE",	tok_NONE,	IK | NI | EK | TY | NA,		0},
-{"NON_INTRINSIC",	tok_NONINTRINSIC,	IK | NP | NI | EK,		0},
+{"NON_INTRINSIC",	tok_NON_INTRINSIC,	IK | NP | NI | EK ,		0},
 {"NULLIFY",	tok_NULLIFY,	IK | MP | NI | EK,		0},
-{"ONLY",	tok_ONLY,	IK | NP | NI | EK,		0},
+{"ONLY",	tok_ONLY,	NP | NI | EK | UK,		0},
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
-{"OPERATOR",	tok_OPERATOR,	IK | MP | NI | EK,		0},
+{"OPERATOR",	tok_OPERATOR,	MP | NI | EK | GN ,		0},
 {"OPTIONAL",	tok_OPTIONAL,	IK | NI ,		0},
-{"OUT",	    tok_OUT,	IK | NI | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
 #ifdef ALLOW_CRAY_POINTERS
 {"POINTER",     tok_POINTER,    IK | NI | EK,			0},
 #endif
 {"PRINT",	tok_PRINT,	IK | EK,			0},
-{"PRIVATE",    tok_PRIVATE,   IK | NI,   0},
-{"PROCEDURE",   tok_PROCEDURE,   IK | NI,   0},
+{"PRIVATE",    tok_PRIVATE,   IK | NP | NI | EK ,   0},
+{"PROCEDURE",   tok_PROCEDURE,   NP | NI | EK ,   0},
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
 {"PROTECTED",   tok_PROTECTED,	IK | NI ,		0},
-{"PUBLIC",    tok_PUBLIC,   IK | NI,   0},
+{"PUBLIC",    tok_PUBLIC,   IK | NP | NI | EK,   0},
 {"PURE",    tok_PURE,   IK | NP | NI,   0},
-{"READ",	tok_READ,	IK | EK,			0},
+{"READ",	tok_READ,	IK | EK | GN,	0},
 {"REAL",	tok_REAL,	IK | NI | EK | TY | TK,		0},
 {"RECURSIVE",   tok_RECURSIVE,   IK | NP | NI,   0},
-{"RESULT",	tok_RESULT,	NI | EK | MP | NA | SX,		0},
+{"RESULT",	tok_RESULT,	IK | NI | EK | MP | NA,		0},
 {"RETURN",	tok_RETURN,	IK | EK,			0},
 {"REWIND",	tok_REWIND,	IK | EK,			0},
 {"SAVE",	tok_SAVE,	IK | NP | NI | EK,		0},
@@ -209,11 +210,11 @@ PRIVATE struct {
 {"TARGET",      tok_TARGET,     IK | NI | EK | NP,              0},
 {"THEN",	tok_THEN,	IK | NP | EK,			0},
 {"TO",		tok_TO,		NI | EK,			0},
-{"TYPE",	tok_TYPE,	IK | EK,			0},
-{"USE",		tok_USE,	IK | NI,    		0},
+{"TYPE",	tok_TYPE,	IK | NP | NI | EK | TY,			0},
+{"USE",		tok_USE,	IK | NP | NI | EK, 		0},
 {"VOLATILE",   tok_VOLATILE,	IK | NI ,		0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},
-{"WRITE",	tok_WRITE,	IK | EK | MP | NA,		0},
+{"WRITE",	tok_WRITE,	IK | EK | MP | NA | GN,		0},
 
 };
 
@@ -306,7 +307,10 @@ get_identifier(token)
 				 */
 	  if(possible_keyword) {
 
-	    if(!isaletter(c)	/* If not alphabetic, cannot be keyword */
+	    //if(!isaletter(c)	/* If not alphabetic, cannot be keyword */
+
+        /* Keyword can now have underscore. E.g. NON_INTRINSIC */
+	    if(!(isaletter(c) || c == '_')
 	       || klen >= sizeof(keywords[0].name)-1) /* or overlength */
 	    {
 #ifdef DEBUG_IS_KEYWORD
@@ -568,17 +572,24 @@ is_keyword(i)
 #ifdef DEBUG_IS_KEYWORD
   if(debug_lexer){
     (void)fprintf(list_fd,
-		"\nkeyword %s: initialflag=%d implicitflag=%d ",
-	    keywords[i].name,initial_flag,implicit_flag);
+		"\nkeyword %s: initialflag=%d implicitflag=%d generic_spec_allowed=%d ",
+		  keywords[i].name,initial_flag,implicit_flag,generic_spec_allowed);
     (void)fprintf(list_fd,
-		"context=%o, next char=%c %o",keywords[i].context,
+		"context=%x, next char=%c %x",keywords[i].context,
 						curr_char,curr_char);
   }
 #endif
 
   putative_keyword_class = keywords[i].tclass;
 
-  if( !initial_flag && MATCH(IK) ) {
+   /* look for keywords which can only occur in generic spec*/
+  if(!initial_flag && MATCH(GN)) {	/* Match READ, WRITE et al in generic spec */
+      if(curr_char != '(') 		/* These keywords must always be followed by left paren here  */
+          ans = FALSE;
+      else 
+          ans = generic_spec_allowed;
+  }
+  else if( !initial_flag && MATCH(IK) ) {
 			/* Dispose of keywords which can only occur in initial
 			   part of statement, if found elsewhere. One exception
 			   is something with a construct-name tacked on in
@@ -639,6 +650,17 @@ is_keyword(i)
     ans = WHILE_expected;
     WHILE_expected = FALSE;
   }
+
+  /*--------------------- addition ------------------------------*/
+
+
+  /* look for ONLY which can only occur in use stmt*/
+  else if(MATCH(UK)) {
+    ans = use_keywords_allowed;
+  }
+
+
+  /*-------------------------------------------------------------*/
 		/* Remaining cases are IK in initial part */
 
 			/*   Eliminate those which can never be followed
@@ -663,15 +685,6 @@ is_keyword(i)
     ans = (in_attrbased_typedecl && putative_keyword_class == tok_PARAMETER
 	&& (curr_char == ',' || curr_char == ':'));
   }
-
-  /*--------------------- addition ------------------------------*/
-
-  /* look for BIND, RESULT which can only occur in subprog suffix */
-  else if(MATCH(MP) && MATCH(SX) && curr_char == '(') {
-    ans = subprog_suffix_allowed;
-  }
-
-  /*-------------------------------------------------------------*/
 
 				/* END DO: handle its DO here */
   else if( putative_keyword_class == tok_DO && curr_char == EOS ) {

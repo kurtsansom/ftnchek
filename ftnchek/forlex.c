@@ -1511,19 +1511,21 @@ get_punctuation(token)
 
 	src_text_buf[src_text_len++] = curr_char;
 
-		/* If lexing attr-based type decl, turn off the flag when
-		   the double colon is reached...
+		/* Punctuation turns off initial_flag.  However, if
+		   lexing attr-based type decl, turn
+		   initial_flag back on if a comma is found.  Turn off
+		   the attribute-based decl flag when the double colon
+		   is reached.
 		 */
-	if( in_attrbased_typedecl && curr_char == ':' ) {
-	  in_attrbased_typedecl = FALSE;
+	initial_flag = FALSE;
+	if( in_attrbased_typedecl ) {
+	    if( curr_char == ',' ) {
+		initial_flag = TRUE;
+	    }
+	    else if(curr_char == ':' ) {
+		in_attrbased_typedecl = FALSE;
+	    }
 	}
-		/* ...whereas turn initial_flag back on if a comma is found. */
-	if( in_attrbased_typedecl && curr_char == ',' ) {
-	  initial_flag = TRUE;
-	}
-
-	if( !in_attrbased_typedecl )
-	  initial_flag = FALSE;
 
 	space_seen_lately = iswhitespace(next_char);
 
@@ -1548,6 +1550,13 @@ get_punctuation(token)
 			make_true(IN_ASSIGN,token->TOK_flags);
 		}
 		token->tclass = tok_concat;
+		multichar = TRUE;
+		advance();
+		src_text_buf[src_text_len++] = curr_char;
+	}
+		/* double colon :: treat as single token */
+	else if(curr_char == ':' && next_char == ':') {
+		token->tclass = tok_double_colon;
 		multichar = TRUE;
 		advance();
 		src_text_buf[src_text_len++] = curr_char;
