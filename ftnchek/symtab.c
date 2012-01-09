@@ -156,6 +156,12 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	    equiv = equiv->equiv_link; \
 	  } while(equiv != symt); }
 
+	if (! in_curr_scope(symt)) {
+		symt = install_local(h,type_UNDECL,class_VAR);
+		symt->line_declared = id->line_num;
+		symt->file_declared = inctable_index;
+	}
+
 	switch( attr )
 	{
 	  case tok_ALLOCATABLE:
@@ -577,7 +583,15 @@ declare_type(id,datatype,size,size_text)
 	    }
 	  }
 
-	  if(datatype_of(symt->type) != type_UNDECL) {
+	  /* If symbol is not in current scoping unit, then this declaration
+	     masks the existing one.  Install a new symtab entry.
+	   */
+	  {int new_here = ! in_curr_scope(symt);
+	  if ( new_here ) {
+	      symt = install_local(h,datatype,class_VAR);
+	  }
+
+	  if(!new_here && datatype_of(symt->type) != type_UNDECL) {
 	      syntax_error(id->line_num,id->col_num,
 		"symbol redeclared: ");
 	  	msg_tail(symt->name);
@@ -593,6 +607,7 @@ declare_type(id,datatype,size,size_text)
 				 */
 	      symt->line_declared = id->line_num;
 	      symt->file_declared = inctable_index;
+	  }
 	  }
 
 			/* Issue error if already defined as a parameter */
@@ -673,7 +688,9 @@ def_arg_name(id)		/* Process items in argument list */
 	   symt->file_declared = inctable_index;
 	}
 	else {           /* Symbol has been seen before: check it */
-
+		if (! in_curr_scope(symt)) {
+			symt = install_local(h,type_UNDECL,class_VAR);
+		}
 	}
 	symt->argument = TRUE;
 }/*def_arg_name*/
@@ -1087,7 +1104,7 @@ def_function(datatype,size,size_text,id,args)
 	TokenListHeader *TH_ptr;
    	storage_class = class_SUBPROGRAM;
 
-   	if((symt = (hashtab[h].loc_symtab)) == NULL) {
+   	if((symt = (hashtab[h].loc_symtab)) == NULL || !(in_curr_scope(symt)) ) {
 			/* Symbol is new to local symtab: install it.
 			   Since this is the current routine, it has
 			   storage class of a variable. */
@@ -1154,6 +1171,17 @@ def_function(datatype,size,size_text,id,args)
 #endif
 	}
 
+	/* Test if it is a function to turn on result_var flag */
+	switch(datatype) {
+	    case type_MODULE:
+	    case type_PROGRAM:
+	    case type_BLOCK_DATA:
+	    case type_SUBROUTINE:	/* Subroutine return: OK */
+		break;
+		default:
+			symt->result_var = TRUE;
+		break;
+	}
 }/*def_function*/
 
 
@@ -1547,6 +1575,8 @@ do_ENTRY(id,args,hashno)	/* Processes ENTRY statement */
 			     id,args);
 		break;
 	}
+
+	hashtab[id->value.integer].loc_symtab->result_var = TRUE;
 }/*do_ENTRY*/
 
 
@@ -1588,6 +1618,16 @@ do_RETURN(hashno,keyword)
 		break;
 	    default:		/* Function return: check whether entry
 				   points have been assigned values. */
+		for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
+		  if (loc_symtab[i].result_var && !loc_symtab[i].set_flag) {
+		      if(misc_warn) {
+			    warning(keyword->line_num,keyword->col_num,
+					loc_symtab[i].name);
+			    msg_tail("not set when RETURN encountered");
+		    }
+		  }
+		}
+		/*
 		for(i=0; i<loc_symtab_top; i++) {
 		    if(storage_class_of(loc_symtab[i].type) == class_VAR
 			&& loc_symtab[i].entry_point
@@ -1599,16 +1639,19 @@ do_RETURN(hashno,keyword)
 		      }
 		    }
 		}
+		*/
 		break;
 	}
 	return valid;
 }/*do_RETURN*/
 
-void do_result_spec(Token *p, int hashno)
+void do_result_spec(Token *p, int hashno, int result_var_hashno)
 {
     if (strcmp(hashtab[p->value.integer].name, hashtab[hashno].name) == 0)
         syntax_error(p->line_num, p->col_num,
                  "Result name must not be the same as function name");
+	hashtab[result_var_hashno].loc_symtab->result_var = FALSE;
+	hashtab[p->value.integer].loc_symtab->result_var = TRUE;
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {
@@ -1720,7 +1763,7 @@ if(debug_latest) {
 
 /* process suffix part of subprogram declaration */
 void
-do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix)
+do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno)
 {
 
     Token *currToken;
@@ -1733,7 +1776,7 @@ do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix)
             }
             break;
         case tok_identifier:
-            do_result_spec(currToken, hashno);
+            do_result_spec(currToken, hashno, result_var_hashno);
             break;
         default:
             oops_message(OOPS_FATAL,currToken->line_num,currToken->col_num,
@@ -2020,12 +2063,21 @@ Recompile me with LARGE_MACHINE option\n"
 		);
 	}
 	else {
-	    if(storage_class == class_COMMON_BLOCK)
-		hashtab[h].com_loc_symtab = symt;
-	    else
-		hashtab[h].loc_symtab = symt;
 
 	    clear_symtab_entry(symt);
+
+				/* Save pointer to masked entry if any,
+				   then set hashtable to point to this new one.
+				 */
+	    if(storage_class == class_COMMON_BLOCK) {
+		symt->mask = hashtab[h].com_loc_symtab;
+		hashtab[h].com_loc_symtab = symt;
+	    }
+	    else {
+		symt->mask = hashtab[h].loc_symtab;
+		hashtab[h].loc_symtab = symt;
+	    }
+
 	    symt->name = hashtab[h].name;
 	    symt->info.array_dim = 0;
 
@@ -2850,3 +2902,94 @@ void print_sizeofs()			/* For development: print sizeof for
   PrintObjSize(ChildList);
 }
 #endif
+
+
+/* Scope stack */
+
+int curr_scope_bottom = -1; // not in any scope
+Scope loc_scope[MAXSCOPES];
+int loc_scope_top = 0;    // next available slot
+
+int empty_scope() {
+  return (curr_scope_bottom == loc_symtab_top);
+}
+
+void push_loc_scope(void)
+{
+
+#ifdef DEBUG_SCOPE
+if (debug_latest) {
+    fprintf(list_fd, "\npush: loc_scope_top=%d", loc_scope_top);
+    fprintf(list_fd, "\npush: curr_scope_bottom=%d", curr_scope_bottom);
+    fprintf(list_fd, "\npush: curr_scope_top   =%d", loc_symtab_top);
+}
+#endif
+
+    if (loc_scope_top >= MAXSCOPES) {
+      oops_message(OOPS_NONFATAL,line_num,NO_COL_NUM,
+		   "Local scope stack overflow");
+    }
+    else {
+#ifdef DEBUG_SCOPE
+if (debug_latest) {int hashno = current_prog_unit_hash;
+    fprintf(list_fd, "\nsaving current_prog_unit_hash of %s",
+	    ((hashno == -1)?"-1":hashtab[hashno].name));
+}
+#endif
+      loc_scope[loc_scope_top].hash_num = current_prog_unit_hash;
+      loc_scope[loc_scope_top].exec_stmt_count = exec_stmt_count; 
+      loc_scope[loc_scope_top++].symt_index = curr_scope_bottom;
+      curr_scope_bottom = loc_symtab_top;
+    }
+}
+
+/* Pop the symbols defined in the current scoping unit off the symbol
+  table, so the enclosing unit becomes the current scope.  The top of
+  the symbol table is set back to the bottom of the current unit, and
+  the bottom of the scoping unit is restored to that of the enclosing
+  scope, saved on scope stack.
+ */
+int pop_loc_scope(void)
+{
+#ifdef DEBUG_SCOPE
+if (debug_latest) {
+    fprintf(list_fd, "\npop: loc_scope_top=%d", loc_scope_top);
+    fprintf(list_fd, "\npop: curr_scope_bottom=%d", curr_scope_bottom);
+    fprintf(list_fd, "\npop: curr_scope_top   =%d", loc_symtab_top);
+}
+#endif
+    if (loc_scope_top <= 0) {
+      oops_message(OOPS_NONFATAL,line_num,NO_COL_NUM,
+		   "Tried to pop empty local scope stack");
+      return -1;
+    }
+    else  {
+      loc_symtab_top = curr_scope_bottom;
+      curr_scope_bottom = loc_scope[--loc_scope_top].symt_index;
+
+#ifdef DEBUG_SCOPE
+if (debug_latest) {
+    int h = loc_scope[loc_scope_top].hash_num;
+    fprintf(list_fd, "\nrestoring current_prog_unit_hash of %s",
+	    ((h == -1)?"-1":hashtab[h].name));
+}
+#endif
+	/* Restore counters for enclosing scope */
+      exec_stmt_count = loc_scope[loc_scope_top].exec_stmt_count;
+
+    /* Return value of current_prog_unit_hash of enclosing scope. */
+      return loc_scope[loc_scope_top].hash_num;
+    }
+}
+
+/* Function returns true if symbol table pointer points to entry in
+   the current scoping unit, between curr_scope_bottom and loc_symtab_top.
+ */
+int in_curr_scope(Lsymtab *entry)
+{
+    if (entry >= &loc_symtab[curr_scope_bottom] &&
+            entry < &loc_symtab[loc_symtab_top])
+        return TRUE;
+    else
+        return FALSE;
+}

@@ -218,6 +218,8 @@ finish_scan(VOID)
 {
 		/* clean up if no END statement at EOF */
 	check_seq_header((Token *)NULL);
+
+	(void) pop_loc_scope();	/* zero scope stack for next input file */
 }
 
 	/* next_up(c) is true if next_char == c outside of character or

@@ -74,66 +74,61 @@ init_globals(VOID)                	/* Clears the global symbol table */
 
 
 void
-init_symtab(VOID)                     /* Clears the local symbol table */
+init_symtab(VOID)      /* Clears the current scope of local symbol table */
 {
 	int i,h;
 
-		/* Define factor equal to ratio of time to clear hashtable
-		   entry by looking up in symbol table to time to clear it
-		   directly.  This factor is used to choose the method
-		   of clearing out the hashtab.
-		 */
-#ifndef HINITFACTOR
-#define HINITFACTOR 20
-#endif
 		      /* Clear the hash table of local symbol refs */
-	if( loc_symtab_top < HASHSZ/HINITFACTOR ) {
-			/* few local symbols: look them up in symtab */
-	  for(i=0; i<loc_symtab_top; i++) {
-	      h=hash_lookup(loc_symtab[i].name);
-	      hashtab[h].loc_symtab = NULL;
-	      hashtab[h].com_loc_symtab = NULL;
-	  }
-	}
-	else {
-			/* many local symbols: skip lookup, sweep hashtable */
-	  for(h=0;h<HASHSZ;h++) {
-	    hashtab[h].loc_symtab = NULL;
-	    hashtab[h].com_loc_symtab = NULL;
-	  }
-	}
+    if (curr_scope_bottom != -1) {	/* -1 means no scope active */
 
-	loc_symtab_top = 0;	/* Clear local symtab */
+        for(i=curr_scope_bottom ; i<loc_symtab_top; i++) {
+            h=hash_lookup(loc_symtab[i].name);
+            /* point hashtable at masked entry in outer scope if any */
+	    if(hashtab[h].loc_symtab)
+	      hashtab[h].loc_symtab = hashtab[h].loc_symtab->mask;
+            hashtab[h].com_loc_symtab = NULL;
+        }
+    }
 
 
-	curr_srctextspace = &srctextspace;
-	srctextspace_top = 0;	/* Reset storage area for token text */
-	extra_srctextspace = 0;
+					/* recover storage space when
+					 * outermost scope is exited.
+					 * Note this is called *before*
+					 * popping the scope to be cleared.
+					 */
+    if (curr_scope_bottom <= 0) {
+        curr_srctextspace = &srctextspace;
+        srctextspace_top = 0;	/* Reset storage area for token text */
+        extra_srctextspace = 0;
 
-	curr_tokspace = &tokspace;
-	token_space_top = 0;	/* Reset storage for tokens in lists & trees */
-	extra_tokspace = 0;
+        curr_tokspace = &tokspace;
+        token_space_top = 0;	/* Reset storage for tokens in lists & trees */
+        extra_tokspace = 0;
 
-	curr_paraminfospace = &paraminfospace;
- 	param_info_space_top = 0;/* Reset storage for parameter info structs */
-	extra_paraminfospace = 0;
+        curr_paraminfospace = &paraminfospace;
+        param_info_space_top = 0;/* Reset storage for parameter info structs */
+        extra_paraminfospace = 0;
 
-	curr_tokheadspace = &tokheadspace;
- 	token_head_space_top = 0;/* Reset storage for tokenlist headers */
-	extra_tokheadspace = 0;
+        curr_tokheadspace = &tokheadspace;
+        token_head_space_top = 0;/* Reset storage for tokenlist headers */
+        extra_tokheadspace = 0;
 
-	curr_ptrspace = &ptrspace;
-	ptrspace_top = 0;	/* Reset storage for array dim textvecs */
-	extra_ptrspace = 0;
+        curr_ptrspace = &ptrspace;
+        ptrspace_top = 0;	/* Reset storage for array dim textvecs */
+        extra_ptrspace = 0;
 
-	parameter_count = 0;
+        parameter_count = 0;
+
+    } /* end of out-of-scope initialization */
+
 
 		      /* Restores implicit typing to default values.
 		         Note: 27 is '$', 28 is '_' which are default REAL */
+	/* NEEDS TO BE FIXED to follow scope rules */
 	{
 		int c;
 		for( c=0; c<=('Z'-'A'+2); c++ ) {
-	    	    implicit_type[c] = type_REAL;
+            implicit_type[c] = type_REAL;
 		    implicit_size[c] = size_DEFAULT;
 		    implicit_len_text[c] = NULL;
 		}
@@ -141,6 +136,7 @@ init_symtab(VOID)                     /* Clears the local symbol table */
 		    implicit_type[c] = type_INTEGER;
 	}
 
+    /* labels have scope of only the current program unit */
 	init_labtable();		/* Clear out label table */
 
 }/*init_symtab*/

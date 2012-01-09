@@ -97,7 +97,7 @@ process_lists(curmodhash)  /* Places pointer to linked list of arrays in
 	  curr_gsymt->internal_entry = FALSE;
 	}
 
-	for (i=0; i<loc_symtab_top; i++){
+	for (i=curr_scope_bottom; i<loc_symtab_top; i++){
 				/* Skip things which are not true externals */
 	    if(loc_symtab[i].argument || loc_symtab[i].intrinsic ||
 		   loc_symtab[i].array_var)

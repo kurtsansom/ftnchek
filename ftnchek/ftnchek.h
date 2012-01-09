@@ -1362,3 +1362,10 @@ PROTO(void print_sizeofs, ( void ));
 /* Misc. useful defines */
 #undef MAX
 #define MAX(X,Y) ((X)>(Y)?(X):(Y))
+
+
+    /* globals for implementing new symbol table */
+
+#ifndef MAXSCOPES
+#define MAXSCOPES 5
+#endif

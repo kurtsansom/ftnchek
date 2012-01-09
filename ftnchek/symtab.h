@@ -581,6 +581,7 @@ typedef struct lSymtEntry{
 	  char **textvec;	/* List of source text strings */
 	  TokenListHeader *toklist; /* for namelist & common block makedecls */
 	} src;
+    struct lSymtEntry *mask;  /* Points to masked identifier in enclosing scope*/
 	struct lSymtEntry *equiv_link;	/* Link for equivalence lists */
 		/* common_block is a ptr to block if this is a common
 		   variable, and common_index is its position (starting
@@ -621,6 +622,7 @@ typedef struct lSymtEntry{
 	     declared_intrinsic: 1; /* explicitly declared intrinsic */
 	     unsigned size_is_adjustable : 1; /* CHARACTER*(*) declaration */
 	     unsigned size_is_expression : 1; /* CHARACTER*(expr) declaration */
+		 unsigned result_var : 1; /* variable is result name for a function */
 } Lsymtab;
 
 typedef struct gSymtEntry{	/* Global symbol table element */
@@ -676,6 +678,23 @@ SYM_SHARED
  = -1
 #endif
 ;
+
+/* Local scope management */
+
+typedef struct scope_struct {
+    int symt_index; // array index in local symbol table
+    int hash_num;   // hash number for current scoping unit
+	int exec_stmt_count;
+} Scope;
+SYM_SHARED int curr_scope_bottom; /* first symtab entry of current scope */
+SYM_SHARED Scope loc_scope[MAXSCOPES]; /* stack for storing scope info */
+SYM_SHARED int loc_scope_top;    // next available slot in scope stack
+
+PROTO(void push_loc_scope, ( void )); /* open a new scope */
+PROTO(int pop_loc_scope, ( void ));		/* exit a scope */
+PROTO(int in_curr_scope, (Lsymtab *entry));	/* test symt entry in scope */
+PROTO(int empty_scope,( void ));
+
 
 				/* Symbolic names for I/O access modes */
 typedef enum {
@@ -985,7 +1004,7 @@ PROTO(void do_assigned_GOTO,( Token *id ));
 PROTO(void do_ENTRY,( Token *id, Token *args, int hashno ));
 PROTO(int do_RETURN,( int hashno, Token *keyword ));
 PROTO(void do_bind_spec,(Token *p, SUBPROG_TYPE subprogtype));
-PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix));
+PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno));
 PROTO(void equivalence,( Token *id1, Token *id2 ));
 PROTO(DBLVAL float_expr_value,( Token *t ));
 PROTO(int get_size,( const Lsymtab *symt, int type ));

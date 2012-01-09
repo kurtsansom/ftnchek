@@ -597,6 +597,7 @@ unlabeled_stmt	:	subprogram_header
 				}
 				else {
 					contains_sect = TRUE; 
+					push_loc_scope(); /* get ready for new scope */
 
 #ifdef DEBUG_BLOCKCHECK
                 if(debug_latest) 
@@ -1127,19 +1128,32 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 			 * distinguished in this grammar.
 			 */
 /* 9 */
-entry_stmt	:	tok_ENTRY symbolic_name EOS
+entry_stmt	:	unlabeled_entry_stmt EOS
+		|	unlabeled_entry_stmt suffix
+			{
+			  do_suffix(tok_ENTRY, internal_subprog,
+					current_prog_unit_hash,&($2),$1.value.integer);
+			}
+			EOS
+		 ;
+
+unlabeled_entry_stmt	:	tok_ENTRY symbolic_name
 			{
 			  do_ENTRY(&($2),(Token*)NULL
 				   ,current_prog_unit_hash);
+			  initial_flag = TRUE;
+			  $$.value.integer = $2.value.integer;
 			}
-		|	tok_ENTRY symbolic_name '(' dummy_argument_list ')' EOS
+		|	tok_ENTRY symbolic_name '(' dummy_argument_list ')'
 			{
 			  do_ENTRY(&($2),&($4)
 				   ,current_prog_unit_hash);
+			  initial_flag = TRUE;
 #ifdef DEBUG_PARSER
 			     if(debug_parser)
 				print_exprlist("entry stmt",&($4));
 #endif
+			  $$.value.integer = $2.value.integer;
 			}
 		;
 
@@ -1153,11 +1167,11 @@ function_stmt	:   unlabeled_function_stmt EOS
                         // external subprog has not been pushed yet
                         block_depth == 0) {
                     do_suffix(tok_FUNCTION, module_subprog,
-                        current_prog_unit_hash,&($2));
+                        current_prog_unit_hash,&($2),$1.value.integer);
                 }
                 else {
                     do_suffix(tok_FUNCTION, internal_subprog,
-                        current_prog_unit_hash,&($2));
+                        current_prog_unit_hash,&($2),$1.value.integer);
                 }
 			} 
             EOS
@@ -1182,6 +1196,7 @@ unlabeled_function_stmt
 			   def_curr_prog_unit(&($2));
 
              initial_flag = TRUE;
+			 $$.value.integer = $2.value.integer;
 			}
 		|	prefixed_function_handle symbolic_name
 				'(' dummy_argument_list ')' 
@@ -1199,6 +1214,7 @@ unlabeled_function_stmt
 			   print_exprlist("function stmt",&($4));
 #endif
              initial_flag = TRUE;
+			 $$.value.integer = $2.value.integer;
 			}
 		|	plain_function_handle symbolic_name 
 			{
@@ -1219,6 +1235,7 @@ unlabeled_function_stmt
             
              initial_flag = TRUE;
 
+			 $$.value.integer = $2.value.integer;
 			}
 		|	plain_function_handle symbolic_name 
 				'(' dummy_argument_list ')' 
@@ -1237,6 +1254,7 @@ unlabeled_function_stmt
 #endif
 
              initial_flag = TRUE;
+			 $$.value.integer = $2.value.integer;
 			}
 		;
 
@@ -1292,7 +1310,7 @@ suffix_item : proc_language_binding_spec
         |   tok_RESULT '(' result_argument ')'
             {   
                 $$ = $3;		/* replace RESULT token by identifier token */
-		initial_flag = TRUE;	/* so BIND will be lexed */
+				initial_flag = TRUE;	/* so BIND will be lexed */
             }
         
 
@@ -4992,6 +5010,7 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	      glob_symtab[i].declared_external_this_file = FALSE;
 	  }
 	}
+	push_loc_scope();	/* enter outermost scope */
 }
 
 				/* Handle unary expressions: link
@@ -5302,11 +5321,22 @@ END_processing(t)
 #endif /* HAVE_STDC */
 {
   ++tot_prog_unit_count;
+
+  /* We really should test whether END occurred inside a contains block,
+     but that info is hard to come by at this point.  Instead we rely on
+     every Fortran program unit defining at least one local symbol table
+     entry.  If symbol table is empty at this point then we pushed a scope
+     in anticipation of a contained program unit that did not occur.
+   */
+  if (empty_scope()) {
+	  current_prog_unit_hash = pop_loc_scope();
+  }
+
   if(current_prog_unit_hash != -1) {
         if(exec_stmt_count == 0 &&
 	   current_prog_unit_type != type_BLOCK_DATA) {
 /*------------------ addition ------------------ */
-	   //current_prog_unit_type != type_MODULE) {
+	   //current_prog_unit_type != type_MODULE) 
 /*----------------------------------------------*/
 	  if(misc_warn)
 /*
@@ -5361,20 +5391,16 @@ END_processing(t)
   exec_stmt_count = 0;
   stmt_sequence_no = 0;
   f90_stmt_sequence_no = 0;
+
+  /* Now exit the symbol table scope just processed */
+  current_prog_unit_hash = pop_loc_scope();
+
   /* exiting a scope, return to enclosing scope if any */
   if( block_depth > 0 ) {
 	  if(debug_latest)
-	      fprintf(list_fd,"\nblock is not empty: restoring enclosing scope");
-	  
-	  current_prog_unit_hash = 
-/* put in a replacement symbol table entry for debugging grammar */
-		  fake_def_subprog(&block_stack[block_depth]);
+	      fprintf(list_fd,"\n(block is not empty)");
   }
-  else {
-	  if(debug_latest)
-	      fprintf(list_fd,"\ncurrent_prog_unit_hash cleared");
-	  current_prog_unit_hash = -1;
-  }
+
   implicit_type_given = FALSE;
   implicit_none = FALSE;
   true_prev_stmt_line_num = 0;
@@ -5382,6 +5408,9 @@ END_processing(t)
   global_save = FALSE;
   label_dummy_arg_count = 0;
   num_io_unit_usages = 0;
+
+  push_loc_scope();		/* get ready for next scope unit */
+
 }
 
 		/* Routine to create a node for an expr tree.  Returns
@@ -5760,14 +5789,14 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 		     "blocks nested too deeply");
   }
   else {
-	  /*
+    /* This is better later.  See below
 #ifdef DEBUG_BLOCKCHECK
     if(debug_latest) {
       fprintf(list_fd,"\npushing token %s name %s label %d at line %d",
 	      DBG_TOKNAME(stmt_class),name,label,t->line_num);
     }
 #endif
-*/
+    */
 
 				/* ELSE and ELSE IF masquerade here as IF,
 				   and CASE and CASEDEFAULT as SELECT, to

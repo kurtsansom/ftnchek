@@ -648,7 +648,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
   if(debug_loc_symtab) {
     int i;
     (void)fprintf(list_fd,"\nLocal Symbol table:\n");
-    for(i=0; i < loc_symtab_top; i++) {
+    for(i=curr_scope_bottom; i < loc_symtab_top; i++) {
 	(void)fprintf(list_fd,
 		"\n%4d %s type %s %s",
 		i,

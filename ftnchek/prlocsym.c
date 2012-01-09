@@ -136,7 +136,7 @@ print_loc_symbols(VOID)
 				/* Print name & type of the prog unit */
     if(do_symtab) {
       int i;
-      for(i=0,numentries=0;i<loc_symtab_top;i++) {
+      for(i=curr_scope_bottom,numentries=0;i<loc_symtab_top;i++) {
 	if(loc_symtab[i].entry_point)
 	  sym_list[numentries++] = &loc_symtab[i];
       }
@@ -173,7 +173,7 @@ print_loc_symbols(VOID)
 
     if(do_symtab) {
 	int i,n;
-	for(i=0,n=0;i<loc_symtab_top;i++) {
+	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	    if(storage_class_of(loc_symtab[i].type) == class_SUBPROGRAM) {
 		  sym_list[n++] = &loc_symtab[i];
 	    }
@@ -195,7 +195,7 @@ print_loc_symbols(VOID)
     if(do_symtab || usage_ext_unused) {
 	   int i,n;
 
-	   for(i=0,n=0;i<loc_symtab_top;i++) {
+	   for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	       if(storage_class_of(loc_symtab[i].type) == class_STMT_FUNCTION){
 		  sym_list[n++] = &loc_symtab[i];
 	       }
@@ -222,7 +222,7 @@ print_loc_symbols(VOID)
     if(do_symtab || port_common_alignment || f77_mixed_common) {
 	   int i,numblocks;
 
-	   for(i=0,numblocks=0;i<loc_symtab_top;i++) {
+	   for(i=curr_scope_bottom,numblocks=0;i<loc_symtab_top;i++) {
 	      if(storage_class_of(loc_symtab[i].type) == class_COMMON_BLOCK) {
 		  sym_list[numblocks++] = &loc_symtab[i];
 	      }
@@ -244,7 +244,7 @@ print_loc_symbols(VOID)
     if(do_symtab) {
 	   int i,numlists;
 
-	   for(i=0,numlists=0;i<loc_symtab_top;i++) {
+	   for(i=curr_scope_bottom,numlists=0;i<loc_symtab_top;i++) {
 	      if(storage_class_of(loc_symtab[i].type) == class_NAMELIST) {
 		  sym_list[numlists++] = &loc_symtab[i];
 	      }
@@ -267,7 +267,7 @@ print_loc_symbols(VOID)
        || usage_var_unused || usage_arg_unused)) {
 	int i,n;
 
-	for(i=0,n=0;i<loc_symtab_top;i++) {
+	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	       if(storage_class_of(loc_symtab[i].type) == class_VAR
 	       && (!loc_symtab[i].entry_point || this_is_a_function)) {
 		  sym_list[n++] = &loc_symtab[i];
@@ -327,7 +327,7 @@ print_loc_symbols(VOID)
     if(decls_required || implicit_none) {
 	int i,n;
 
-	for(i=0,n=0;i<loc_symtab_top;i++) {
+	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	    if(datatype_of(loc_symtab[i].type) == type_UNDECL
 		&& ! loc_symtab[i].intrinsic /* omit intrinsics */
 				/* omit subroutines called */
@@ -349,7 +349,7 @@ print_loc_symbols(VOID)
 			/* Under -f77/f90, list any nonstandard intrinsics used */
     if(f77_intrinsics || f90_intrinsics) {
       int i,n;
-      for(i=0,n=0;i<loc_symtab_top;i++) {
+      for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	if(storage_class_of(loc_symtab[i].type) == class_SUBPROGRAM
 	   && loc_symtab[i].intrinsic &&
 	   (loc_symtab[i].info.intrins_info->intrins_flags & (f77_intrinsics?I_NONF77:I_NONF90))) {
@@ -375,7 +375,7 @@ print_loc_symbols(VOID)
 		*/
     if(f77_long_names) {
 	int i,n;
-	for(i=0,n=0;i<loc_symtab_top;i++) {
+	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	       if(strlen(loc_symtab[i].name) > (unsigned)6)
 		  sym_list[n++] = &loc_symtab[i];
 	}
@@ -434,7 +434,7 @@ print_loc_symbols(VOID)
 	Lsymtab *equiv;
 
 		/* scan thru table for equivalenced variables */
-	for(i=0;i<loc_symtab_top;i++) {
+	for(i=curr_scope_bottom;i<loc_symtab_top;i++) {
 	    if(storage_class_of(loc_symtab[i].type) == class_VAR
 	       && loc_symtab[i].equiv_link != (equiv= &loc_symtab[i]) ){
 		n=0;
@@ -567,7 +567,7 @@ print_loc_symbols(VOID)
    /* Recreate a FULL list of local symbols */
    {
    int i, n;
-   for(i=0,n=0;i<loc_symtab_top;i++)
+   for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++)
       {
       sym_list[n++] = &loc_symtab[i];
       }

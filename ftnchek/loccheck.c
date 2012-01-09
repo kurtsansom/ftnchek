@@ -457,7 +457,7 @@ check_loose_ends(curmodhash)
 #endif /* HAVE_STDC */
 {
   int i;
-  for(i=0;i<loc_symtab_top;i++) {
+  for(i=curr_scope_bottom;i<loc_symtab_top;i++) {
 
 				/* Catch illegal CHARACTER*(*) */
     if( datatype_of(loc_symtab[i].type) == type_STRING &&
