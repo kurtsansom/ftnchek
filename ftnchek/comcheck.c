@@ -119,7 +119,7 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 		while( clist != NULL ){
 
 		    if(!irrelevant(clist) && clist->prog_unit->type !=
-		       type_byte(class_SUBPROGRAM,type_PROGRAM) ) {
+		       type_pack(class_SUBPROGRAM,type_PROGRAM) ) {
 
 		      if(clist->saved)
 			saved_list = clist;

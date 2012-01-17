@@ -50,12 +50,12 @@ cp_tok_src_text(s,t,max)	/* Copies src text from a token */
 
 #ifndef LEX_RAWSTRINGS
   if( ! is_true(LIT_CONST,t->TOK_flags)
-     || t->TOK_type != type_byte(class_VAR,type_STRING))
+     || t->TOK_type != type_pack(class_VAR,type_STRING))
 #endif
   {
     j=0;
 #if 0 /* this needs to be done only for actual, not dummy arg */
-    if(t->TOK_type == type_byte(class_LABEL,type_LABEL))
+    if(t->TOK_type == type_pack(class_LABEL,type_LABEL))
       s[j++] = '*';		/* for subroutine arg = *label  */
 #endif
     for(i=0; j<max && t->src_text[i] != '\0'; i++) {

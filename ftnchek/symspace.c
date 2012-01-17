@@ -119,22 +119,22 @@ init_symtab(VOID)      /* Clears the current scope of local symbol table */
 
         parameter_count = 0;
 
-    } /* end of out-of-scope initialization */
-
-
 		      /* Restores implicit typing to default values.
 		         Note: 27 is '$', 28 is '_' which are default REAL */
-	/* NEEDS TO BE FIXED to follow scope rules */
 	{
 		int c;
+
+		implicit_info.implicit_none = FALSE;
 		for( c=0; c<=('Z'-'A'+2); c++ ) {
-            implicit_type[c] = type_REAL;
-		    implicit_size[c] = size_DEFAULT;
-		    implicit_len_text[c] = NULL;
+		  implicit_info.type[c] = type_REAL;
+		  implicit_info.size[c] = size_DEFAULT;
+		  implicit_info.len_text[c] = NULL;
 		}
 		for( c='I'-'A'; c <= 'N'-'A'; c++ )
-		    implicit_type[c] = type_INTEGER;
+		  implicit_info.type[c] = type_INTEGER;
 	}
+
+    } /* end of out-of-scope initialization */
 
     /* labels have scope of only the current program unit */
 	init_labtable();		/* Clear out label table */

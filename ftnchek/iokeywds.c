@@ -172,7 +172,7 @@ use_io_keyword(keyword,value,stmt_class)
 	   current_io_unit_id = value->value.integer;	/* get hash code of identifier */
 	}
 	else if( is_true(LIT_CONST,value->TOK_flags) &&
-		 value->TOK_type == type_byte(class_VAR,type_INTEGER)) {
+		 value->TOK_type == type_pack(class_VAR,type_INTEGER)) {
 	   current_io_unit_no = value->value.integer; /* get literal int value */
 	}
       }
@@ -308,7 +308,7 @@ record_io_usage( Token *stmt )
     if( current_io_unit_id >= 0 ) {
       Lsymtab *symt;
       if((symt=hashtab[current_io_unit_id].loc_symtab) != NULL) { /* ultra bogus if not in symtab */
-	if( symt->type == type_byte(class_VAR,type_INTEGER) &&
+	if( symt->type == type_pack(class_VAR,type_INTEGER) &&
 	    symt->parameter)	{  /* Can we do business? */
 	     current_io_unit_no = symt->info.param->value.integer;
 	}

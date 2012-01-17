@@ -556,12 +556,19 @@ a2[i].active_do_var);
 
 
 void
-check_arglists(VOID)	/* Scans global symbol table for subprograms */
+check_arglists(SUBPROG_TYPE limit)	/* Scans global symbol table for subprograms */
 {                       /* and finds subprogram defn if it exists */
 	int i;
 	ArgListHeader *defn_list, *alist;
 
 	for (i=0; i<glob_symtab_top; i++){
+		/***************************** added ****************************/
+	  if (glob_symtab[i].valid) {
+		if ((limit == module_subprog && glob_symtab[i].module_subprog) ||
+		  (limit == internal_subprog && glob_symtab[i].internal_subprog) ||
+		  (limit == not_subprog && !glob_symtab[i].internal_subprog
+		   	&& !glob_symtab[i].module_subprog)) {
+		/****************************************************************/
 
 				/* Skip common blocks */
 	    if(storage_class_of(glob_symtab[i].type) != class_SUBPROGRAM)
@@ -742,5 +749,7 @@ check_arglists(VOID)	/* Scans global symbol table for subprograms */
 
 		}/* end while(alist != NULL) */
 	    }/* end else <alist != NULL> */
+	}
+    }
 	}/* end for (i=0; i<glob_symtab_top; i++) */
 }

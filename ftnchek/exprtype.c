@@ -518,7 +518,7 @@ if(debug_latest) {
 }
 #endif
 
-    result->TOK_type = type_byte(class_VAR, result_type);
+    result->TOK_type = type_pack(class_VAR, result_type);
     result->TOK_flags = 0;	/* clear all flags */
     result->size = result_size;
 
@@ -742,7 +742,7 @@ unexpr_type(op,term1,result)
 	}
     }
 
-    result->TOK_type = type_byte(class_VAR, result_type);
+    result->TOK_type = type_pack(class_VAR, result_type);
     result->TOK_flags = 0;	/* clear all flags */
     result->size = term1->size;	/* result is same size as operand */
 
@@ -1095,7 +1095,7 @@ func_ref_expr(id,args,result)
 	result->tclass = id->tclass;
 #endif
 	result->tsubclass = 0;
-	result->TOK_type = type_byte(class_VAR,rettype);
+	result->TOK_type = type_pack(class_VAR,rettype);
 #ifndef TOK_flags
 	result->TOK_flags = 0;	/* clear all flags */
 #endif
@@ -1162,7 +1162,7 @@ primary_id_expr(id,primary)
 	primary->tclass = id->tclass;
 #endif
 	primary->tsubclass = 0;
-	primary->TOK_type = type_byte(storage_class_of(symt->type),id_type);
+	primary->TOK_type = type_pack(storage_class_of(symt->type),id_type);
 #ifndef TOK_flags
 	primary->TOK_flags = 0;
 #endif

@@ -296,7 +296,7 @@ visit_children(VOID)
 
 				/* Visit children of all main progs */
   for(i=0,num_mains=0; i<glob_symtab_top; i++) {
-    if(glob_symtab[i].type == type_byte(class_SUBPROGRAM,type_PROGRAM)) {
+    if(glob_symtab[i].type == type_pack(class_SUBPROGRAM,type_PROGRAM)) {
       main_prog_unit = &glob_symtab[i];
       if(print_ref_list)
 	visit_child_reflist(main_prog_unit);

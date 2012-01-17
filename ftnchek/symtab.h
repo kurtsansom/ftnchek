@@ -207,6 +207,19 @@ char *lab_type_name[]
 
 typedef unsigned char BYTE;
 
+			/* Define int of size 16 bits for class/type field */
+#if (SIZEOF_SHORT >= 2)
+typedef unsigned short type_t;
+#else
+#if (SIZEOF_INT >= 2)
+typedef unsigned int type_t;
+#else
+#if (SIZEOF_LONG >= 2)
+typedef unsigned long type_t;
+#endif
+#endif
+#endif
+
 		/* Array of class and type name translations */
 SYM_SHARED
 char *class_name[]
@@ -297,6 +310,7 @@ BYTE type_size[]
 	0, /*data*/
 	0, /*labl*/
 	0, /*naml*/
+	0, /*modu*/
 }
 #endif
 ;
@@ -306,11 +320,11 @@ BYTE type_size[]
 		/* implicit and default typing lookup table.  Two extra spots
 		   provided to accommodate '$' and '_' too.  The size defns
 		   should accommodate EBCDIC as well as ASCII. */
-SYM_SHARED
-int implicit_type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
-    implicit_size[('Z'-'A'+1)+2];
-SYM_SHARED
-char *implicit_len_text[('Z'-'A'+1)+2];
+//SYM_SHARED
+//int implicit_type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
+//    implicit_size[('Z'-'A'+1)+2];
+//SYM_SHARED
+//char *implicit_len_text[('Z'-'A'+1)+2];
 
 
 	/* Declaration of Token data structure.  N.B. do not change without
@@ -424,7 +438,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 	struct gSymtEntry *common_block; /* block it belongs to if any */
 	long common_index;	/* index in block */
 	long size;
-	BYTE type;
+	type_t type;
 	short same_as;	/* index if two actual arguments the same */
 	unsigned is_lvalue: 1,
 		 set_flag: 1,
@@ -439,7 +453,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 
 typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	long size;
-	BYTE type;
+	type_t type;
 	short numargs;
 	ArgListElement *arg_array;
 	struct gSymtEntry *prog_unit;
@@ -459,7 +473,7 @@ typedef struct {	/* ComListElement: holds common var data */
 	char *name;		/* name of common variable */
 	unsigned long dimen_info;
 	long size;
-	BYTE type;
+	type_t type;
 	unsigned		/* copies of flags from symtab */
 	  used:1,
 	  set:1,
@@ -543,6 +557,7 @@ typedef unsigned long intrins_flags_t;
 #endif
 #endif
 #endif
+
 typedef struct IInfo{
 	char *name;
 	short num_args,
@@ -595,7 +610,7 @@ typedef struct lSymtEntry{
 		   to, then come indexes into include-file list.  */
 	LINENO_t line_declared, line_set, line_used;
 	short file_declared, file_set, file_used;
-	BYTE  type;		/* Type & storage class: see macros below */
+	type_t  type;		/* Type & storage class: see macros below */
 			/* Flags */
 	unsigned
 	     used_flag: 1,	/* value is accessed (read from variable) */
@@ -633,7 +648,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	  struct gSymtEntry *prog_unit; /* Prog unit (for interior entry) */
 	} link;
 	long size;
-	BYTE  type;		/* Type & storage class: see macros below */
+	type_t  type;		/* Type & storage class: see macros below */
 			/* Flags.  See remarks above */
 	unsigned
 	     used_flag: 1,
@@ -648,6 +663,9 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     defined: 1,	/* is defined somewhere */
 	     defined_in_include: 1,
 	     declared_external: 1,
+	     internal_subprog: 1,
+	     module_subprog: 1,
+	     valid: 1,
 			/* The following flags are for project-file use.
 			   They get reset when a file is opened and accumulate
 			   values as file is read.  */
@@ -668,10 +686,6 @@ typedef struct hashEntry {
 		*com_glob_symtab;/* Global symtab entry for common blocks */
 } HashTable;
 
-// used in blockstack to differentiate module and internal subprograms
-typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
-
-
 SYM_SHARED
     int current_prog_unit_hash	/* hashtable index of current prog unit name */
 #ifdef SYMTAB
@@ -679,22 +693,43 @@ SYM_SHARED
 #endif
 ;
 
+typedef struct implicit_def {	/* structure to hold IMPLICIT definition */
+  int implicit_none;		/* true if IMPLICIT NONE */
+  int type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
+		size[('Z'-'A'+1)+2];
+  char *len_text[('Z'-'A'+1)+2];
+} Implicit;
+
+Implicit implicit_info;
+
+PROTO(void set_implicit_none, ( void ));
+
+//int implicit_type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
+//    implicit_size[('Z'-'A'+1)+2];
+//SYM_SHARED
+//char *implicit_len_text[('Z'-'A'+1)+2];
+
 /* Local scope management */
 
 typedef struct scope_struct {
     int symt_index; // array index in local symbol table
     int hash_num;   // hash number for current scoping unit
-	int exec_stmt_count;
+    int exec_stmt_count;
+    Implicit implicit;
 } Scope;
 SYM_SHARED int curr_scope_bottom; /* first symtab entry of current scope */
-SYM_SHARED Scope loc_scope[MAXSCOPES]; /* stack for storing scope info */
+SYM_SHARED Scope loc_scope[MAXSCOPES]; /* stores local scope info */
 SYM_SHARED int loc_scope_top;    // next available slot in scope stack
 
 PROTO(void push_loc_scope, ( void )); /* open a new scope */
 PROTO(int pop_loc_scope, ( void ));		/* exit a scope */
-PROTO(int in_curr_scope, (Lsymtab *entry));	/* test symt entry in scope */
+PROTO(int in_curr_scope, ( const Lsymtab *entry ));/* test symt entry in scope */
+PROTO(int find_scope, ( const Lsymtab *entry )); /* return index of scope that entry belongs to */
 PROTO(int empty_scope,( void ));
 
+/* Global scope management */
+
+void clean_globals(int h, SUBPROG_TYPE limit); // check if global symbol table entries are true globals
 
 				/* Symbolic names for I/O access modes */
 typedef enum {
@@ -806,11 +841,11 @@ typedef struct PSpace {
 
 
 	/* These macros pack and unpack datatype and storage class in type
-	   field of symbol table entry. Datatype is least 4 bits. */
+	   field of symbol table entry. Datatype portion is 12 bits. */
 
-#define datatype_of(TYPE) ((unsigned)((TYPE) & 0xF))
-#define storage_class_of(TYPE) ((unsigned)((TYPE) >> 4))
-#define type_byte(SCLASS,DTYPE) ((unsigned)(((SCLASS)<<4) + (DTYPE)))
+#define datatype_of(TYPE) ((unsigned)((TYPE) & 0xFFF))
+#define storage_class_of(TYPE) ((unsigned)((TYPE) >> 12))
+#define type_pack(SCLASS,DTYPE) ((unsigned)(((SCLASS)<<12) + (DTYPE)))
 
 
 	/* This macro is for pattern matching in flag checking */
@@ -993,11 +1028,12 @@ PROTO(void def_do_variable,( Token *id ));
 PROTO(void def_equiv_name,( Token *id ));
 PROTO(void def_ext_name,( Token *id ));
 PROTO(void def_function,( int datatype, long size, char *size_text, Token
-		  *id, Token *args ));
+		  *id, Token *args, SUBPROG_TYPE subprogtype ));
 PROTO(void def_intrins_name,( Token *id ));
 PROTO(void def_namelist,( Token *id, Token *list ));
 PROTO(void def_namelist_item,( Token *id ));
 PROTO(void def_parameter,( Token *id, Token *val, int noparen ));
+PROTO(void def_result_name,( Token *id ));
 PROTO(void def_stmt_function,( Token *id, Token *args ));
 PROTO(void do_ASSIGN,( Token *id ));
 PROTO(void do_assigned_GOTO,( Token *id ));

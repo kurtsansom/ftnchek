@@ -767,7 +767,7 @@ alist_class,alist_type,alist_line);
       }
 
 			/* Initialize arglist and link it to symtab */
-      ahead->type = type_byte(alist_class,alist_type);
+      ahead->type = type_pack(alist_class,alist_type);
       ahead->size = alist_size;
       ahead->numargs = (short)numargs;
       ahead->arg_array = (numargs==0? NULL: alist);
@@ -828,7 +828,7 @@ alist_class,alist_type,alist_line);
 	  alist[iarg].name = var;
 #endif
 	alist[iarg].info.array_dim = array_dim_info(arg_dims,arg_elts);
-	alist[iarg].type = type_byte(arg_class,arg_type);
+	alist[iarg].type = type_pack(arg_class,arg_type);
 	alist[iarg].size = arg_size;
 	if( strcmp(arg_common_block,"-") == 0 ) { /* indicator for "none" */
 	  alist[iarg].common_block = (Gsymtab *)NULL;
@@ -1017,7 +1017,7 @@ var_name,var_class,var_type,var_dims,var_size);
 			    new_global_string(var_name);
 
       clist[ivar].dimen_info = array_dim_info(var_dims,var_elts);
-      clist[ivar].type = type_byte(var_class,var_type);
+      clist[ivar].type = type_pack(var_class,var_type);
       clist[ivar].size = var_size;
       clist[ivar].used = var_used;
       clist[ivar].set = var_set;

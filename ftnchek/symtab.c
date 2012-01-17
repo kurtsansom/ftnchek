@@ -240,7 +240,7 @@ call_func(id,arg)	/* Process function invocation */
 		/* Symbol seen before: check it & change class */
 
 	if(storage_class_of(symt->type) == class_VAR) {
-	    symt->type = type_byte(class_SUBPROGRAM,t);
+	    symt->type = type_pack(class_SUBPROGRAM,t);
 	    symt->info.toklist = NULL;
 	}
 
@@ -368,7 +368,7 @@ call_subr(id,arg)	/* Process call statements */
 		t = type_SUBROUTINE;
 		symt->info.toklist = NULL;
 	}
-	symt->type = type_byte(class_SUBPROGRAM,t);
+	symt->type = type_pack(class_SUBPROGRAM,t);
 
 	/* Since nonstandard intrinsics include some subroutines,
 	   see if it is in intrinsic list.  Or
@@ -598,7 +598,7 @@ declare_type(id,datatype,size,size_text)
 	  }
 	  else {
 			/* Now give it the declared type */
-	      symt->type = type_byte(storage_class_of(symt->type),datatype);
+	      symt->type = type_pack(storage_class_of(symt->type),datatype);
 	      symt->size = size;
 	      symt->size_is_adjustable = id->size_is_adjustable;
 	      symt->size_is_expression = id->size_is_expression;
@@ -1051,7 +1051,7 @@ def_ext_name(id)		/* Process external lists */
 	    if(storage_class_of(symt->type) == class_VAR) {
 	      symt->info.toklist = NULL;
 	    }
-	    symt->type = type_byte(class_SUBPROGRAM,datatype_of(symt->type));
+	    symt->type = type_pack(class_SUBPROGRAM,datatype_of(symt->type));
 	}
 
 	if(symt->intrinsic){
@@ -1081,21 +1081,7 @@ def_ext_name(id)		/* Process external lists */
 
 
 
-void
-#if HAVE_STDC
-def_function(int datatype, long int size, char *size_text, Token *id, Token *args)
-#else /* K&R style */
-def_function(datatype,size,size_text,id,args)
-#endif /* HAVE_STDC */
-				/* Installs function or subroutine name */
-#if HAVE_STDC
-	                                  /* in global table */
-#else /* K&R style */
-	int datatype;                     /* in global table */
-	long size;
-	char *size_text;
-	Token *id,*args;
-#endif /* HAVE_STDC */
+void def_function(int datatype, long int size, char *size_text, Token *id, Token *args, SUBPROG_TYPE subprogtype)
 {
 	int storage_class;
 	int h=id->value.integer;
@@ -1123,7 +1109,7 @@ def_function(datatype,size,size_text,id,args)
 		"Entry point was declared external:");
 	    msg_tail(symt->name);
 				/* try to undo the damage */
-	    symt->type = type_byte(class_VAR,datatype_of(symt->type));
+	    symt->type = type_pack(class_VAR,datatype_of(symt->type));
 	    symt->external = FALSE;
 	}
 
@@ -1136,9 +1122,25 @@ def_function(datatype,size,size_text,id,args)
 	else {
 			/* Symbol is already in global symtab. Put the
 			   declared datatype into symbol table. */
-	  gsymt->type = type_byte(storage_class,datatype);
+	  gsymt->type = type_pack(storage_class,datatype);
 	  gsymt->size = size;
 	}
+
+	/* Test to turn on internal or module subprogram flags */
+	if (subprogtype == module_subprog) {
+		gsymt->module_subprog = TRUE;
+		gsymt->internal_subprog = FALSE;
+	}
+	else if (subprogtype == internal_subprog) {
+		gsymt->internal_subprog = TRUE;
+		gsymt->module_subprog = FALSE;
+	}
+	else {
+		gsymt->internal_subprog = FALSE;
+		gsymt->module_subprog = FALSE;
+	}
+
+	gsymt->valid = TRUE;
 
 				/* Restore args list to original order */
 	if(args != NULL)
@@ -1178,7 +1180,7 @@ def_function(datatype,size,size_text,id,args)
 	    case type_BLOCK_DATA:
 	    case type_SUBROUTINE:	/* Subroutine return: OK */
 		break;
-		default:
+	    default:
 			symt->result_var = TRUE;
 		break;
 	}
@@ -1209,7 +1211,7 @@ def_intrins_name(id)		/* Process intrinsic lists */
 	    symt->info.toklist = NULL;
 	  }
 
-	  symt->type = type_byte(class_SUBPROGRAM,datatype_of(symt->type));
+	  symt->type = type_pack(class_SUBPROGRAM,datatype_of(symt->type));
 	}
 
 		/* Place info about intrinsic datatype in local symtab.
@@ -1357,7 +1359,7 @@ def_parameter(id,val,noparen)	/* Process parameter_defn_item */
 	    nonportable(id->line_num,id->col_num,
 	      ": PARAMETER implicitly typed differently from default type");
 	  }
-	  symt->type = type_byte(class_VAR,val_type);
+	  symt->type = type_pack(class_VAR,val_type);
 	  symt->size = val->size;
 	}
 
@@ -1407,6 +1409,22 @@ if(debug_latest)
 }/*def_parameter*/
 
 
+void def_result_name(Token *id)		/* Place result name in symtab */
+{
+	int h=id->value.integer;
+	Lsymtab *symt;
+
+	if( (symt=hashtab[h].loc_symtab) == NULL
+		|| ! in_curr_scope(symt)) {
+	   symt = install_local(h,type_UNDECL,class_VAR);
+	   symt->line_declared = id->line_num;
+	   symt->file_declared = inctable_index;
+	}
+	/* result_var flag is not set here.  It is set by do_result_spec
+	   when entry name is available to have its flag unset.
+	 */
+}/*def_result_name*/
+
 
 void    	       /* Installs statement function name in local table */
 #if HAVE_STDC
@@ -1450,7 +1468,7 @@ def_stmt_function(id, args)
 
 		/* check, check, check ... */
 	if(storage_class_of(symt->type) == class_VAR)
-	   symt->type = type_byte(class_STMT_FUNCTION,t);
+	   symt->type = type_pack(class_STMT_FUNCTION,t);
 
 	symt->external = TRUE;
 }/*def_stmt_function*/
@@ -1568,11 +1586,11 @@ do_ENTRY(id,args,hashno)	/* Processes ENTRY statement */
 		break;
 	    case type_SUBROUTINE:	/* Subroutine entry */
 		def_function(type_SUBROUTINE,size_DEFAULT,(char *)NULL,
-			     id,args);
+			     id,args,tok_SUBROUTINE);
 		break;
 	    default:		/* Function entry */
 		def_function(type_UNDECL,size_DEFAULT,(char *)NULL,
-			     id,args);
+			     id,args,tok_FUNCTION);
 		break;
 	}
 
@@ -1607,6 +1625,7 @@ do_RETURN(hashno,keyword)
 	}
 	switch(datatype) {
 	    case type_PROGRAM:
+	    case type_MODULE:
 	    case type_BLOCK_DATA:
 		if(keyword->tclass == tok_RETURN) {
 		    syntax_error(keyword->line_num,keyword->col_num,
@@ -1616,17 +1635,38 @@ do_RETURN(hashno,keyword)
 		break;
 	    case type_SUBROUTINE:	/* Subroutine return: OK */
 		break;
-	    default:		/* Function return: check whether entry
-				   points have been assigned values. */
+	    default:		/* Function return: check whether result
+				   variable has been assigned a value.
+				   All result variables are storage
+				   associated, so only one needs to be set.
+				*/
+	      if(misc_warn) {
+		int result_set=FALSE;
 		for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
-		  if (loc_symtab[i].result_var && !loc_symtab[i].set_flag) {
-		      if(misc_warn) {
-			    warning(keyword->line_num,keyword->col_num,
-					loc_symtab[i].name);
-			    msg_tail("not set when RETURN encountered");
-		    }
+		  if (loc_symtab[i].result_var && loc_symtab[i].set_flag) {
+		    result_set = TRUE;
+		    break;
 		  }
 		}
+		if(! result_set) {
+		  int result_var_count=0;
+		  /* Function may have multiple result variables: report all */
+		  for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
+		    if (loc_symtab[i].result_var) {
+		      if(++result_var_count == 1) { /* first encountered */
+			warning(keyword->line_num,keyword->col_num,
+				"Result variable");
+		      }
+		      else {
+			msg_tail("or");
+		      }
+		      msg_tail(loc_symtab[i].name);
+		    }
+		  }
+		  msg_tail("not set when RETURN encountered");
+		}
+	      }
+
 		/*
 		for(i=0; i<loc_symtab_top; i++) {
 		    if(storage_class_of(loc_symtab[i].type) == class_VAR
@@ -1645,16 +1685,21 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
-void do_result_spec(Token *p, int hashno, int result_var_hashno)
+void do_result_spec(Token *p, int hashno, int entry_hashno)
 {
-    if (strcmp(hashtab[p->value.integer].name, hashtab[hashno].name) == 0)
+  if (strcmp(hashtab[p->value.integer].name, hashtab[hashno].name) == 0) {
         syntax_error(p->line_num, p->col_num,
                  "Result name must not be the same as function name");
-	hashtab[result_var_hashno].loc_symtab->result_var = FALSE;
-	hashtab[p->value.integer].loc_symtab->result_var = TRUE;
+  }
+  hashtab[entry_hashno].loc_symtab->result_var = FALSE;
+  hashtab[p->value.integer].loc_symtab->result_var = TRUE;
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {
+	fprintf(list_fd,"\nFUNCTION name = %s",
+		hashtab[hashno].name);
+	fprintf(list_fd,"\nENTRY name = %s",
+		hashtab[entry_hashno].name);
 	fprintf(list_fd,"\nRESULT variable = %s",
 		hashtab[p->value.integer].name);
     }
@@ -1763,7 +1808,7 @@ if(debug_latest) {
 
 /* process suffix part of subprogram declaration */
 void
-do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno)
+do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int entry_hashno)
 {
 
     Token *currToken;
@@ -1776,7 +1821,7 @@ do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int re
             }
             break;
         case tok_identifier:
-            do_result_spec(currToken, hashno, result_var_hashno);
+            do_result_spec(currToken, hashno, entry_hashno);
             break;
         default:
             oops_message(OOPS_FATAL,currToken->line_num,currToken->col_num,
@@ -1863,7 +1908,14 @@ get_size(symt,type)			/* ARGSUSED1 */
     if(first_char == '$')  first_char = 'Z'+1;
     if(first_char == '_')  first_char = 'Z'+2;
 
-    return implicit_size[first_char - 'A'];
+	if (in_curr_scope(symt))
+	{
+	 	return implicit_info.size[first_char - 'A'];
+	}
+	else { /* Get implicit type declaration from previous scope */
+		int s = find_scope(symt);
+		return loc_scope[s].implicit.size[first_char - 'A'];
+	}
   }
 }
 
@@ -1892,7 +1944,14 @@ get_size_text(symt,type)		/* ARGSUSED1 */
     if(first_char == '$')  first_char = 'Z'+1;
     if(first_char == '_')  first_char = 'Z'+2;
 
-    return implicit_len_text[first_char - 'A'];
+	if (in_curr_scope(symt))
+	{
+	   return implicit_info.len_text[first_char - 'A'];
+	}
+	else { /* Get implicit type declaration from previous scope */
+		int s = find_scope(symt);
+		return loc_scope[s].implicit.len_text[first_char - 'A'];
+	}
   }
 }
 
@@ -1923,8 +1982,8 @@ get_type(symt)	/* Returns data type of symbol, using implicit if necessary */
 
 	/* Fell through, so type must be determined by first letter of name */
 
-	{
 	  int first_char=(int)symt->name[0];
+
 			/* kluge: treat any nonalpha chars other than _
 			   as if they are $.
 			 */
@@ -1932,8 +1991,14 @@ get_type(symt)	/* Returns data type of symbol, using implicit if necessary */
 	      first_char = 'Z'+1;
 	  if(first_char == '_')  first_char = 'Z'+2;
 
-	   return implicit_type[first_char - 'A'];
-	}
+	  if (in_curr_scope(symt))
+	  {
+	     return implicit_info.type[first_char - 'A'];
+	  }
+	  else { /* Get implicit type declaration from previous scope */
+	  	int s = find_scope(symt);
+	  	return loc_scope[s].implicit.type[first_char - 'A'];
+	  }
 }/*get_type*/
 
 
@@ -2025,7 +2090,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    gsymt->name = new_global_string(hashtab[h].name);
 
 			/* Set symtab info fields */
-	    gsymt->type = type_byte(storage_class,datatype);
+	    gsymt->type = type_pack(storage_class,datatype);
 	    gsymt->size = type_size[datatype];
 	    if(storage_class == class_COMMON_BLOCK)
 		gsymt->info.comlist = NULL;
@@ -2082,7 +2147,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    symt->info.array_dim = 0;
 
 		      /* Set symtab info fields */
-	    symt->type = type_byte(storage_class,datatype);
+	    symt->type = type_pack(storage_class,datatype);
 	    symt->size = type_size[datatype];
 	    symt->src.text = NULL;
 	    symt->equiv_link = symt;	/* equivalenced only to self */
@@ -2439,15 +2504,27 @@ set_implicit_type(type,size,len_text,c1,c2)
 		yyerror("IMPLICIT range must be in alphabetical order");
 	}
 	else {
+	  implicit_info.implicit_none = FALSE;
 		/* Fill in the lookup table for the given range of chars */
+	  for(c=c1; c<=c2; c++) {
+		implicit_info.type[c-'A'] = type;
+		implicit_info.size[c-'A'] = size;
+		implicit_info.len_text[c-'A'] = len_text;
+	  }
+		/*
 	  for(c=c1; c<=c2; c++) {
 		implicit_type[c-'A'] = type;
 		implicit_size[c-'A'] = size;
 		implicit_len_text[c-'A'] = len_text;
 	  }
+	  */
 	}
 }/*set_implicit_type*/
 
+void set_implicit_none()
+{
+  implicit_info.implicit_none = TRUE;
+}
 
 		/* Finish processing statement function.
 		   Clears all used-before-set flags of ordinary
@@ -2938,6 +3015,7 @@ if (debug_latest) {int hashno = current_prog_unit_hash;
 #endif
       loc_scope[loc_scope_top].hash_num = current_prog_unit_hash;
       loc_scope[loc_scope_top].exec_stmt_count = exec_stmt_count; 
+      loc_scope[loc_scope_top].implicit = implicit_info;
       loc_scope[loc_scope_top++].symt_index = curr_scope_bottom;
       curr_scope_bottom = loc_symtab_top;
     }
@@ -2976,6 +3054,7 @@ if (debug_latest) {
 #endif
 	/* Restore counters for enclosing scope */
       exec_stmt_count = loc_scope[loc_scope_top].exec_stmt_count;
+      implicit_info = loc_scope[loc_scope_top].implicit;
 
     /* Return value of current_prog_unit_hash of enclosing scope. */
       return loc_scope[loc_scope_top].hash_num;
@@ -2985,7 +3064,7 @@ if (debug_latest) {
 /* Function returns true if symbol table pointer points to entry in
    the current scoping unit, between curr_scope_bottom and loc_symtab_top.
  */
-int in_curr_scope(Lsymtab *entry)
+int in_curr_scope(const Lsymtab *entry)
 {
     if (entry >= &loc_symtab[curr_scope_bottom] &&
             entry < &loc_symtab[loc_symtab_top])
@@ -2993,3 +3072,75 @@ int in_curr_scope(Lsymtab *entry)
     else
         return FALSE;
 }
+
+/* Function returns -1 if entry is in current scope else returns index of
+ * loc_scope entry for scope of entry
+ */
+int find_scope(const Lsymtab *entry)
+{
+	int i;
+	if (in_curr_scope(entry)) return -1;
+
+	for (i = loc_scope_top - 1; i >= 1; i--) {
+		if (entry >= &loc_symtab[loc_scope[i].symt_index])
+			return i;
+	}
+	return 0;		/* should not happen */
+
+}
+
+/* Function to clear the valid flags and hashtable pointers of
+   internal or module subprograms, called after exiting the scope in
+   which they are valid.  The entries in the global symbol table are
+   not deleted, to avoid the need to update pointers in various data
+   structures that point to the remaining valid entries.
+ */
+void clean_globals(int hashno, SUBPROG_TYPE limit)
+{
+	int i, curr_i;
+
+#ifdef DEBUG_GLOBAL
+if (debug_latest) {
+	fprintf(list_fd,"\nCleaning global entries of %s subprograms",
+	  limit == internal_subprog?"internal":"module");
+	fprintf(list_fd,"\n:: Global entries are ::");
+
+	for (i = 0; i < glob_symtab_top; i++) {
+
+	if (glob_symtab[i].valid) {
+		fprintf(list_fd,"\n %s ", glob_symtab[i].name);
+		if(glob_symtab[i].internal_subprog) fprintf(list_fd,"internal subprog");
+		else if(glob_symtab[i].module_subprog) fprintf(list_fd,"module subprog");
+		else fprintf(list_fd,"other");
+		}
+	}
+}
+#endif
+
+/* start the scan from index of current program unit, whose hashtable
+   index is in hashno
+ */
+	curr_i = hashtab[hashno].glob_symtab - &glob_symtab[0];
+	for (i = curr_i; i < glob_symtab_top; i++) {
+	  if(glob_symtab[i].valid) {
+	    if((limit == internal_subprog && glob_symtab[i].internal_subprog)||
+			(limit == module_subprog && glob_symtab[i].module_subprog)) {
+	      int h;
+#ifdef DEBUG_GLOBAL
+if (debug_latest) {
+	fprintf(list_fd,"\nInvalidated subprog %s ", glob_symtab[i].name);
+}
+#endif
+			glob_symtab[i].valid = FALSE;
+
+			/* clear the hashtable entry too */
+			h = hash_lookup(glob_symtab[i].name);
+			if(datatype_of(glob_symtab[i].type) == type_COMMON_BLOCK)
+			  hashtab[h].com_glob_symtab = NULL;
+			else
+			  hashtab[h].glob_symtab = NULL;
+		}
+	  }
+	}
+}
+

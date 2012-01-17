@@ -153,10 +153,13 @@ PRIVATE int
     goto_flag=FALSE,	/* if unconditional GOTO was encountered */
 
 /*---------------addition-----------------------------*/
+    contains_ended,		/* var to remember that a CONTAINS block just ended */
     inside_function=FALSE,	/* is inside a function */
     contains_sect=FALSE,	/* for contains block */
     interface_block=FALSE;  /* for interface block */
 /*----------------------------------------------------*/
+
+
 
 int 
     complex_const_allowed=FALSE, /* for help in lookahead for these */
@@ -250,6 +253,8 @@ PROTO(PRIVATE void print_exprlist,( char *s, Token *t ));
 PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 #endif
 
+SUBPROG_TYPE find_subprog_type(int stmt_class);
+
 		/* Uses of Token fields for nonterminals: */
 /* NOTE: As of Aug 1994 these are undergoing revision to separate the
          use of class, subclass fields */
@@ -259,7 +264,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
        token.subclass = no. of elements  --> TOK_elts
   2. expressions
        token.value.integer = hash index (of identifier)
-       token.TOK_type = type_byte = storage_class << 4 + datatype
+       token.TOK_type = type_pack = storage_class << 4 + datatype
        token.TOK_flags: CONST_EXPR, LVALUE_EXPR, etc.
        token.TOK_flags: COMMA_FLAG used to handle extra/missing commas
   4. substring_interval
@@ -434,7 +439,8 @@ stmt_list_item	:	ordinary_stmt
 					 size_DEFAULT,	/* size */
 					 (char *)NULL,	/* size text */
 					 &($1),		/* name */
-					 (Token*)NULL);	/* args */
+					 (Token*)NULL,	/* args */
+					 find_subprog_type(tok_PROGRAM));
 			    current_prog_unit_hash =
 			      def_curr_prog_unit(&($1));
 			    current_prog_unit_type = type_PROGRAM;
@@ -466,7 +472,10 @@ stmt_list_item	:	ordinary_stmt
 					   stmts have been merged into tok_END.
 					 */
 			  if(curr_stmt_class == tok_END) {
-			    if(prev_stmt_class != tok_RETURN)
+			    /* END implies RETURN for subprogram except in
+			     * an interface block.
+			     */
+			    if(prev_stmt_class != tok_RETURN && !interface_block)
 			      (void)do_RETURN(current_prog_unit_hash,&($1));
 				
 			    pop_block(&($$),$$.tclass,
@@ -552,16 +561,6 @@ stmt		:	tok_label unlabeled_stmt
 			  }
 			  if( $1.tclass == tok_ENDDO )
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-
-/*--------------------addition--------------------------------*/
-
-			  if( $1.tclass == tok_ENDINTERFACE )
-			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-
-			  if( $1.tclass == tok_ENDTYPE )
-			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-
-/*-----------------------------------------------------------*/
 			}
 		;
         
@@ -676,23 +675,6 @@ non_subprogram_header
 			    labeled_stmt_type = LAB_EXECUTABLE;
 			    yyerrok; /* (error message already given) */
 			}
-		|	module_stmt
-			{
-/*--------------------addition--------------------------------*/
-                if (interface_block)
-                    syntax_error($1.line_num,$1.col_num,
-                        "module statement invalid inside interface block");
-
-			    exec_stmt_count = 0;
-			    executable_stmt = FALSE;
-			    labeled_stmt_type = LAB_SPECIFICATION;
-			    push_block(&($1),$1.tclass,subprog,
-				       hashtab[current_prog_unit_hash].name,
-				       NO_LABEL);
-				current_prog_unit_type = type_MODULE;
-			}
-/*-----------------------------------------------------------*/
-
 		;
 
 subprogram_header:	prog_stmt
@@ -729,6 +711,16 @@ subprogram_header:	prog_stmt
 /*-----------------------------------------------------------*/
 			    current_prog_unit_type = type_BLOCK_DATA;
 			}
+		|	module_stmt
+			{
+/*--------------------addition--------------------------------*/
+                if (interface_block)
+                    syntax_error($1.line_num,$1.col_num,
+                        "module statement invalid inside interface block");
+				current_prog_unit_type = type_MODULE;
+			}
+/*-----------------------------------------------------------*/
+
 		;
 
 end_stmt	:	unlabeled_end_stmt
@@ -768,7 +760,7 @@ named_end_stmt:		end_subprog_token symbolic_name EOS
 		;
 
 end_subprog_token:	tok_ENDBLOCKDATA
-		|	tok_ENDFUNCTION
+		|	tok_ENDFUNCTION {inside_function = FALSE;}
 		|	tok_ENDMODULE
 		|	tok_ENDPROGRAM
 		|	tok_ENDSUBROUTINE
@@ -850,15 +842,14 @@ specification_stmt:	anywhere_stmt
         |   interface_stmt
             {
                 interface_block = TRUE;
+				push_block(&($1),$1.tclass,construct,NULL, NO_LABEL);
                 stmt_sequence_no = 0;	/* allow subprog decls */
-
-			    push_block(&($1),$1.tclass,construct,curr_stmt_name,
-				       NO_LABEL);
-
+				push_loc_scope();
             }
         |   endinterface_stmt
             {
-                curr_stmt_name = NULL;
+				pop_loc_scope();
+				pop_block(&($1),$1.tclass,NULL,NO_LABEL);
                 interface_block = FALSE;
             }
         |   procedure_stmt
@@ -869,11 +860,12 @@ specification_stmt:	anywhere_stmt
             }
         |   derived_type_stmt
             {
-			    push_block(&($1),$1.tclass,construct,curr_stmt_name,
+	        push_block(&($1),$1.tclass,construct,curr_stmt_name,
 				       NO_LABEL);
             }
         |   endderived_type_stmt
             {
+	        pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
                 curr_stmt_name = NULL;
 /*--------------------------------------------------------------------*/
             }
@@ -1118,7 +1110,8 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 					  size_DEFAULT,	/* size */
 					  (char *)NULL,	/* size text */
 					  &($3),	/* name */
-					  (Token*)NULL);/* args */
+					  (Token*)NULL,/* args */
+					  find_subprog_type($1.tclass));
 			     current_prog_unit_hash =
 			       def_curr_prog_unit(&($3));
 			}
@@ -1191,7 +1184,8 @@ unlabeled_function_stmt
 				      current_typesize,
 				      current_len_text,
 				      &($2),
-				      (Token*)NULL);
+				      (Token*)NULL,
+					  find_subprog_type($1.tclass));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 
@@ -1206,7 +1200,8 @@ unlabeled_function_stmt
 				      current_typesize,
 				      current_len_text,
 				      &($2),
-				      &($4));
+				      &($4),
+					  find_subprog_type($1.tclass));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -1229,7 +1224,8 @@ unlabeled_function_stmt
 				      size_DEFAULT,
 				      (char *)NULL,
 				      &($2),
-				      (Token*)NULL);
+				      (Token*)NULL,
+					  find_subprog_type($1.tclass));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
             
@@ -1245,7 +1241,8 @@ unlabeled_function_stmt
 				      size_DEFAULT,	/* size */
 				      (char *)NULL,	/* size text */
 				      &($2),		/* name */
-				      &($4));		/* args */
+				      &($4),		/* args */
+					  find_subprog_type($1.tclass));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -1316,10 +1313,8 @@ suffix_item : proc_language_binding_spec
 
 result_argument	:	symbolic_name
             {
-                def_arg_name(&($1));
+                def_result_name(&($1));
                 primary_id_expr(&($1),&($$));
-
-                /* To do: set function name to result name */
             }
 	    ;
 
@@ -1394,7 +1389,8 @@ module_stmt	:   module_handle symbolic_name EOS
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       (Token*)NULL);
+				       (Token*)NULL,
+					   find_subprog_type($1.tclass));
 			    current_prog_unit_hash = def_curr_prog_unit(&($2));
 			}
 		;
@@ -1431,7 +1427,8 @@ unlabeled_subroutine_stmt
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       (Token*)NULL);
+				       (Token*)NULL,
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 			  
@@ -1445,7 +1442,8 @@ unlabeled_subroutine_stmt
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       &($4));
+				       &($4),
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -1461,7 +1459,8 @@ unlabeled_subroutine_stmt
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       (Token*)NULL);
+				       (Token*)NULL,
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
               
@@ -1475,7 +1474,8 @@ unlabeled_subroutine_stmt
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       &($4));
+				       &($4),
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -1530,7 +1530,7 @@ dummy_argument	:	symbolic_name
 			}
 		|	'*'
 			{
-			     $$.TOK_type = type_byte(class_LABEL,type_LABEL);
+			     $$.TOK_type = type_pack(class_LABEL,type_LABEL);
 			     $$.size = size_DEFAULT;
 			     $$.TOK_flags = 0;
 			     $$.left_token = (Token *)NULL;
@@ -1554,7 +1554,8 @@ block_data_stmt	:	block_data_handle EOS
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($1),
-				       (Token*)NULL);
+				       (Token*)NULL,
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($1));
 			}
@@ -1565,7 +1566,8 @@ block_data_stmt	:	block_data_handle EOS
 				       size_DEFAULT,
 				       (char *)NULL,
 				       &($2),
-				       (Token*)NULL);
+				       (Token*)NULL,
+					   find_subprog_type($1.tclass));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 			}
@@ -2609,7 +2611,8 @@ implicit_handle	:	tok_IMPLICIT {implicit_flag=TRUE;}
 implicit_stmt	:	implicit_handle implicit_decl_list EOS
 			{
 			    implicit_flag=FALSE;
-			    if(implicit_none) {
+			    //if(implicit_none) {
+			    if(implicit_info.implicit_none) {
 				syntax_error($1.line_num,$1.col_num,
 				     "conflicts with IMPLICIT NONE");
 			    }
@@ -2629,7 +2632,8 @@ implicit_stmt	:	implicit_handle implicit_decl_list EOS
 			    else {
 			      if(f77_implicit_none)
 				      nonstandard($2.line_num,$2.col_num,0,0);
-			      implicit_none = TRUE;
+			      //implicit_none = TRUE;
+				  set_implicit_none();
 			    }
 			    check_f90_stmt_sequence(&($1),F90_SEQ_IMPLICIT_NONE);
 			}
@@ -3793,7 +3797,7 @@ type_output_stmt:	tok_TYPE type_format_id EOS
 type_format_id: '*'
 		|	literal_const
 			{
-			  if( $1.TOK_type == type_byte(class_VAR,type_INTEGER) ) {
+			  if( $1.TOK_type == type_pack(class_VAR,type_INTEGER) ) {
 			    ref_label(&($1),LAB_IO);
 			  }
 			}
@@ -3876,7 +3880,7 @@ control_info_item:	symbolic_name '=' unit_id
 			    }
 				/* An integer at this point is a format label */
 			    else if ( is_true(LIT_CONST,$1.TOK_flags) &&
-				      $1.TOK_type == type_byte(class_VAR,type_INTEGER))
+				      $1.TOK_type == type_pack(class_VAR,type_INTEGER))
 			    {
 				 ref_label(&($1),LAB_IO);
 			    }
@@ -4053,7 +4057,7 @@ format_id	:	char_expr
 			  }
 			     /* A format label appears here as integer const */
 			  else if(is_true(LIT_CONST,$1.TOK_flags) &&
-			    $1.TOK_type == type_byte(class_VAR,type_INTEGER)){
+			    $1.TOK_type == type_pack(class_VAR,type_INTEGER)){
 			      ref_label(&($1),LAB_IO);
 			  }
 			}
@@ -4526,12 +4530,12 @@ literal_const	:	numeric_const
 			    /* (class, size set in numeric_const productions) */
 		|	tok_string
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_STRING);
+			    $$.TOK_type = type_pack(class_VAR,type_STRING);
 			    /* (size is set in get_string) */
 			}
 		|	tok_hollerith
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_HOLLERITH);
+			    $$.TOK_type = type_pack(class_VAR,type_HOLLERITH);
 			    /* (size is set in get_hollerith) */
 			    if(port_hollerith) {
 				warning($1.line_num,$1.col_num,
@@ -4540,29 +4544,29 @@ literal_const	:	numeric_const
 			}
 		|	tok_logical_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_LOGICAL);
+			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
 			}
 		;
 
 numeric_const	:	tok_integer_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_INTEGER);
+			    $$.TOK_type = type_pack(class_VAR,type_INTEGER);
 			    $$.size = size_DEFAULT;
 			}
 		|	tok_real_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_REAL);
+			    $$.TOK_type = type_pack(class_VAR,type_REAL);
 			    $$.size = size_DEFAULT;
 			}
 		|	tok_dp_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_DP);
+			    $$.TOK_type = type_pack(class_VAR,type_DP);
 			    $$.size = size_DEFAULT;
 			}
 		|	tok_quad_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_QUAD);
+			    $$.TOK_type = type_pack(class_VAR,type_QUAD);
 			    $$.size = size_QUAD;
                             if(f77_quad_constants || f90_quad_constants) {
                               nonstandard($1.line_num,$1.col_num,f90_quad_constants,0);
@@ -4571,12 +4575,12 @@ numeric_const	:	tok_integer_const
 			}
 		|	tok_complex_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_COMPLEX);
+			    $$.TOK_type = type_pack(class_VAR,type_COMPLEX);
 			    $$.size = size_DEFAULT;
 			}
 		|	tok_dcomplex_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_DCOMPLEX);
+			    $$.TOK_type = type_pack(class_VAR,type_DCOMPLEX);
 			    $$.size = size_DEFAULT;
 			}
 		;
@@ -4898,17 +4902,17 @@ data_constant	:	numeric_const
 		|	'+' numeric_const { $$ = $2; }
 		|	tok_logical_const
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_LOGICAL);
+			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
 			}
    		|	tok_string
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_STRING);
+			    $$.TOK_type = type_pack(class_VAR,type_STRING);
 			    $$.size = size_DEFAULT;
 			}
 		|	tok_hollerith
 			{
-			    $$.TOK_type = type_byte(class_VAR,type_HOLLERITH);
+			    $$.TOK_type = type_pack(class_VAR,type_HOLLERITH);
 			    $$.size = size_DEFAULT;
 			}
 		;
@@ -4975,7 +4979,7 @@ label		:	tok_integer_const
 				      "statement label exceeds 5 digits");
 			    }
 				integer_context=FALSE;
-				$$.TOK_type = type_byte(class_LABEL,type_LABEL);
+				$$.TOK_type = type_pack(class_LABEL,type_LABEL);
 				$$.size = size_DEFAULT;
 				$$.TOK_flags = 0;
 			}
@@ -4992,7 +4996,7 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	implicit_flag=FALSE;	/* clear flags for IMPLICIT stmt */
 	implicit_letter_flag = FALSE;
 	implicit_type_given = FALSE;
-	implicit_none = FALSE;
+	//implicit_none = FALSE;
 	global_save = FALSE;
 	prev_token_class = EOS;
 	complex_const_allowed = FALSE;
@@ -5238,7 +5242,7 @@ record_io_unit_id(Token *id)
 	  current_io_unit_id = id->value.integer; /* get hash code of identifier */
      }
      else if( is_true(LIT_CONST,id->TOK_flags) &&
-	      id->TOK_type == type_byte(class_VAR,type_INTEGER))
+	      id->TOK_type == type_pack(class_VAR,type_INTEGER))
      {
 	  current_io_unit_no = id->value.integer; /* get literal int value */
      }
@@ -5301,7 +5305,8 @@ int fake_def_subprog(BlockStack *b)
 		size_DEFAULT,
 		(char *)NULL,
 		&id,
-		(Token*)NULL);
+		(Token*)NULL,
+		find_subprog_type(tok_PROGRAM));
 
 	return h;
 }
@@ -5322,51 +5327,31 @@ END_processing(t)
 {
   ++tot_prog_unit_count;
 
-  /* We really should test whether END occurred inside a contains block,
-     but that info is hard to come by at this point.  Instead we rely on
-     every Fortran program unit defining at least one local symbol table
-     entry.  If symbol table is empty at this point then we pushed a scope
-     in anticipation of a contained program unit that did not occur.
-   */
-  if (empty_scope()) {
-	  current_prog_unit_hash = pop_loc_scope();
-  }
 
   if(current_prog_unit_hash != -1) {
-        if(exec_stmt_count == 0 &&
-	   current_prog_unit_type != type_BLOCK_DATA) {
-/*------------------ addition ------------------ */
-	   //current_prog_unit_type != type_MODULE) 
-/*----------------------------------------------*/
-	  if(misc_warn)
-/*
-	    warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  "Module contains no executable statements");
-*/
-		switch (current_prog_unit_type) {
+    int current_prog_unit_type =
+		datatype_of(hashtab[current_prog_unit_hash].loc_symtab->type);
+    if(exec_stmt_count == 0 && !interface_block) {
+	  if(misc_warn) {
+	    char *prog_unit_type_name = NULL;
+	    switch (current_prog_unit_type) {
 		case type_PROGRAM:
-	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  	"Program");
-			break;
-		case type_MODULE:
-	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  	"Module");
-			break;
-/* functions and subroutines are type_SUBROUTINE */
+		  prog_unit_type_name = "Program";
+		  break;
 		case type_SUBROUTINE:
-			if (inside_function)
+		  prog_unit_type_name = "Subroutine";
+		  break;
+	        default:	/* all other types, including functions */
+		  if (inside_function)
+		    prog_unit_type_name = "Function";
+		  break;
+	    }
+	    if( prog_unit_type_name ) {
 	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  	"Function");
-			else
-	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  	"Subroutine");
-			break;
-		default:
-	    	warning(t == (Token *)NULL? line_num: t->line_num, NO_COL_NUM,
-		  	"Unrecognized END statement");
-		}
+			prog_unit_type_name);
 		msg_tail("contains no executable statements");
-
+	    }
+	  }
 	}
 
 	if(do_list && t != (Token *)NULL) {
@@ -5382,9 +5367,32 @@ END_processing(t)
 			/* Print symbol table for debug */
 	debug_symtabs();
 			/* Print local symbol table and do local warnings */
-	print_loc_symbols();
+	if(! interface_block) {	/* but not for INTERFACE declaration */
+	  print_loc_symbols();
+	}
 			/* Reset local symbol table */
 	init_symtab();
+
+	/* At END MODULE, need to check internal usage of module subprograms
+	   and then save module info to a file.  [LATTER NOT DONE YET] */
+	if (current_prog_unit_type == type_MODULE) {
+	  if(contains_ended) {
+	    check_arglists(module_subprog);
+	  }
+
+	  /* SAVE MODULE INFO HERE */
+
+	  if(contains_ended) {
+	    clean_globals(current_prog_unit_hash,module_subprog);
+	  }
+	}
+	/* At END of a non-module subprogram with a CONTAINS section,
+	   need to check internal usage of internal subprograms and
+	   then clear the valid flags of same. */
+	else if(contains_ended) {
+	  check_arglists(internal_subprog);
+	  clean_globals(current_prog_unit_hash,internal_subprog);
+	}
 
 	doing_end_proc = FALSE;
   }
@@ -5402,7 +5410,7 @@ END_processing(t)
   }
 
   implicit_type_given = FALSE;
-  implicit_none = FALSE;
+  //implicit_none = FALSE;
   true_prev_stmt_line_num = 0;
   integer_context = FALSE;
   global_save = FALSE;
@@ -5533,8 +5541,12 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 	    DBG_TOKNAME(stmt_class),name,label,
 		block_stack[block_depth-1].subprogtype,
 		t->line_num);
+
+	fprintf(list_fd,"\nCURRENT_PROG_UNIT_HASH=%d", current_prog_unit_hash);
   }
 #endif
+
+  contains_ended = contains_sect; /* remember if CONTAINS was set */
 
   if(block_depth == 0) {
       syntax_error(t->line_num,t->col_num,"no construct to end here");
@@ -5679,18 +5691,32 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 /*--------------------------addition-----------------------------------*/
 	if (block_stack[block_depth].subprogtype == internal_subprog ||
 			block_stack[block_depth].subprogtype == module_subprog) {
-		contains_sect = TRUE; /* turns CONTAINS block on after exiting
-								 either of these */
+	  /* If we have hit END of containing module subprogram, need
+	     to pop the (empty) scope that was inserted to get ready for
+	     next internal or module subprogram.
+	   */
+	  if(block_stack[block_depth].subprogtype == module_subprog
+	     && contains_sect ) {
+	    current_prog_unit_hash = pop_loc_scope();
+	  }
+	  contains_sect = TRUE; /* turns CONTAINS block flag on after exiting
+				   either of these */
 #ifdef DEBUG_BLOCKCHECK
 		if(debug_latest) fprintf(list_fd,"\npop_block setting contains_sect=TRUE");
 #endif
 	}
 	else {
-		contains_sect = FALSE;	/* otherwise we may have
-					 * exited containing module */
+	  /* If we have hit END of containing module or external subprogram, need
+	     to pop the (empty) scope that was inserted to get ready for
+	     next internal or module subprogram.
+	   */
+	  if( contains_sect ) {
+	    current_prog_unit_hash = pop_loc_scope();
+	    contains_sect = FALSE;
 #ifdef DEBUG_BLOCKCHECK
 		if(debug_latest) printf("\npop_block setting contains_sect=FALSE");
 #endif
+	  }
 	}
 
 /*---------------------------------------------------------------------*/
@@ -5831,6 +5857,7 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
       fprintf(list_fd,"\npushing token %s name %s label %d type %d at line %d",
 	      DBG_TOKNAME(stmt_class),name,label,
 		  block_stack[block_depth].subprogtype,t->line_num);
+	fprintf(list_fd,"\nCURRENT_PROG_UNIT_HASH=%d", current_prog_unit_hash);
     }
 #endif
 
@@ -5848,4 +5875,23 @@ All KINDs are treated as default KIND.  \
 Checking of type agreement may be incorrect as a result.  \
 (This message is only given once.)");
   kind_warning_given = TRUE;
+}
+
+
+SUBPROG_TYPE find_subprog_type(int stmt_class)
+{
+	if (!contains_sect || (stmt_class != tok_SUBROUTINE &&
+		stmt_class != tok_FUNCTION))
+		//block_stack[block_depth].subprogtype = not_subprog;
+		return not_subprog;
+	else { /* a subprogram inside a contains block is either
+			  a module subprogram or an internal subprogram */
+		if (block_depth > 0 && block_stack[block_depth-1].sclass
+				== tok_MODULE)
+			//block_stack[block_depth].subprogtype = module_subprog;
+			return module_subprog;
+		else
+			//block_stack[block_depth].subprogtype = internal_subprog;
+			return internal_subprog;
+	}
 }

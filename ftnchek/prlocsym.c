@@ -126,6 +126,7 @@ print_loc_symbols(VOID)
 	      mod_type = get_type(prog_unit);
 
 	      if(  mod_type != type_PROGRAM
+		&& mod_type != type_MODULE
 		&& mod_type != type_SUBROUTINE
 		&& mod_type != type_COMMON_BLOCK
 		&& mod_type != type_BLOCK_DATA )
@@ -297,11 +298,15 @@ print_loc_symbols(VOID)
 	     ++warning_count;
 	}
 
+    int curr_prog_unit_type =
+		datatype_of(hashtab[current_prog_unit_hash].loc_symtab->type);
+
 	if(usage_var_unused || usage_arg_unused
 	   || usage_var_set_unused || usage_var_uninitialized) {
 	  if(do_symtab || do_list)
 	    (void)fprintf(list_fd,"\n");
-	  if(usage_var_unused || usage_arg_unused) {
+	  if(curr_prog_unit_type != type_MODULE &&
+			  (usage_var_unused || usage_arg_unused)) {
 	    check_flags(sym_list,n,0,0,0,
 		      "Variables declared but never referenced:",mod_name);
 	  }
@@ -324,7 +329,7 @@ print_loc_symbols(VOID)
     }/* end if(do_symtab || pure_args || pure_common || usage_...) */
 
 			/* List all undeclared vars & functions */
-    if(decls_required || implicit_none) {
+    if(decls_required || implicit_info.implicit_none) {
 	int i,n;
 
 	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
@@ -338,7 +343,9 @@ print_loc_symbols(VOID)
 	}
 	if(n != 0) {
 	    sort_lsymbols(sym_list,n);
-	    local_warn_head(mod_name,
+	    /* this is only a warning under -decls but error if IMPLICIT NONE */
+	    (implicit_info.implicit_none?local_err_head:local_warn_head)
+	      		(mod_name,
 			   top_filename,
 			   NO_LINE_NUM, sym_list[0], FALSE,
 				"Identifiers of undeclared type");

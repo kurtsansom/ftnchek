@@ -185,7 +185,7 @@ else {
 			     make_arg_names(head_ptr->tokenlist,
 					   a,gsymt->info.arglist);
 			     implied_type = get_type(&(loc_symtab[i]));
-			     a->type = type_byte(
+			     a->type = type_pack(
 			         class_SUBPROGRAM,implied_type);
 			     a->size = get_size(&(loc_symtab[i]),implied_type);
 			     a->prog_unit = curr_gsymt;
@@ -257,7 +257,7 @@ else {
 					   a,gsymt->info.arglist);
 			  }
 			  implied_type = get_type(&(loc_symtab[i]));
-			  a->type = type_byte(
+			  a->type = type_pack(
 			         class_SUBPROGRAM,implied_type);
 			  a->size = get_size(&(loc_symtab[i]),implied_type);
 			  a->prog_unit = curr_gsymt;
@@ -684,7 +684,7 @@ make_dummy_arg_array (t)
 				/* change scalars to 0 dims, size 1 */
 		  arglist[i].info.array_dim = array_dim_info(0,1);
 		implied_type = get_type(symt);
-		arglist[i].type = type_byte(storage_class_of(symt->type),
+		arglist[i].type = type_pack(storage_class_of(symt->type),
 						implied_type);
 		arglist[i].size = get_size(symt,implied_type);
 		arglist[i].same_as = i; /* always is same-as-self */
