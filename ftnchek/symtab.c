@@ -1140,8 +1140,6 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 		gsymt->module_subprog = FALSE;
 	}
 
-	gsymt->valid = TRUE;
-
 				/* Restore args list to original order */
 	if(args != NULL)
 	  args->next_token = reverse_tokenlist(args->next_token);
@@ -2090,6 +2088,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    gsymt->name = new_global_string(hashtab[h].name);
 
 			/* Set symtab info fields */
+	    gsymt->valid = TRUE;
 	    gsymt->type = type_pack(storage_class,datatype);
 	    gsymt->size = type_size[datatype];
 	    if(storage_class == class_COMMON_BLOCK)

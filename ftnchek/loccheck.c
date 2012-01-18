@@ -257,6 +257,11 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	    if( list[i]->result_var && pattern == flag_combo(0,1,0) )
 		continue;
 
+	    /* function entry point with RESULT spec: ignore 'declared but never referenced' */
+
+	    if( list[i]->entry_point && !list[i]->result_var && pattern == flag_combo(0,0,0) )
+	      continue;
+
 	    if((unsigned)flag_combo(list[i]->used_flag,list[i]->set_flag,
 	       list[i]->used_before_set) == pattern) {
 

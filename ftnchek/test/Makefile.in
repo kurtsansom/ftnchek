@@ -76,7 +76,8 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
  blockerrors.f t208f.f lotsalabels.f initializers.f cray-pointers.f\
  keyvars.f empty.f varfmt.f entry1.f entry2.f entry3.f entry4.f
 
-FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90
+FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
+  internalsub.f90 modulesub.f90
 
 # set of files for testing f77/f90/f95 options
 F90= iokeywords.f f95deleted.f 

@@ -556,12 +556,16 @@ a2[i].active_do_var);
 
 
 void
-check_arglists(SUBPROG_TYPE limit)	/* Scans global symbol table for subprograms */
+check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for subprograms */
 {                       /* and finds subprogram defn if it exists */
-	int i;
+	int i, curr_i;
 	ArgListHeader *defn_list, *alist;
 
-	for (i=0; i<glob_symtab_top; i++){
+/* start the scan from index of current program unit, whose hashtable
+   index is in hashno
+ */
+	curr_i = ((hashno == -1) ? 0 : hashtab[hashno].glob_symtab - &glob_symtab[0]);
+	for (i=curr_i; i<glob_symtab_top; i++){
 		/***************************** added ****************************/
 	  if (glob_symtab[i].valid) {
 		if ((limit == module_subprog && glob_symtab[i].module_subprog) ||
@@ -657,6 +661,7 @@ check_arglists(SUBPROG_TYPE limit)	/* Scans global symbol table for subprograms 
 		else{	/* num_defns != 0 */
 		    if(!glob_symtab[i].visited
 		       && datatype_of(glob_symtab[i].type) != type_BLOCK_DATA
+		       && datatype_of(glob_symtab[i].type) != type_MODULE
 		       && !glob_symtab[i].library_prog_unit
 		       && usage_ext_unused ) {
 			cmp_error_count = 0;

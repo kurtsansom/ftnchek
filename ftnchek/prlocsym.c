@@ -62,10 +62,10 @@ print_loc_symbols(VOID)
 #else
     Lsymtab *sym_list[LOCSYMTABSZ]; /* temp. list of symtab entries to print */
 #endif
-    int	mod_type,		/* datatype of this prog unit */
+    int	progunit_type,		/* datatype of this prog unit */
 	this_is_a_function;	/* flag for treating funcs specially */
     Lsymtab *prog_unit;	 	/* entry of current prog unit in symtab */
-    char *mod_name;		/* prog unit name */
+    char *progunit_name;		/* prog unit name */
     int
 	imps=0,			/* count of implicitly declared identifiers */
 	numentries;		/* count of entry points of prog unit */
@@ -122,14 +122,14 @@ print_loc_symbols(VOID)
 
 	      prog_unit = hashtab[current_prog_unit_hash].loc_symtab;
 
-	      mod_name = prog_unit->name;
-	      mod_type = get_type(prog_unit);
+	      progunit_name = prog_unit->name;
+	      progunit_type = get_type(prog_unit);
 
-	      if(  mod_type != type_PROGRAM
-		&& mod_type != type_MODULE
-		&& mod_type != type_SUBROUTINE
-		&& mod_type != type_COMMON_BLOCK
-		&& mod_type != type_BLOCK_DATA )
+	      if(  progunit_type != type_PROGRAM
+		&& progunit_type != type_MODULE
+		&& progunit_type != type_SUBROUTINE
+		&& progunit_type != type_COMMON_BLOCK
+		&& progunit_type != type_BLOCK_DATA )
 			this_is_a_function = TRUE;
 	      else
 			this_is_a_function = FALSE;
@@ -147,9 +147,9 @@ print_loc_symbols(VOID)
 	   }
 
 
-	  (void)fprintf(list_fd,"\n\nProg unit %s:",mod_name);
+	  (void)fprintf(list_fd,"\n\nProg unit %s:",progunit_name);
 	  if( this_is_a_function ) (void)fprintf(list_fd," func:");
-	  (void)fprintf(list_fd," %4s",type_name[mod_type]);
+	  (void)fprintf(list_fd," %4s",type_name[progunit_type]);
 			/* Print a * next to non-declared function name */
 	  if(datatype_of(prog_unit->type) == type_UNDECL ) {
 			(void)fprintf(list_fd,"*");
@@ -213,7 +213,7 @@ print_loc_symbols(VOID)
 				 */
 	      if(usage_ext_unused) {
 		check_flags(sym_list,n,0,1,0,
-		 "Statement functions defined but never referenced:",mod_name);
+		 "Statement functions defined but never referenced:",progunit_name);
 	      }
 	    }
     }/*if(do_symtab)*/
@@ -279,7 +279,7 @@ print_loc_symbols(VOID)
 	   sort_lsymbols(sym_list,n);
 
 	   if(this_is_a_function && (pure_args || pure_common))  {
-	       check_nonpure(sym_list,n,mod_name);
+	       check_nonpure(sym_list,n,progunit_name);
 	   }
 	   
 			/* Print the variables */
@@ -298,27 +298,24 @@ print_loc_symbols(VOID)
 	     ++warning_count;
 	}
 
-    int curr_prog_unit_type =
-		datatype_of(hashtab[current_prog_unit_hash].loc_symtab->type);
-
 	if(usage_var_unused || usage_arg_unused
 	   || usage_var_set_unused || usage_var_uninitialized) {
 	  if(do_symtab || do_list)
 	    (void)fprintf(list_fd,"\n");
-	  if(curr_prog_unit_type != type_MODULE &&
-			  (usage_var_unused || usage_arg_unused)) {
+	  if(progunit_type != type_MODULE &&
+	     (usage_var_unused || usage_arg_unused)) {
 	    check_flags(sym_list,n,0,0,0,
-		      "Variables declared but never referenced:",mod_name);
+		      "Variables declared but never referenced:",progunit_name);
 	  }
 	  if(usage_var_set_unused) {
 	    check_flags(sym_list,n,0,1,0,
-		      "Variables set but never used:",mod_name);
+		      "Variables set but never used:",progunit_name);
 	  }
 	  if(usage_var_uninitialized) {
 	    check_flags(sym_list,n,1,0,1,
-		      "Variables used before set",mod_name);
+		      "Variables used before set",progunit_name);
 	    check_flags(sym_list,n,1,1,1,
-		      "Variables may be used before set:",mod_name);
+		      "Variables may be used before set:",progunit_name);
 	  }
 
 	}/*end if(usage_...)*/
@@ -345,7 +342,7 @@ print_loc_symbols(VOID)
 	    sort_lsymbols(sym_list,n);
 	    /* this is only a warning under -decls but error if IMPLICIT NONE */
 	    (implicit_info.implicit_none?local_err_head:local_warn_head)
-	      		(mod_name,
+	      		(progunit_name,
 			   top_filename,
 			   NO_LINE_NUM, sym_list[0], FALSE,
 				"Identifiers of undeclared type");
@@ -366,7 +363,7 @@ print_loc_symbols(VOID)
 
       if(n != 0) {
 	sort_lsymbols(sym_list,n);
-	local_warn_head(mod_name,
+	local_warn_head(progunit_name,
 			choose_filename(sym_list[0],file_used),
 			sym_list[0]->line_used, 
 			(Lsymtab *)NULL, FALSE,
@@ -391,7 +388,7 @@ print_loc_symbols(VOID)
 
 	   sort_lsymbols(sym_list,n);
 
-	   local_warn_head(mod_name,
+	   local_warn_head(progunit_name,
 			  top_filename,
 			  NO_LINE_NUM, sym_list[0], FALSE,
 			       "Names longer than 6 chars (nonstandard):");
@@ -409,7 +406,7 @@ print_loc_symbols(VOID)
 
 	   sort_lsymbols(sym_list,n);
 
-	   local_warn_head(mod_name,
+	   local_warn_head(progunit_name,
 			  top_filename,
 			  NO_LINE_NUM, sym_list[0], FALSE,
 			       "Names containing nonstandard characters:");
@@ -424,7 +421,7 @@ print_loc_symbols(VOID)
 	 if(n != 0) {
 	    sort_lsymbols(sym_list,n);
 				/* Use the right line number */
-	    local_warn_head(mod_name,
+	    local_warn_head(progunit_name,
 			   top_filename,
 			   NO_LINE_NUM, sym_list[0], FALSE,
 		      "Identifiers which are not unique in first six chars:");
@@ -524,7 +521,7 @@ print_loc_symbols(VOID)
 		       ((mixed_size || mixed_default_size) &&
 			(port_mixed_size || local_wordsize==0)) )  {
 			sort_lsymbols(sym_list,n);
-			local_warn_head(mod_name,
+			local_warn_head(progunit_name,
 					top_filename,
 					NO_LINE_NUM, sym_list[0], 
 					FALSE, "Mixed");
@@ -565,11 +562,11 @@ print_loc_symbols(VOID)
 	    print_label_refs();
 	}
 	if(misc_warn || usage_label_undefined || usage_label_unused) {
-	    check_labels(mod_name);
+	    check_labels(progunit_name);
 	}
     }
 
-    make_declarations(sym_list,mod_name);
+    make_declarations(sym_list,progunit_name);
     
    /* Recreate a FULL list of local symbols */
    {
@@ -581,7 +578,7 @@ print_loc_symbols(VOID)
    }
    
    /* Call make_html to create an individual html doc for this FORTRAN prog unit */
-   make_html(sym_list,mod_name, prog_unit);
+   make_html(sym_list,progunit_name, prog_unit);
    
 }/* print_loc_symbols */
 

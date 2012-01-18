@@ -5377,7 +5377,7 @@ END_processing(t)
 	   and then save module info to a file.  [LATTER NOT DONE YET] */
 	if (current_prog_unit_type == type_MODULE) {
 	  if(contains_ended) {
-	    check_arglists(module_subprog);
+	    check_arglists(current_prog_unit_hash,module_subprog);
 	  }
 
 	  /* SAVE MODULE INFO HERE */
@@ -5390,7 +5390,7 @@ END_processing(t)
 	   need to check internal usage of internal subprograms and
 	   then clear the valid flags of same. */
 	else if(contains_ended) {
-	  check_arglists(internal_subprog);
+	  check_arglists(current_prog_unit_hash,internal_subprog);
 	  clean_globals(current_prog_unit_hash,internal_subprog);
 	}
 

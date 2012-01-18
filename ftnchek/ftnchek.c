@@ -622,7 +622,7 @@ wrapup(VOID)	/* look at cross references, etc. */
 	visit_children();	/* Make call tree & check visited status */
 	check_com_usage();	/* Look for unused common stuff */
 	check_comlists();	/* Look for common block mismatches */
-	check_arglists(not_subprog);	/* Look for subprog defn/call mismatches */
+	check_arglists(-1,not_subprog);	/* Look for subprog defn/call mismatches */
 
         if ( htmlcalltree_fd ) 
          { 

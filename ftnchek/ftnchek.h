@@ -1340,7 +1340,7 @@ PROTO(char* ulongtostr, (unsigned long num));
 typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
 
 	/* in pgsymtab.c */
-PROTO(void check_arglists, ( SUBPROG_TYPE limit ));
+PROTO(void check_arglists, ( int hashno, SUBPROG_TYPE limit ));
 PROTO(void check_comlists, ( void ));
 PROTO(void check_com_usage, ( void ));
 PROTO(void visit_children, ( void ));
