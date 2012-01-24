@@ -43,3 +43,7 @@ PROTO(void check_flags,( Lsymtab *list[], int n, unsigned used,
 			 *mod_name ));
 
 PROTO(void check_nonpure, (Lsymtab* sym_list[], int n, char *mod_name));
+PROTO(void check_pointer_flags,( Lsymtab *list[], int n, unsigned used,
+			 unsigned set, unsigned ubs, const char *msg, const char
+			 *mod_name ));
+

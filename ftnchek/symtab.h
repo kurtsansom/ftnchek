@@ -525,7 +525,7 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_MAX		0x5
 #define I_MIN		0x6
 #define I_ICHAR		0x7
-#define I_LEN		0x8
+#define I_INQ		0x8
 #define I_INDEX		0x9
 #define I_EVALUATED	0xf	/* any bit of digit set */
 
@@ -608,8 +608,8 @@ typedef struct lSymtEntry{
 		/* Object can be referenced in an include file. Next fields
 		   are line numbers within file where object is referred
 		   to, then come indexes into include-file list.  */
-	LINENO_t line_declared, line_set, line_used;
-	short file_declared, file_set, file_used;
+	LINENO_t line_declared, line_set, line_used, line_allocd;
+	short file_declared, file_set, file_used, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
 			/* Flags */
 	unsigned
@@ -630,6 +630,8 @@ typedef struct lSymtEntry{
 	     saved: 1,		/* named in SAVE statement */
 	     allocatable: 1,	/* has ALLOCATABLE attribute */
 	     pointer: 1,	/* has POINTER attribute */
+             allocated_flag:1,    /* pointer/allocatable variable is allocated */
+             used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
 	     invoked_as_func: 1, /* usage as f(x) was seen */
 	     defined_in_include: 1, /* to suppress some warnings if unused */
@@ -1081,7 +1083,10 @@ PROTO(void use_special_open_keywd,( Token *id ));
 PROTO(void use_lvalue,( Token *id ));
 PROTO(void use_parameter,( Token *id ));
 PROTO(void use_variable,( Token *id ));
-
+PROTO(void use_pointer,( Token *id ));
+PROTO(void use_pointer_lvalue,( Token *id ));
+PROTO(void do_allocate,( Token *id ));
+PROTO(void do_deallocate,( Token *id ));
 PROTO(char* typespec, ( int t, int has_size, long size,
 			int has_len, long len));
 				/* The following size is conservative,

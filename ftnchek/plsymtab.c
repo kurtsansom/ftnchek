@@ -823,6 +823,11 @@ choose_tag(tag_type, symt, tag, lineno)
 	}
 	break;
 
+    case TAG_ALLOCD:
+	(*lineno) = symt->line_allocd;
+	(*tag) = "allocated";
+	break;
+
       default:			/* for our forgetful authors, just in case */
 	oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
 		     "choose_tag called with unimplemented tag type");

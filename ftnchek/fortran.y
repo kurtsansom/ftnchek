@@ -895,6 +895,7 @@ specif_stmt	:	dimension_stmt
                 |       pointer_stmt
                 |       target_stmt
                 |       allocatable_stmt
+		|	access_stmt
 		;
 
 
@@ -2595,9 +2596,24 @@ type_attr_spec  :   tok_ABSTRACT
             }
         ;
 
-access_spec :   tok_PUBLIC 
-        |   tok_PRIVATE
-        ;
+access_spec	:	tok_PUBLIC 
+        	|	tok_PRIVATE
+        	;
+
+access_stmt	:	access_spec EOS
+		|	access_spec access_id_part EOS
+		;
+
+access_id_part	:	access_id_list
+	      	|	tok_double_colon access_id_list
+		;
+
+access_id_list	:	access_id
+	       	|	access_id_list ',' access_id
+		;
+
+access_id	:	generic_spec
+		;
 
 /*---------------------------------------------------------------*/
 
@@ -2975,12 +2991,14 @@ pointee_name    :       symbolic_name
 		        }
 		;
 
-allocate_stmt   :       tok_ALLOCATE '(' allocate_item_list ')' EOS
+allocate_stmt   :       tok_ALLOCATE {allocatable_flag = TRUE;}'(' allocate_item_list ')' EOS
 			{
 			     if( f77_pointers ) {
 				  nonstandard($1.line_num,$1.col_num,0,0);
 				  msg_tail(": ALLOCATE statement");
 			     }
+                             do_allocate(&($4));
+                             allocatable_flag = FALSE;
 			}
                 ;
 
@@ -2990,27 +3008,47 @@ deallocate_stmt :       tok_DEALLOCATE '(' deallocate_item_list ')' EOS
 				  nonstandard($1.line_num,$1.col_num,0,0);
 				  msg_tail(": DEALLOCATE statement");
 			     }
+                             do_deallocate (&($3));
 			}
                 ;
 
 allocate_item_list:     allocate_item
                 |       allocate_item_list ',' allocate_item
+                        {
+                            $$.next_token = append_token($1.next_token,&($3));
+                        }
+                |       allocate_item_list ',' allocate_stat_item
                 ;
 
 allocate_item   :       variable_name
                 |       array_name '(' dim_bound_list ')'
-                |       symbolic_name '=' variable_name
+			{
+				def_array_dim(&($1),&($3));
+			}
+		;
+
+			/* productions for ALLOCATE( ..., STAT=variable) */
+allocate_stat_item:	symbolic_name '=' variable_name
+			{
+			     if(is_true(LVALUE_EXPR,$3.TOK_flags)) {
+				  use_lvalue(&($3));
+			     }
+			}
+
                 |       symbolic_name '=' array_element_name
+			{
+			     if(is_true(LVALUE_EXPR,$3.TOK_flags)) {
+				  use_lvalue(&($3));
+			     }
+			}
                 ;
 
-deallocate_item_list:   deallocate_item
+deallocate_item_list:   allocate_item
                 |       deallocate_item_list ',' allocate_item
-                ;
-
-deallocate_item :       variable_name
-                |       array_name '(' dim_bound_list ')'
-                |       symbolic_name '=' variable_name
-                |       symbolic_name '=' array_element_name
+                        {
+                            $$.next_token = append_token($1.next_token,&($3));
+                        }
+                |       deallocate_item_list ',' allocate_stat_item
                 ;
 
 nullify_stmt    :       tok_NULLIFY '(' variable_name_list ')' EOS

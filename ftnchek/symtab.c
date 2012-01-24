@@ -82,7 +82,7 @@ this Software without prior written authorization from the author.
     char * token_name(t)	 Returns ptr to token's symbol's name.
 	   use_actual_arg(id)	 Handles using a variable as actual arg.
 	   use_io_keyword(id_keywd,id_val,class) Handles i/o control specifier.
-	   use_len_arg(id)	 Handles arguments passed to LEN.
+	   use_inq_arg(id)	 Handles arguments passed to inquiry intrinsic.
 	   use_lvalue(id)	 Handles assignment to a variable.
 	   use_parameter(id)	 Handles data_constant_value &
 				 data_repeat_factor.
@@ -118,7 +118,7 @@ PROTO(PRIVATE void check_intrins_args,( Token *id, Token *arg ));
 PROTO(PRIVATE void check_stmt_function_args,( const Lsymtab *symt, Token *id, Token *arg ));
 PROTO(PRIVATE Lsymtab* install_local,( int h, int datatype, int storage_class ));
 PROTO(PRIVATE void use_function_arg,( Token *id ));
-PROTO(PRIVATE void use_len_arg,( Token *id ));
+PROTO(PRIVATE void use_inq_arg,( Token *id ));
 
 
 
@@ -261,14 +261,14 @@ call_func(id,arg)	/* Process function invocation */
 	    Token *a=arg;
 	    intrins_flags_t
 	        nonpure,	/* flag if function may modify arg */
-	        i_len;		/* special handling for intrinsic LEN */
+	        i_inq;		/* special handling for intrinsic inquiry functions */
 	    if(symt->intrinsic) {
 	      nonpure = symt->info.intrins_info->intrins_flags&I_NONPURE;
-	      i_len = symt->info.intrins_info->intrins_flags&I_LEN;
+	      i_inq = symt->info.intrins_info->intrins_flags&I_INQ;
 	    }
 	    else {
 	      nonpure = !(pure_args || pure_common);
-	      i_len = FALSE;
+	      i_inq = FALSE;
 	    }
 
 			/* Token list is in reverse order.  Restore
@@ -283,8 +283,8 @@ call_func(id,arg)	/* Process function invocation */
 		  use_variable(a);
 		}
 		else {
-		  if(i_len)
-		    use_len_arg(a); /* LEN is sui generis */
+		  if(i_inq)
+		       use_inq_arg(a); /* Inquiry function args need special handling */
 		  else
 			     /* Pure-function invocation checks u-b-s */
 		    use_function_arg(a);
@@ -725,7 +725,8 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	}
 
 	symt->array_var = TRUE;
-	if(!equivalence_flag){      /* some checking should be done here */
+	
+	if(!equivalence_flag && !allocatable_flag){      /* some checking should be done here */
 	   if(symt->info.array_dim != 0)
 	      syntax_error(id->line_num,id->col_num,
 		"Array redimensioned");
@@ -2692,9 +2693,9 @@ use_implied_do_index(id)
 
 PRIVATE void
 #if HAVE_STDC
-use_len_arg(Token *id)		/* Set the use-flag of arg to intrinsic LEN. */
+use_inq_arg(Token *id)	/* intrinsic inquiry function eg LEN, ALLOCATED */
 #else /* K&R style */
-use_len_arg(id)		/* Set the use-flag of arg to intrinsic LEN. */
+use_inq_arg(id)
 	Token *id;
 #endif /* HAVE_STDC */
 {
@@ -2706,22 +2707,10 @@ use_len_arg(id)		/* Set the use-flag of arg to intrinsic LEN. */
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	}
+/* do not set any usage flags since inquiry about a variable
+   does not constitute usage. */
 
-    {		/* set flags for all equivalenced vars.  Do not set
-		   the used-before-set flag since LEN argument does
-		   not need to be defined. */
-      Lsymtab *equiv=symt;
-      do{
-	if(! equiv->used_flag) { /* record first line where used */
-	    equiv->line_used = id->line_num;
-	    equiv->file_used = inctable_index;
-	}
-	equiv->used_flag = TRUE;
-	equiv = equiv->equiv_link;
-      } while(equiv != symt);
-    }
-
-}/*use_len_arg*/
+}/*use_inq_arg*/
 
 void
 #if HAVE_STDC
@@ -2750,6 +2739,14 @@ use_lvalue(id)	/* handles scalar lvalue */
 	      syntax_error(id->line_num,id->col_num,
 		      "active DO index is modified");
 	  }
+	}
+                        /* handle allocatable variable here */
+        if (symt->allocatable){
+	   if (!symt->allocated_flag){
+		symt->line_allocd = id->line_num;
+	        symt->file_allocd = inctable_index;
+	   }
+	   symt->allocated_flag = TRUE;
 	}
 
     {		/* set flags for all equivalenced vars */
@@ -2821,7 +2818,27 @@ use_variable(id)		/* Set the use-flag of variable. */
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	}
-
+                 /*** handle pointer/allocatable variables ***/ 
+    if (symt->pointer)
+    {
+       use_pointer(id);
+    }
+    else if (symt->allocatable){
+             if (!symt->allocated_flag){
+                 symt->used_before_allocation = TRUE;
+		 symt->line_used = id->line_num;
+		 symt->file_used = inctable_index;
+               }
+             if(! symt->used_flag) { /* record first line where used */
+                symt->line_used = id->line_num;
+                symt->file_used = inctable_index;
+             }
+             if(!symt->set_flag) {
+                 symt->used_before_set = TRUE;
+             }
+             symt->used_flag = TRUE;
+    }
+    else  
     {		/* set flags for all equivalenced vars */
       Lsymtab *equiv=symt;
       do{
@@ -2838,6 +2855,184 @@ use_variable(id)		/* Set the use-flag of variable. */
     }
 
 }/*use_variable*/
+
+               /*** handle case when pointer variable is used ***/
+void
+#if HAVE_STDC
+use_pointer(Token *id)         /* Set the use-flag of variable. */
+#else /* K&R style */
+use_pointer(id)                /* Set the use-flag of variable. */
+        Token *id;
+#endif /* HAVE_STDC */
+{
+        int h=id->value.integer;
+        Lsymtab *symt;
+
+        if( (symt=hashtab[h].loc_symtab) == NULL) {
+           symt = install_local(h,type_UNDECL,class_VAR);
+           symt->line_declared = id->line_num;
+           symt->file_declared = inctable_index;
+        }
+     if (!(symt->pointer || symt->target)){
+        syntax_error(id->line_num,id->col_num,
+                        "pointer/target attribute expected on:");
+	msg_tail(symt->name);
+      }
+     else {
+           if(!(symt->allocated_flag || symt->target)) 
+           symt->used_before_allocation = TRUE;
+	   symt->line_used = id->line_num;
+	   symt->file_used = inctable_index;
+        }
+
+        if(! symt->used_flag) { /* record first line where used */
+            symt->line_used = id->line_num;
+            symt->file_used = inctable_index;
+        }
+        if(! symt->set_flag) {
+           symt->used_before_set = TRUE;
+        }
+        symt->used_flag = TRUE;
+
+   
+
+}/*use_pointer*/
+
+
+void
+#if HAVE_STDC
+use_pointer_lvalue(Token *id)	/* handles pointer occurence as lvalue */
+#else /* K&R style */
+use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
+	Token *id;
+#endif /* HAVE_STDC */
+{
+	int h=id->value.integer;
+	Lsymtab *symt;
+	if((symt=hashtab[h].loc_symtab) == NULL) {
+	    symt = install_local(h,type_UNDECL,class_VAR);
+	    symt->line_declared = id->line_num;
+	    symt->file_declared = inctable_index;
+	}
+	else {
+	  /*   check match to previous invocations and update  */
+	}
+
+			/* F77 standard section 11.10.5 prohibits modifying
+			   DO variable except thru loop mechanism.
+			 */
+	if(symt->active_do_var) {
+	  if(usage_do_var_modified) {
+	      syntax_error(id->line_num,id->col_num,
+		      "active DO index is modified");
+	  }
+	}
+        if(!symt->pointer){
+          syntax_error(id->line_num, id->col_num,
+                        "pointer attribute expected on:");
+	  msg_tail(symt->name);
+        }
+        else {
+          symt->allocated_flag = TRUE;
+        }
+
+	if(! symt->set_flag) { /* record first line where set */
+	    symt->line_set = id->line_num;
+	    symt->file_set = inctable_index;
+	  symt->set_flag = TRUE;
+	}
+        
+
+}/*use_pointer_lvalue*/
+
+void
+#if HAVE_STDC
+do_allocate(Token *id)		/* Process ALLOCATE statement */
+#else /* K&R style */
+do_allocate(id)		/* Process ALLOCATE statement */
+	Token *id;
+#endif /* HAVE_STDC */
+{
+	int h=id->value.integer;
+        Token *next_id = id;
+	Lsymtab *symt;
+
+while (next_id != NULL){
+         h = next_id->value.integer;
+	if( (symt=hashtab[h].loc_symtab) == NULL) {
+	   symt = install_local(h,type_UNDECL,class_VAR);
+	   symt->line_declared = next_id->line_num;
+	   symt->file_declared = inctable_index;
+	}
+	else {
+	   if(!symt->info.array_dim || !(symt->allocatable || symt->pointer)) {
+	      syntax_error(next_id->line_num,next_id->col_num,
+		"Variable must be an allocatable/pointer array: ");
+	      msg_tail(symt->name);
+	   }
+           else{
+                if (!symt->allocated_flag){
+	           symt->allocated_flag = TRUE;
+				/* record first line where set */
+		   symt->line_allocd = next_id->line_num;
+		   symt->file_allocd = inctable_index;
+                }
+                else{
+                   syntax_error(next_id->line_num,next_id->col_num,
+                     "Reallocating an allocated Variable: ");
+                    msg_tail(symt->name);
+                }
+	   }
+	   if(symt->active_do_var) {
+	      syntax_error(next_id->line_num,next_id->col_num,
+			   "Cannot assign label to active DO index");
+	   }
+	}
+next_id = next_id->next_token;
+}
+}/*do_allocate*/
+
+void
+#if HAVE_STDC
+do_deallocate(Token *id)		/* Process ALLOCATE statement */
+#else /* K&R style */
+do_deallocate(id)		/* Process ALLOCATE statement */
+	Token *id;
+#endif /* HAVE_STDC */
+{
+	int h=id->value.integer;
+        Token *next_id = id;
+	Lsymtab *symt;
+
+while (next_id != NULL){
+         h = next_id->value.integer;
+	if( (symt=hashtab[h].loc_symtab) == NULL) {
+	   symt = install_local(h,type_UNDECL,class_VAR);
+	   symt->line_declared = next_id->line_num;
+	   symt->file_declared = inctable_index;
+	}
+	else {
+	   if(!symt->info.array_dim || !(symt->allocatable || symt->pointer)) {
+	      syntax_error(next_id->line_num,next_id->col_num,
+		"Variable must be an allocatable/pointer array: ");
+	      msg_tail(symt->name);
+	   }
+           else{
+                if (symt->allocated_flag){
+	           symt->allocated_flag = FALSE;
+                }
+                else{
+                   syntax_error(next_id->line_num,next_id->col_num,
+                     "Deallocating an unallocated Variable: ");
+                    msg_tail(symt->name);
+                }
+	   }
+
+	}
+next_id = next_id->next_token;
+}
+}/*do_deallocate*/
+
 
 
 	/* Routine to provide a string with type followed by one of: "",

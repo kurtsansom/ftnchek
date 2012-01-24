@@ -986,12 +986,18 @@ if(debug_latest) {
 	    msg_tail(" converted to real");
 	}
       }
-
-
+/**** handling for pointer ***/
+    if (equals->tclass == tok_rightarrow){
+        use_pointer(term2);
+        use_pointer_lvalue(term1);
+    }
+    else {
+/**** handling for pointer ***/
     if(is_true(ID_EXPR,term2->TOK_flags))
 	use_variable(term2);
 
     use_lvalue(term1);
+   }
 }
 
 void
@@ -1475,8 +1481,8 @@ eval_intrins(defn,args)
     intrins_flags_t fun_num;
     fun_num = (defn->intrins_flags & I_EVALUATED);
 
-				/* Args must be evaluated, except for LEN */
-    if( (is_true(EVALUATED_EXPR,args->TOK_flags) || fun_num==I_LEN) &&
+			/* Args must be evaluated, except for inquiry */
+    if( (is_true(EVALUATED_EXPR,args->TOK_flags) || fun_num==I_INQ) &&
        fun_num > 0 && fun_num < (sizeof(ii_fun)/sizeof(ii_fun[0])) ) {
       return (*ii_fun[fun_num])(args);
     }

@@ -70,6 +70,7 @@ PROTO(void sort_parameters,( Lsymtab **sp, int n ));
 #define TAG_DEFN 0
 #define TAG_SET  1
 #define TAG_USED 2
+#define TAG_ALLOCD 3
 
 				/* Maximum tag length in choose_tag */
 #define MAX_TAG_LEN 16		/* strlen("first occurrence") */

@@ -305,7 +305,7 @@ print_loc_symbols(VOID)
 	  if(progunit_type != type_MODULE &&
 	     (usage_var_unused || usage_arg_unused)) {
 	    check_flags(sym_list,n,0,0,0,
-		      "Variables declared but never referenced:",progunit_name);
+		      "Variables declared but never used or set:",progunit_name);
 	  }
 	  if(usage_var_set_unused) {
 	    check_flags(sym_list,n,0,1,0,
@@ -316,6 +316,8 @@ print_loc_symbols(VOID)
 		      "Variables used before set",progunit_name);
 	    check_flags(sym_list,n,1,1,1,
 		      "Variables may be used before set:",progunit_name);
+                           /* handle errors for pointer/allocatable */
+	    check_pointer_flags(sym_list,n,1,1,1,"Variables used before allocation:",progunit_name);
 	  }
 
 	}/*end if(usage_...)*/

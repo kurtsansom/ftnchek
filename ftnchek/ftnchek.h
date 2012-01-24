@@ -1272,7 +1272,8 @@ SHARED int
     implicit_type_given,/* true if IMPLICIT type statement found */
     implicit_none,	/* true if IMPLICIT NONE statement found */
     prev_token_class,	/* token class of last-returned token */
-    curr_stmt_class;	/* Token class of current stmt's leading token */
+    curr_stmt_class,	/* Token class of current stmt's leading token */
+    allocatable_flag;  /* true while parsing allocate statement */
 
 	/* flag for error messages to behave differently in global cases */
 SHARED int doing_wrapup;

@@ -72,7 +72,8 @@ PRIVATE IntrinsInfo intrinsic[]={
 		  I_NONF90 if it is not in Chap 13 of F90 standard
 		  I_NONSTD = I_NONF77|I_NONF90 for convenience
 		  I_MIXED_ARGS if arguments are not all of same type.
-		  I_NONPURE if arg need not have defined value (LEN).
+		  I_NONPURE if function arg may be modified (eg RAND).
+		  I_INQ if function is inquiry about arg (eg LEN, ASSOCIATED)
 		  I_C_TO_R indicates complex -> real in generic cases
 		      (ABS,IMAG,REAL).
 		  I_SP_R indicates specific REAL result (REAL)
@@ -128,7 +129,7 @@ PRIVATE IntrinsInfo intrinsic[]={
 {"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG},
 {"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG},
 {"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG},
-{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_LEN},
+{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_INQ},
 {"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_INDEX},
 {"AIMAG",	1,	C,	type_REAL,	I_F77},
 {"CONJG",	1,	C,	type_COMPLEX,	I_F77},
@@ -174,11 +175,11 @@ PRIVATE IntrinsInfo intrinsic[]={
                 /* associated intrinsic statement to check association of
                  * pointers
                  */
-{"ASSOCIATED",  I_1or2, I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_NONPURE},
+{"ASSOCIATED",  I_1or2, I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ},
                 /* allocated intrinsic statement to check allocation of
                  * pointers
                  */
-{"ALLOCATED",   1,      I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_NONPURE},
+{"ALLOCATED",   1,      I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ},
 		/* DOUBLE COMPLEX intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.

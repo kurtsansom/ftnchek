@@ -358,6 +358,123 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 
 }
 
+/**** handle errors for pointer/allocatable attribute ***/
+void
+#if HAVE_STDC
+check_pointer_flags(Lsymtab **list, int n, unsigned int used,
+	    unsigned int alloc, unsigned int uba, const char *msg, const char *mod_name)
+#else /* K&R style */
+check_pointer_flags(list,n,used,alloc,uba,msg,mod_name)
+	Lsymtab *list[];
+	int n;
+	unsigned used,alloc,uba;
+	char *msg,*mod_name;
+#endif /* HAVE_STDC */
+{
+	int matches=0,col=0,unused_args=0,i,len;
+	unsigned pattern = flag_combo(used,alloc,uba);
+
+	for(i=0;i<n;i++) {
+                                /* Only pointer or allocatable variables will be handled */
+	    if( (! ( (list[i]->pointer)||(list[i]->allocatable))))  { 
+		continue;
+            }
+	    else if (!list[i]->allocated_flag ){
+		    pattern = flag_combo(used,0,uba);
+	    }
+
+	    if((unsigned)flag_combo(list[i]->used_flag,list[i]->allocated_flag,
+	       list[i]->used_before_allocation) == pattern){
+				/* Brief report style gives module name
+				   followed by simple list of offenders.
+				 */
+	       if( brief ) {
+		 if(matches++ == 0) {
+		     local_warn_head(mod_name,
+				    top_filename,
+				    NO_LINE_NUM,
+				    (Lsymtab *)NULL, FALSE,
+				    msg);
+		     (void)fprintf(list_fd,"\n");
+		 }
+		 len = strlen(list[i]->name);
+		 col += len = (len <= 10? 10: len) + 9;
+		 if(col > 78) {
+		   (void)fprintf(list_fd,"\n");
+		   col = len;
+		 }
+		 (void)fprintf(list_fd,"%10s",list[i]->name);
+				/* arg never used: tag with asterisk */
+		 (void)fprintf(list_fd,"%-9s",
+			 list[i]->argument? (++unused_args,"*") : "" );
+		}/* brief */
+				/* Verbose report style gives file name
+				   and line number of each offender.
+				 */
+		else {
+		    LINENO_t lineno;
+		    int inc_index;
+		    char *filename;
+		    char *tag;
+		    char detail[MAXIDSIZE+MAX_TAG_LEN+6]; /* see sprintf below */
+		    if( uba ) {
+			choose_tag(TAG_USED,list[i],&tag,&lineno);
+			inc_index = list[i]->file_used;
+		    }
+		    else if( alloc ) {
+			choose_tag(TAG_ALLOCD,list[i],&tag,&lineno);
+			inc_index = list[i]->file_allocd;
+		    }
+		    else {
+			choose_tag(TAG_DEFN,list[i],&tag,&lineno);
+			inc_index = list[i]->file_declared;
+		    }
+
+		    if(inc_index >= 0) {
+			filename = incfile_list[inc_index].fname;
+		    }
+		    else {
+			filename = top_filename;
+		    }
+
+		    if(matches++ == 0) {
+			local_warn_head(mod_name,
+				       filename,
+				       lineno,
+				       (Lsymtab *)NULL,
+				       FALSE,
+				       msg);
+		    }
+				/* Make detail e.g. "FOO used" */
+		    sprintf(detail,"    %s %s",list[i]->name,tag);
+		    local_detail(inc_index,lineno,(char *)NULL,detail);
+
+				/* For used-before-alloc, say also not alloc
+				   or say where alloc.
+				 */
+		    if( uba ) {
+			if( list[i]->allocated_flag ) {
+			    choose_tag(TAG_ALLOCD,list[i],&tag,&lineno);
+			    inc_index = list[i]->file_allocd;
+			    sprintf(detail,"    %s %s",list[i]->name,tag);
+			    local_detail(inc_index,lineno,(char *)NULL,detail);
+			}
+			/****************addition*********/
+			else if (list[i]->file_allocd) {
+			    msg_tail("; deallocated");
+			}
+			/********************************/
+			else {
+			    msg_tail("; never allocated");
+			}
+		    }
+		}
+
+		 matches++;
+	    }
+	}
+}/* check_pointer_flags */
+
 PRIVATE int
 #if HAVE_STDC
 has_nonalnum(char *s)	/* Returns TRUE if s contains a $ or _ character
