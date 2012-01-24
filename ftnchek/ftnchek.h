@@ -43,8 +43,8 @@ changes, from the XFree86 Project.
 "This program is free software.  Permission is granted to\n\
 modify it and/or redistribute it, retaining this notice.\n\
 No guarantees accompany this software."
-#define VERSION_NUMBER		"FTNCHEK Version 3.3 November 2004"
-#define PATCHLEVEL		"Patch Level 1"
+#define VERSION_NUMBER		"FTNCHEK Version 4.0 February 2012"
+#define PATCHLEVEL		"Patch Level 0"
 #define PROJECT_VERSION		"P3" /* Project file format version number */
 
 #include "config.h"		/* Get system-specific information */
