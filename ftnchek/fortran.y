@@ -111,6 +111,10 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     current_pointer_attr,       /* set if POINTER attr given */
     current_target_attr,        /* set if TARGET attr given */
     current_allocatable_attr,   /* set if ALLOCATABLE attr given */
+    current_public_attr,	/* set if PUBLIC attr given */
+    current_private_attr,	/* set if PRIVATE attr given */
+    current_intent_in_attr,	/* set if intent IN attr given */
+    current_intent_out_attr,	/* set if intent OUT attr given */
     label_dummy_arg_count,	/* number of labels in dummy argument list */
     len_selector_given, /* flag for use in processing CHARACTER decls */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
@@ -182,6 +186,10 @@ int
     current_pointer_attr = FALSE, \
     current_target_attr = FALSE, \
     current_allocatable_attr = FALSE, \
+    current_public_attr = FALSE, \
+    current_private_attr = FALSE, \
+    current_intent_in_attr = FALSE, \
+    current_intent_out_attr = FALSE, \
     current_dim_bound_list = NULL   )
 
 			/* Define stuff for checking block nesting */
@@ -352,7 +360,9 @@ SUBPROG_TYPE find_subprog_type(int stmt_class);
 %token tok_IF
 %token tok_IMPLICIT
 %token tok_IMPURE
+%token tok_IN
 %token tok_INCLUDE
+%token tok_INOUT
 %token tok_INQUIRE
 %token tok_INTEGER
 %token tok_INTENT
@@ -368,6 +378,7 @@ SUBPROG_TYPE find_subprog_type(int stmt_class);
 %token tok_OPEN
 %token tok_OPERATOR
 %token tok_OPTIONAL
+%token tok_OUT
 %token tok_PARAMETER
 %token tok_PAUSE
 %token tok_POINTER
@@ -896,6 +907,8 @@ specif_stmt	:	dimension_stmt
                 |       target_stmt
                 |       allocatable_stmt
 		|	access_stmt
+		|	derived_stmt
+		|	intent_stmt
 		;
 
 
@@ -1358,8 +1371,46 @@ bind_name   :   symbolic_name '=' expr
             }
         ;
 
-intent_spec :   symbolic_name		/* IN, OUT, or INOUT */
-        ;
+intent_attr	:	intent_handle intent_spec
+	    	;
+
+		/* note: '(' is placed in handle because it sets
+		 * initial_flag off which disables recognition of
+		 * intent_spec keywords */
+intent_handle	:	tok_INTENT '(' { initial_flag = TRUE; }
+		;
+
+intent_spec	:	tok_IN ')'
+			{
+                          current_intent_in_attr = TRUE;
+			}
+		|	tok_OUT ')'
+			{
+                          current_intent_out_attr = TRUE;
+			}
+		|	tok_INOUT ')'
+			{
+                          current_intent_in_attr = TRUE;
+                          current_intent_out_attr = TRUE;
+			}
+		;
+
+intent_stmt_handle:	intent_attr
+		|	intent_attr tok_double_colon
+		;
+
+intent_stmt	:	intent_stmt_handle intent_id_list EOS
+	    	;
+
+intent_id_list	:	intent_id
+	       	|	intent_id_list ',' intent_id
+		;
+
+intent_id	:	symbolic_name
+			{
+			  apply_attr(&($1),curr_stmt_class);
+			}
+		;
 
 /*--------------------------------------------------------*/
 
@@ -1962,7 +2013,7 @@ type_attr	:	tok_DIMENSION '(' dim_bound_list ')'
                         }
         |   access_spec
         |   language_binding_spec  
-        |   tok_INTENT '(' intent_spec ')'
+        |   intent_attr
         |   tok_OPTIONAL
         |   tok_PROTECTED
         |   tok_VOLATILE
@@ -2596,12 +2647,37 @@ type_attr_spec  :   tok_ABSTRACT
             }
         ;
 
-access_spec	:	tok_PUBLIC 
+access_spec	:	tok_PUBLIC
+	    		{
+			  current_public_attr = TRUE;
+			  generic_spec_allowed = TRUE;
+			}
         	|	tok_PRIVATE
+			{
+			  current_private_attr = TRUE;
+			  generic_spec_allowed = TRUE;
+			}
         	;
 
-access_stmt	:	access_spec EOS
-		|	access_spec access_id_part EOS
+access_stmt	:	access_spec EOS /* PUBLIC or PRIVATE statement */
+			{
+			  if( get_type(hashtab[current_prog_unit_hash].loc_symtab) != type_MODULE) {
+			    syntax_error($1.line_num,$1.col_num,
+					 "Accessibility statement not allowed here");
+			  }
+			  else if( module_accessibility != 0 ) { /* second declaration */
+			    syntax_error($1.line_num,$1.col_num,"Module accessibility");    
+			    if(module_accessibility != $1.tclass)
+			      msg_tail("conflicts with previous declaration");
+			    else
+			      msg_tail("redeclared");
+			  }
+			  else {
+			    module_accessibility = $1.tclass;
+			  }
+			}
+		|	access_spec
+			access_id_part { generic_spec_allowed = FALSE;} EOS
 		;
 
 access_id_part	:	access_id_list
@@ -2612,7 +2688,23 @@ access_id_list	:	access_id
 	       	|	access_id_list ',' access_id
 		;
 
-access_id	:	generic_spec
+access_id	:	access_generic_spec
+	  		{
+			  apply_attr(&($1),curr_stmt_class);
+			}
+		;
+
+access_generic_spec:	symbolic_name
+        	|	tok_OPERATOR '(' operator ')'
+        	|	tok_ASSIGNMENT '(' '=' ')'
+		;
+
+derived_stmt	:	derived_handle symbolic_name
+	     	;
+
+derived_handle	:	tok_TYPE '(' symbolic_name ')' 
+		|	tok_TYPE '(' symbolic_name ')' ',' attr_list
+			tok_double_colon
 		;
 
 /*---------------------------------------------------------------*/
@@ -5036,6 +5128,7 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	implicit_type_given = FALSE;
 	//implicit_none = FALSE;
 	global_save = FALSE;
+	module_accessibility = 0; /* undeclared */
 	prev_token_class = EOS;
 	complex_const_allowed = FALSE;
     use_keywords_allowed = FALSE;
@@ -5317,6 +5410,14 @@ process_attrs(Token *t,Token *dim_bounds)
 	apply_attr(t,tok_SAVE);
     if(current_target_attr)
 	apply_attr(t,tok_TARGET);
+    if(current_public_attr)
+        apply_attr(t,tok_PUBLIC);
+    if(current_private_attr)
+        apply_attr(t,tok_PRIVATE);
+    if(current_intent_in_attr)
+        apply_attr(t,tok_IN);
+    if(current_intent_out_attr)
+        apply_attr(t,tok_OUT);
 
     if(dim_bounds != NULL)
 	def_array_dim(t,dim_bounds);
@@ -5408,8 +5509,6 @@ END_processing(t)
 	if(! interface_block) {	/* but not for INTERFACE declaration */
 	  print_loc_symbols();
 	}
-			/* Reset local symbol table */
-	init_symtab();
 
 	/* At END MODULE, need to check internal usage of module subprograms
 	   and then save module info to a file.  [LATTER NOT DONE YET] */
@@ -5418,7 +5517,8 @@ END_processing(t)
 	    check_arglists(current_prog_unit_hash,module_subprog);
 	  }
 
-	  /* SAVE MODULE INFO HERE */
+				/* write out module contents to a module file */
+	  write_module_file(current_prog_unit_hash);
 
 	  if(contains_ended) {
 	    clean_globals(current_prog_unit_hash,module_subprog);
@@ -5431,6 +5531,8 @@ END_processing(t)
 	  check_arglists(current_prog_unit_hash,internal_subprog);
 	  clean_globals(current_prog_unit_hash,internal_subprog);
 	}
+			/* Reset local symbol table */
+	init_symtab();
 
 	doing_end_proc = FALSE;
   }
@@ -5452,6 +5554,7 @@ END_processing(t)
   true_prev_stmt_line_num = 0;
   integer_context = FALSE;
   global_save = FALSE;
+  module_accessibility = 0; /* undeclared */
   label_dummy_arg_count = 0;
   num_io_unit_usages = 0;
 

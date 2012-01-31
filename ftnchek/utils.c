@@ -99,3 +99,16 @@ size_t		n;
 }
 
 #endif /* end USE_OUR_CASECMP */
+
+/* Converts all uppercase characters of string s to lowercase, and
+ * returns pointer to the converted string.
+ */
+char *
+strtolower(char *s)
+{
+  while( *s ) {
+    if( isupper((int)(*s)) )
+      (*s) = (char)tolower((int)(*s));
+    s++;
+  }
+}

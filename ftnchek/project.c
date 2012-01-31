@@ -54,6 +54,7 @@ as the "MIT License."
 #define PROJECT
 #include "symtab.h"
 #include <string.h>
+#include "utils.h"
 
 /* Two options, proj_trim_calls and proj_trim_common, control whether
    Ftnchek creates project files with partial or complete global
@@ -62,7 +63,7 @@ as the "MIT License."
    definitions, those external references not defined in the current
    file, and only one instance of each common block.  In non-library
    mode, keep, besides the above, one call of a given routine from
-   each prog unit, and all common block declarations.  Setting
+   each program unit, and all common block declarations.  Setting
    proj_trim_calls to FALSE causes all definitions and calls to be
    kept.  Setting proj_trim_common to FALSE causes all common block
    instances to be kept.  (In this case the action is the same whether
@@ -72,16 +73,21 @@ as the "MIT License."
    other than ftnchek.  */
 
 #define PROJFILE_COOKIE "FTNCHEK_" /* first part of magic cookie */
+#define MODULEFILE_COOKIE "FTNCHEK_MODULE"
 
-
+PROTO(PRIVATE char *make_module_filename,(const char *module_name));
 PROTO(PRIVATE int count_com_defns,( ComListHeader *clist ));
 PROTO(PRIVATE char *getstrn,(char s[], int n, FILE *fd));
 PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
-PROTO(PRIVATE void proj_alist_out,( Gsymtab *gsymt, FILE *fd, int
-			    do_defns, int locally_defined ));
+PROTO(PRIVATE void proj_alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
 PROTO(PRIVATE void proj_arg_info_in,( FILE *fd, char *filename, int is_defn ));
+PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist)));
+PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
+PROTO(PRIVATE void proj_prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
+PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], int *blocks, int *defns ));
+PROTO(PRIVATE void proj_comblock_out, (FILE *fd, Gsymtab *sym_list[], int numblocks, int numdefns));
 PROTO(PRIVATE void proj_clist_out,( Gsymtab *gsymt, FILE *fd ));
 PROTO(PRIVATE void proj_com_info_in,( FILE *fd, char *filename ));
 
@@ -144,6 +150,78 @@ count_com_defns(clist)		/* Returns number of common decls in list  */
 #define WRITE_NUM(LEADER,NUM)	(void)(fprintf(fd,LEADER), fprintf(fd," %ld",NUM))
 #define NEXTLINE		(void)fprintf(fd,"\n")
 
+
+
+/* Routine to create filename of form [path/]module_name.fkm, allocating
+   permanent space for it.  Module name is lowercased in filename.
+ */
+
+PRIVATE char *
+make_module_filename(const char *module_name)
+{
+  char *path_end;
+  char *module_filename;
+  int path_len;
+
+			/* source file path component is prepended if present */
+  if( (path_end = strrchr(current_filename,PATH_END_CHAR)) != (char *)NULL) {
+    path_len = path_end - current_filename + 1; /* include the char itself */
+  }
+  else {
+    path_len = 0;
+  }
+  module_filename =  malloc(path_len + strlen(module_name)
+				 + strlen(DEF_MODULE_EXTENSION) + 1);
+  if(path_len > 0)
+    (void)strncpy(module_filename,current_filename,path_len);
+  (void)strcpy(module_filename+path_len,module_name);
+  (void)strtolower(module_filename+path_len); /* filename is lowercased version of name */
+  (void)strcat(module_filename,DEF_MODULE_EXTENSION);
+
+#ifdef DEBUG_MODULES
+  if(debug_latest) {
+    fprintf(list_fd,"\nModule %s: ",module_name);
+    fprintf(list_fd,"File %s ",current_filename);
+    fprintf(list_fd,"Module filename is %s",module_filename);
+  }
+#endif
+
+  return module_filename;
+}
+
+void
+write_module_file(int h)
+{
+  FILE *fd;
+  Lsymtab *lsym_list[LOCSYMTABSZ]; /* temp. list of global symtab entries to print */
+  Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
+
+  char *module_filename = make_module_filename(hashtab[h].name);
+
+  if( (fd = fopen(module_filename,"w")) == (FILE *)NULL ) {
+    (void)fflush(list_fd);
+    (void)fprintf(stderr,"Cannot open module file %s for writing\n",module_filename);
+    return;
+  }
+
+  WRITE_STR(MODULEFILE_COOKIE,MODULE_VERSION);
+  NEXTLINE;
+
+  WRITE_STR("module",hashtab[h].name);
+  NEXTLINE;
+
+  {
+    int i,numdefns;
+    numdefns = find_prog_units(gsym_list,has_defn);
+    WRITE_NUM(" entries",(long)numdefns);
+    NEXTLINE;
+    for(i=0; i<numdefns; i++) {
+      proj_prog_unit_out(gsym_list[i],fd,/*do_defns=*/TRUE);
+    }
+    NEXTLINE;
+  }
+}
+
 void
 #if HAVE_STDC
 proj_file_out(FILE *fd)
@@ -153,8 +231,6 @@ proj_file_out(fd)
 #endif /* HAVE_STDC */
 {
   Gsymtab *sym_list[GLOBSYMTABSZ]; /* temp. list of symtab entries to print */
-  char sym_has_defn[GLOBSYMTABSZ];
-  char sym_has_call[GLOBSYMTABSZ];
 
   if(fd == NULL)
     return;
@@ -166,71 +242,128 @@ proj_file_out(fd)
   NEXTLINE;
 
   {	/* Make list of subprograms defined or referenced in this file */
-    int i,numexts,numdefns,numcalls,do_defns,pass;
-    ArgListHeader *alist;
-    for(i=0,numexts=numdefns=numcalls=0;i<glob_symtab_top;i++) {
-      if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
-	(alist=glob_symtab[i].info.arglist) != NULL) {
-			/* Look for defns and calls of this guy. */
-
-	if( (sym_has_defn[numexts]=has_defn(alist)) != FALSE )
-	   numdefns++;
-	if( (sym_has_call[numexts]= (has_call(alist)
-		/* keep only externals not satisfied in this file unless
-		   -project=no-trim-calls given.
-		 */
-		    && (!proj_trim_calls ||
-			(!library_mode || !sym_has_defn[numexts]))
-				  )) != FALSE )
-	   numcalls++;
-	if(sym_has_defn[numexts] || sym_has_call[numexts])
-	  sym_list[numexts++] = &glob_symtab[i];
-      }
-    }
+      int i,numdefns,numcalls;
 
 		/* List all subprogram defns, then all calls */
-    for(pass=0,do_defns=TRUE; pass<2; pass++,do_defns=!do_defns) {
 
-      if(do_defns)
-	WRITE_NUM(" entries",(long)numdefns);
-      else
-	WRITE_NUM(" externals",(long)numcalls);
+      numdefns = find_prog_units(sym_list,has_defn);
+
+      WRITE_NUM(" entries",(long)numdefns);
+      NEXTLINE;
+      for(i=0; i<numdefns; i++) {
+	proj_prog_unit_out(sym_list[i],fd,/*do_defns=*/TRUE);
+      }
       NEXTLINE;
 
-      for(i=0; i<numexts; i++) {
-	if( (do_defns && sym_has_defn[i]) || (!do_defns && sym_has_call[i]) ){
-	  if(do_defns)
-	    WRITE_STR(" entry",sym_list[i]->name);
-	  else
-	    WRITE_STR(" external",sym_list[i]->name);
+      numcalls = find_prog_units(sym_list,has_call);
 
-	  WRITE_NUM(" class",(long)storage_class_of(sym_list[i]->type));
-	  WRITE_NUM(" type",(long)datatype_of(sym_list[i]->type));
-	  WRITE_NUM(" size",(long)sym_list[i]->size);
+      if(proj_trim_calls)
+	numcalls = trim_calls(numcalls,sym_list);
+
+      WRITE_NUM(" externals",(long)numcalls);
+      NEXTLINE;
+      for(i=0; i<numcalls; i++) {
+	proj_prog_unit_out(sym_list[i],fd,/*do_defns=*/FALSE);
+      }
+      NEXTLINE;
+
+  }
+
+  /* Write the common block section of project file */
+  {
+    int i,numblocks,numdefns;
+    find_comblocks(sym_list,&numblocks,&numdefns);
+    proj_comblock_out(fd,sym_list,numblocks,numdefns);
+  }
+}
+
+      /* Routine to pack sym_list array with pointers to global symtab entries
+	 having the property satisfying has_x() function.  has_x is has_defn or
+	 has_call.
+       */
+PRIVATE int
+find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist))
+{
+    int i,num_entries;
+    ArgListHeader *alist;
+    for(i=num_entries=0;i<glob_symtab_top;i++) {
+#ifdef DEBUG_MODULES
+  if(debug_latest) {
+      fprintf(list_fd,"\n%d %s",i,glob_symtab[i].name);
+      fprintf(list_fd," %svalid",glob_symtab[i].valid?"":"in");
+      fprintf(list_fd," %s",glob_symtab[i].private?"private":"public");
+  }
+#endif
+      if(glob_symtab[i].valid &&
+	storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
+	!glob_symtab[i].private && /* for module: omit private routines */
+	(alist=glob_symtab[i].info.arglist) != NULL) {
+			/* Look for defns or calls of this guy. */
+
+	if( (*has_x)(alist) != FALSE ) {
+	  sym_list[num_entries++] = &glob_symtab[i];
+	}
+
+      }
+    }
+    return num_entries;
+}
+
+/* Routine to remove from sym_list any externals satisfied in this
+   file.  Called only when sym_list contains calls and proj_trim_calls
+   is true.
+ */
+
+PRIVATE int
+trim_calls(int orig_num, Gsymtab *sym_list[])
+{
+  int i,new_num;
+  for(i=new_num=0; i<orig_num; i++) {
+    if(!library_mode || !has_defn(sym_list[i]->info.arglist)) {
+      if( new_num != i ) {	/* move down if necessary */
+	sym_list[new_num] = sym_list[i];
+      }
+      new_num++;
+    }
+  }
+  return new_num;
+}
+      
+
+PRIVATE void
+proj_prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
+{
+	  if(do_defns)
+	    WRITE_STR(" entry",gsymt->name);
+	  else
+	    WRITE_STR(" external",gsymt->name);
+
+	  WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
+	  WRITE_NUM(" type",(long)datatype_of(gsymt->type));
+	  WRITE_NUM(" size",(long)gsymt->size);
 		/* Flag values stored are cumulative only for current file
 		   so they will not depend on what files were previously
 		   read in current run.  When project file is read, flags
 		   will be ORed into Gsymtab as is done in process_lists.
 		*/
 	  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
-		  sym_list[i]->used_this_file,
-		  sym_list[i]->set_this_file,
-		  sym_list[i]->invoked_as_func_this_file,
-		  sym_list[i]->declared_external_this_file,
+		  gsymt->used_this_file,
+		  gsymt->set_this_file,
+		  gsymt->invoked_as_func_this_file,
+		  gsymt->declared_external_this_file,
 		  /* N.B. library_prog_unit included here but is not restored */
-		  sym_list[i]->library_prog_unit,
+		  gsymt->library_prog_unit,
 		  0,	/* Flags for possible future use */
 		  0,
 		  0);
 	  NEXTLINE;
-	  proj_alist_out(sym_list[i],fd,do_defns,(int)sym_has_defn[i]);
-	}
-      }/* end for i */
-      NEXTLINE;
-    }/*end for pass */
-  }
+	  proj_alist_out(gsymt,fd,do_defns);
+}
 
-  {
+
+PRIVATE void
+find_comblocks(Gsymtab *sym_list[], int *blocks, int *defns)
+{
     int i,numblocks,numdefns;
     ComListHeader *clist;
     for(i=0,numblocks=numdefns=0;i<glob_symtab_top;i++) {
@@ -247,15 +380,21 @@ proj_file_out(fd)
 	sym_list[numblocks++] = &glob_symtab[i];
       }
     }
+    *blocks = numblocks;
+    *defns = numdefns;
+}
+
+PRIVATE void
+proj_comblock_out(FILE *fd, Gsymtab *sym_list[], int numblocks, int numdefns)
+{
+    int i;
     WRITE_NUM(" comblocks",(long)numdefns);
     NEXTLINE;
     for(i=0; i<numblocks; i++) {
       proj_clist_out(sym_list[i],fd);
     }
     NEXTLINE;
-  }
 }
-
 
 
 
@@ -263,45 +402,38 @@ proj_file_out(fd)
 	   project file. */
 
 PRIVATE void
-#if HAVE_STDC
-proj_alist_out(Gsymtab *gsymt, FILE *fd, int do_defns, int locally_defined)
-#else /* K&R style */
-proj_alist_out(gsymt,fd,do_defns,locally_defined)
-     Gsymtab *gsymt;
-     FILE *fd;
-     int do_defns,locally_defined;
-#endif /* HAVE_STDC */
+proj_alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
+
 {
   ArgListHeader *a=gsymt->info.arglist;
   ArgListElement *arg;
   int i,n;
   unsigned long diminfo;
   Gsymtab *last_calling_prog_unit;
-
+  int locally_defined = do_defns || has_defn(a); /* (avoid call if unnecessary) */
 
 		/* This loop runs thru only those arglists that were
 		    created in the current top file. */
     last_calling_prog_unit = NULL;
     while( a != NULL && a->topfile == top_filename) {
 		/* do_defns mode: output only definitions */
-     if( (do_defns && a->is_defn) || (!do_defns && !a->is_defn) )
-
+    if( (do_defns && a->is_defn) || (!do_defns && !a->is_defn) ) {
 		/* keep only externals not satisfied in this file in -lib
-		   mode, otherwise keep one actual call from each prog unit. */
+		   mode, otherwise keep one actual call from each program unit. */
     if( ! proj_trim_calls || 
 	(a->is_defn
        || !locally_defined
        || (!library_mode && (a->is_call || a->actual_arg)
-	   && a->prog_unit != last_calling_prog_unit)) )
-
-     {
+	   && a->prog_unit != last_calling_prog_unit))
+	)
+      {
       last_calling_prog_unit = a->prog_unit;
       if(a->is_defn)
 	 (void)fprintf(fd," defn\n");
       else
 	 (void)fprintf(fd," call\n");
 
-      WRITE_STR(" prog unit",a->prog_unit->name);
+      WRITE_STR(" unit",a->prog_unit->name);
       WRITE_STR(" file",a->filename);
       WRITE_NUM(" line",(long)a->line_num);
       WRITE_NUM(" top",(long)a->top_line_num);
@@ -358,7 +490,8 @@ proj_alist_out(gsymt,fd,do_defns,locally_defined)
 		arg[i].active_do_var);
 	NEXTLINE;
       }
-     }/* end if(do_defn...)*/
+      }/* end if ! proj_trim_calls ...*/
+    }/* end if(do_defns...)*/
      a = a->next;
    }/* end while(a!=NULL)*/
    (void)fprintf(fd," end\n");
@@ -388,7 +521,7 @@ proj_clist_out(gsymt,fd)
       WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
       WRITE_NUM(" type",(long)datatype_of(gsymt->type));
       NEXTLINE;
-      WRITE_STR(" prog unit",c->prog_unit->name);
+      WRITE_STR(" unit",c->prog_unit->name);
       WRITE_STR(" file",c->filename);
       WRITE_NUM(" line",(long)c->line_num);
       WRITE_NUM(" top",(long)c->top_line_num);
@@ -670,7 +803,7 @@ id_name,id_class,id_type);
 
       NEXTLINE;
 
-      READ_STR(" prog unit",prog_unit_name);
+      READ_STR(" unit",prog_unit_name);
       READ_STR(" file",file_name);
       READ_NUM(" line",alist_line); /* line number */
       READ_NUM(" top",alist_topline); /* topfile line number */
@@ -687,7 +820,7 @@ id_name,id_class,id_type);
  printf("read alist class %d type %d line %d\n",
 alist_class,alist_type,alist_line);
 #endif
-		/* Find current prog unit in symtab. If not there, make
+		/* Find current program unit in symtab. If not there, make
 		   a global symtab entry for it. It will be filled
 		   in eventually when processing corresponding entry.
 		 */
@@ -710,7 +843,7 @@ alist_class,alist_type,alist_line);
 		   gsymt->name,prog_unit->name);
 #endif
 	    gsymt->internal_entry = TRUE;
-	    gsymt->link.prog_unit=prog_unit; /* interior entry: link it to prog unit */
+	    gsymt->link.prog_unit=prog_unit; /* interior entry: link it to program unit */
 	  }
 	}
 	else {			/* call: add to child list */
@@ -914,7 +1047,7 @@ id_name,id_class,id_type);
 #endif
     NEXTLINE;
 
-    READ_STR(" prog unit",prog_unit_name);
+    READ_STR(" unit",prog_unit_name);
     READ_STR(" file",file_name);
     READ_NUM(" line",clist_line);
     READ_NUM(" top",clist_topline);
@@ -927,7 +1060,7 @@ id_name,id_class,id_type);
 
     READ_NUM(" vars",numvars);
 #ifdef DEBUG_PROJECT
- printf("read prog unit %s file %s",prog_unit_name,file_name);
+ printf("read unit %s file %s",prog_unit_name,file_name);
  printf(" flags %d %d %d %d line %d\n",
 	clist_any_used,
 	clist_any_set,
@@ -952,9 +1085,9 @@ id_name,id_class,id_type);
 			     "out of malloc space for common list");
       }
 
-		/* Find current prog unit in symtab. If not there, make
+		/* Find current program unit in symtab. If not there, make
 		   a global symtab entry for it.  This is bogus, since
-		   all prog units should have been defined previously. */
+		   all program units should have been defined previously. */
 
       h = hash_lookup(prog_unit_name);
       if( (prog_unit = hashtab[h].glob_symtab) == NULL) {

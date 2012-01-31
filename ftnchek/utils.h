@@ -20,4 +20,5 @@ int our_strcasecmp(register const char *s1, register const char *s2);
 int our_strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
 
+char *strtolower(char *s);
 #endif /* UTILS_H */

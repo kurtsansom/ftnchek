@@ -176,6 +176,18 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	  case tok_TARGET:
 	       check_and_set_attr(target);
 	       break;
+	  case tok_PUBLIC:
+	       check_and_set_attr(public);
+	       break;
+	  case tok_PRIVATE:
+	       check_and_set_attr(private);
+	       break;
+	  case tok_IN:
+	       check_and_set_attr(intent_in);
+	       break;
+	  case tok_OUT:
+	       check_and_set_attr(intent_out);
+	       break;
 	}
 #undef check_and_set_attr
 }
@@ -1131,6 +1143,12 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	if (subprogtype == module_subprog) {
 		gsymt->module_subprog = TRUE;
 		gsymt->internal_subprog = FALSE;
+			/* Resolve accessibility of module subprog: it
+			  is private if so declared or else if not
+			  declared public and module is declared private.
+			*/
+		gsymt->private = symt->private ||
+		  (!symt->public && module_accessibility == tok_PRIVATE);
 	}
 	else if (subprogtype == internal_subprog) {
 		gsymt->internal_subprog = TRUE;
@@ -2740,6 +2758,12 @@ use_lvalue(id)	/* handles scalar lvalue */
 		      "active DO index is modified");
 	  }
 	}
+			/* check for intent */
+	if (symt->intent_in) {
+	  syntax_error(id->line_num,id->col_num,
+	    "argument with intent IN must not be set:");
+	  msg_tail(symt->name);
+	}
                         /* handle allocatable variable here */
         if (symt->allocatable){
 	   if (!symt->allocated_flag){
@@ -2818,6 +2842,13 @@ use_variable(id)		/* Set the use-flag of variable. */
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	}
+	/*
+	if (!symt->intent_in && !symt->set_flag) {
+           syntax_error(id->line_num,id->col_num,
+                 "argument with intent OUT cannot be used before set:");
+	   msg_tail(symt->name);
+	}
+	*/
                  /*** handle pointer/allocatable variables ***/ 
     if (symt->pointer)
     {

@@ -230,6 +230,17 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	for(i=0;i<n;i++) {
 	    if( list[i]->common_var )	/* common vars are immune */
 	       continue;
+				/* for args with intent OUT,
+				 * skip if only 'set'
+				 * for args with intent IN,
+				 * skip because error reported during
+				 * parsing */
+	    if( list[i]->argument &&
+		((list[i]->intent_out && !list[i]->intent_in &&
+		pattern == flag_combo(0,1,0)) ||
+		(list[i]->intent_in && list[i]->intent_out) ||
+		(list[i]->intent_in && !list[i]->intent_out)))
+		continue;
 				/* for args, do only 'never used' and
 				   then only if -usage=arg-unused given */
 	    if( list[i]->argument &&

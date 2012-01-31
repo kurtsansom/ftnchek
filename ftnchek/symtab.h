@@ -254,6 +254,7 @@ char *type_name[]		/* Type names as used in warnings etc.  */
 	"data",
 	"labl",
 	"naml",
+	"module",
 }
 #endif
 ;
@@ -402,7 +403,8 @@ SYM_SHARED
   LINENO_t top_file_line_num;
 
 SYM_SHARED
-  int global_save;	/* prog unit contains SAVE with no list */
+  int global_save,	/* prog unit contains SAVE with no list */
+  module_accessibility;	/* module PUBLIC or PRIVATE default accessibility */
 
 		/* Define names for anonymous things */
 #ifdef SYMTAB
@@ -447,7 +449,9 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 		 array_var: 1,
 		 array_element: 1,
 		 declared_external: 1,
-		 active_do_var: 1;
+		 active_do_var: 1,
+		 intent_in: 1,
+		 intent_out: 1;
 } ArgListElement;
 
 
@@ -633,6 +637,10 @@ typedef struct lSymtEntry{
              allocated_flag:1,    /* pointer/allocatable variable is allocated */
              used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
+	     public: 1,		/* has PUBLIC attribute */
+	     private: 1,	/* has PRIVATE attribute */
+	     intent_in: 1,	/* has IN attribute */
+	     intent_out: 1,	/* has OUT attribute */
 	     invoked_as_func: 1, /* usage as f(x) was seen */
 	     defined_in_include: 1, /* to suppress some warnings if unused */
 	     declared_external: 1, /* explicitly declared external */
@@ -668,6 +676,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     internal_subprog: 1,
 	     module_subprog: 1,
 	     valid: 1,
+	     private: 1,	/* accessibility of module subprogs */
 			/* The following flags are for project-file use.
 			   They get reset when a file is opened and accumulate
 			   values as file is read.  */

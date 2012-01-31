@@ -77,7 +77,7 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
  keyvars.f empty.f varfmt.f entry1.f entry2.f entry3.f entry4.f
 
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
-  internalsub.f90 modulesub.f90
+  internalsub.f90 modulesub.f90 embedded-space-free.f90
 
 # set of files for testing f77/f90/f95 options
 F90= iokeywords.f f95deleted.f 
@@ -470,6 +470,7 @@ checkusage:
 # Note that correct.f is used in LISTOUT also, but with default
 # compilation options.  So we make listing file suffix .fc1 here
 
+POLYGRAF=polygraf.f fungraf.f coregfx.f coreunix.f	# files included
 checkproject:
 	@-echo |$(AWK) '{printf("%s","checking project files:");}'
 	@$(RM) correct.prj correct.fc1 correct.pcl
@@ -479,8 +480,32 @@ checkproject:
 	do \
 	    $(COMPARE) $$f ; \
 	done
+	@$(RM) $(POLYGRAF:.f=.prj) polygraf.fc1 polygraf.pcl
+	@$(FTNCHEK) -project $(POLYGRAF) >& polygraf.fc1
+	@$(FTNCHEK) $(POLYGRAF:.f=.prj) >& polygraf.pcl
+	@-for f in $(POLYGRAF:.f=.prj) polygraf.fc1 polygraf.pcl ; \
+	do \
+	    $(COMPARE) $$f ; \
+	done
+	@$(FTNCHEK) -project=create,no-trim-calls coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr1
+	@$(FTNCHEK) -project=create,no-trim-common coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr2
+	@$(FTNCHEK) -project=create,no-trim-calls,no-trim-common coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr3
+	@$(FTNCHEK) -lib -project=create coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr4
+	@$(FTNCHEK) -lib -project=create,no-trim-calls coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr5
+	@$(FTNCHEK) -lib -project=create,no-trim-common coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr6
+	@$(FTNCHEK) -lib -project=create,no-trim-calls,no-trim-common coregfx.f >& /dev/null
+	@$(MV) coregfx.prj coregfx.pr7
+	@-for f in coregfx.pr[1-7] ; \
+	do \
+	    $(COMPARE) $$f ; \
+	done
 	@-echo "done"
-
 
 # Need explicit rule since the default rule is used by listing-file check
 correct.prj: correct.f

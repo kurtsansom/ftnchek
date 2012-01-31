@@ -45,7 +45,8 @@ modify it and/or redistribute it, retaining this notice.\n\
 No guarantees accompany this software."
 #define VERSION_NUMBER		"FTNCHEK Version 4.0 February 2012"
 #define PATCHLEVEL		"Patch Level 0"
-#define PROJECT_VERSION		"P3" /* Project file format version number */
+#define PROJECT_VERSION		"P4" /* Project file format version number */
+#define MODULE_VERSION		"M1" /* Module file format version number */
 
 #include "config.h"		/* Get system-specific information */
 
@@ -165,6 +166,10 @@ PROTO(VOID exit,(int));
 #ifndef DEF_PROJ_EXTENSION
 #define DEF_PROJ_EXTENSION ".prj"
 #endif
+		/* define default module-file extension */
+#ifndef DEF_MODULE_EXTENSION
+#define DEF_MODULE_EXTENSION ".fkm" /* (FtncheK Module) */
+#endif
 		/* define default declaration-file extension */
 #ifndef DEF_DCL_EXTENSION
 #define DEF_DCL_EXTENSION ".dcl"
@@ -203,6 +208,19 @@ PROTO(VOID exit,(int));
 #endif
 #ifdef MSDOS
 #define DEFAULT_INCLUDE_DIR "\\include"
+#endif
+#endif
+
+/* define separator between path and filename */
+#ifndef PATH_END_CHAR
+#ifdef UNIX
+#define PATH_END_CHAR '/'
+#endif
+#ifdef VMS
+#define PATH_END_CHAR ']'
+#endif
+#ifdef MSDOS
+#define PATH_END_CHAR '\\'
 #endif
 #endif
 
@@ -1352,6 +1370,7 @@ PROTO(void debug_symtabs, ( void ));
 	/* in project.c */
 PROTO(void proj_file_out, ( FILE *fd ));
 PROTO(void proj_file_in, ( FILE *fd ));
+PROTO(void write_module_file, (int h));
 
 	/* in symtab.c */
 PROTO(void init_tables, ( void ));

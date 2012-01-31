@@ -169,7 +169,9 @@ PRIVATE struct {
 {"IF",		tok_IF,		IK | NI | EK | MP | NA | CN,	0},
 {"IMPLICIT",	tok_IMPLICIT,	IK | NP | NI,			0},
 {"IMPURE",  tok_IMPURE,     IK | NP | NI,   0},
+{"IN",		tok_IN,		IK | NP | NI | EK | NA,		0},
 {"INCLUDE",	tok_INCLUDE,	IK | NP | NI | EK | NA,		0},
+{"INOUT",	tok_INOUT,	IK | NI | EK,		2},
 {"INQUIRE",	tok_INQUIRE,	IK | EK | MP | NA,		0},
 {"INTEGER",	tok_INTEGER,	IK | NI | EK | TY | TK,		0},
 {"INTENT",	tok_INTENT,	    IK | MP | NI | EK,		0},
@@ -185,6 +187,7 @@ PRIVATE struct {
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
 {"OPERATOR",	tok_OPERATOR,	MP | NI | EK | GN ,		0},
 {"OPTIONAL",	tok_OPTIONAL,	IK | NI ,		0},
+{"OUT",		tok_OUT,	IK | NP | NI | EK | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
 #ifdef ALLOW_CRAY_POINTERS
@@ -247,8 +250,8 @@ get_identifier(token)
 	int c,		/* Uppercase version of current letter */
 	    preceding_c,/* Char preceding latest id */
 	    has_embedded_space,	/* Spaces inside keyword or id */
+	    num_spaces,		/* Count of spaces inside */
 	    split_pos,		/* Where space allowed */
-	    kwd_has_embedded_space, /* Keyword does not follow freeform rules*/
 	    kwd_not_separated,	/* keyword followed by alphanumeric w/o spc */
 	    kwd_split_pos,	/* for MB keyword: actual location of blank */
 	    kwd_not_split,	/* for checking MB keywords */
@@ -272,7 +275,8 @@ get_identifier(token)
 
 	possible_keyword = TRUE;
 	preceding_c = prev_char;
-	has_embedded_space = kwd_has_embedded_space = kwd_not_split = FALSE;
+	has_embedded_space = kwd_not_split = FALSE;
+	num_spaces = 0;
 	kwd_not_separated = FALSE;
 	kwd_split_pos = 0;
 	space_seen_lately = FALSE;
@@ -292,11 +296,10 @@ get_identifier(token)
 				/* If space occurs, it is OK if located where
 				   it is allowed in keyword pair.  If split
 				   where it's OK, record for checking MB.
+				   But count them in case other spaces occur.
 				 */
-	    if( klen != split_pos )
-		kwd_has_embedded_space = TRUE;
-	    else
-		kwd_split_pos = split_pos;
+	    kwd_split_pos = klen;
+	    num_spaces++;
 	  }
 	  bi_advance();		/* Pull in the next character */
 
@@ -332,6 +335,7 @@ if(debug_lexer && getenv("BISECTION")) {
 (void)fprintf(list_fd,"\nklen=%d c=%c",klen,c);
 (void)fprintf(list_fd,"\nBisecting [lo,hi]=[%d,%d] \"%s\"..\"%s\"",
 	   lo,hi,KN(lo),KN(hi));
+ (void)fprintf(list_fd,"\nkwd_split_pos=%d split_pos=%d",kwd_split_pos,split_pos);
 }
 #endif
 				/* Bisect lo .. hi looking for match
@@ -464,8 +468,10 @@ src_text_buf[src_text_len] = '\0';
 
 	  }
 	}
-	else {			/* It is a keyword */
-	    has_embedded_space = kwd_has_embedded_space;
+	else {			/* It is a keyword.  Embedded space OK if
+				   it is where allowed, but only one.  */
+	  if( num_spaces == 1 )
+	    has_embedded_space = (has_embedded_space && (kwd_split_pos != split_pos));
 	}
 
 				/* Check identifiers for being juxtaposed
@@ -495,7 +501,7 @@ src_text_buf[src_text_len] = '\0';
 	    msg_tail("not clearly separated from context");
 	}
 	if( keywd_class != FALSE ) {
-	  if( free_form && f90_freeform_space && kwd_not_split ) {
+	  if( free_form && f90_freeform_space && kwd_not_split && !has_embedded_space) {
 	    space_violation(token->line_num,token->col_num,"keyword");
 	    msg_tail(keywords[keytab_index[keywd_class-keytab_offset]].name);
 	    msg_tail("lacks required space between parts");
