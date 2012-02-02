@@ -161,6 +161,15 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 		symt->line_declared = id->line_num;
 		symt->file_declared = inctable_index;
 	}
+	/* Same but also checks whether a mutually exclusive bit is
+	 * set. 
+	 */
+#define check_and_set_attr2( ATTRBIT, EXCLUDEBIT ) if(symt->EXCLUDEBIT) { \
+		  syntax_error(id->line_num,id->col_num,"conflicting"); \
+		  msg_tail(keytok_name(attr)); msg_tail("declaration"); \
+	      } \
+	else \
+	    check_and_set_attr( ATTRBIT )
 
 	switch( attr )
 	{
@@ -168,28 +177,38 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	       check_and_set_attr(allocatable);
 	       break;
 	  case tok_POINTER:
-	       check_and_set_attr(pointer);
+	       check_and_set_attr2(pointer,target);
 	       break;
 	  case tok_SAVE:
 	       check_and_set_attr(saved);
 	       break;
 	  case tok_TARGET:
-	       check_and_set_attr(target);
+	       check_and_set_attr2(target,pointer);
 	       break;
 	  case tok_PUBLIC:
-	       check_and_set_attr(public);
+	       check_and_set_attr2(public,private);
 	       break;
 	  case tok_PRIVATE:
-	       check_and_set_attr(private);
+	       check_and_set_attr2(private,public);
 	       break;
 	  case tok_IN:
-	       check_and_set_attr(intent_in);
+	       check_and_set_attr2(intent_in,intent_out);
 	       break;
 	  case tok_OUT:
-	       check_and_set_attr(intent_out);
+	       check_and_set_attr2(intent_out,intent_in);
 	       break;
+	  case tok_INOUT:
+	       if(symt->intent_in || symt->intent_out) {
+		   syntax_error(id->line_num,id->col_num,"conflicting or redundant");
+		   msg_tail(keytok_name(attr)); msg_tail("declaration");
+	       }
+	       else {		/* OK to use macro; error can't happen  */
+		   check_and_set_attr(intent_in);
+		   check_and_set_attr(intent_out);
+	       }
 	}
 #undef check_and_set_attr
+#undef check_and_set_attr2
 }
 			/* This routine handles the saving of arg lists which
 			   is done by call_func and call_subr.  Also called

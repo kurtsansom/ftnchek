@@ -230,20 +230,22 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	for(i=0;i<n;i++) {
 	    if( list[i]->common_var )	/* common vars are immune */
 	       continue;
-				/* for args with intent OUT,
-				 * skip if only 'set'
-				 * for args with intent IN,
-				 * skip because error reported during
-				 * parsing */
+				/* for args with intent IN only,
+				 *   skip because 'set' error is reported during
+				 *   parsing
+				 * for args with intent OUT only,
+				 *   skip if only 'set' */
 	    if( list[i]->argument &&
-		((list[i]->intent_out && !list[i]->intent_in &&
-		pattern == flag_combo(0,1,0)) ||
-		(list[i]->intent_in && list[i]->intent_out) ||
-		(list[i]->intent_in && !list[i]->intent_out)))
+		(list[i]->intent_in ||
+		 (list[i]->intent_out && pattern == flag_combo(0,1,0)))
+	      )
 		continue;
 				/* for args, do only 'never used' and
 				   then only if -usage=arg-unused given */
 	    if( list[i]->argument &&
+			    	/* skip if intent not set for compatibility
+				 * with older code */
+		!list[i]->intent_in && !list[i]->intent_out &&
 		(pattern != flag_combo(0,0,0) || ! usage_arg_unused ) )
 		continue;
 
@@ -356,7 +358,10 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 		    }
 		    if(list[i]->argument) {
 			++unused_args;
-			msg_tail("(dummy argument)");
+			msg_tail("(dummy");
+			if(list[i]->intent_out) /* no intent_in gets here */
+			    msg_tail("OUT");
+			msg_tail("argument)");
 		    }
 		}
 

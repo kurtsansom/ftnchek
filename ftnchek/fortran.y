@@ -122,6 +122,8 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
 
 PRIVATE Token *current_dim_bound_list;	/* attr-based dim bound tokenlist */
 
+PRIVATE void apply_intent_attr(Token *t); /* apply INTENT attribute */
+
 	/* Information about the current I/O statement */
 int current_io_unit_id;		/* hashnum of unit id of current I/O operation */
 int  current_io_unit_no;	/* unit number of current I/O operation */
@@ -684,6 +686,7 @@ non_subprogram_header
 			    in_assignment_stmt = FALSE;
 			    $$.line_num = prev_stmt_line_num; /* best guess */
 			    labeled_stmt_type = LAB_EXECUTABLE;
+			    reset_type_attrs();
 			    yyerrok; /* (error message already given) */
 			}
 		;
@@ -846,6 +849,7 @@ specification_stmt:	anywhere_stmt
 			  check_stmt_sequence(&($1),SEQ_SPECIF);
 			  check_f90_stmt_sequence(&($1),F90_SEQ_SPECIF);
 			  labeled_stmt_type = LAB_SPECIFICATION;
+			  reset_type_attrs();
 
 /*--------------------------addition-----------------------------------*/
 			}
@@ -1375,9 +1379,12 @@ intent_attr	:	intent_handle intent_spec
 	    	;
 
 		/* note: '(' is placed in handle because it sets
-		 * initial_flag off which disables recognition of
+		 * initial_flag off which would disable recognition of
 		 * intent_spec keywords */
-intent_handle	:	tok_INTENT '(' { initial_flag = TRUE; }
+intent_handle	:	tok_INTENT '('
+			{
+			    initial_flag = TRUE;
+			}
 		;
 
 intent_spec	:	tok_IN ')'
@@ -1406,9 +1413,9 @@ intent_id_list	:	intent_id
 	       	|	intent_id_list ',' intent_id
 		;
 
-intent_id	:	symbolic_name
+intent_id	:	variable_name
 			{
-			  apply_attr(&($1),curr_stmt_class);
+			  apply_intent_attr(&($1));
 			}
 		;
 
@@ -2011,7 +2018,14 @@ type_attr	:	tok_DIMENSION '(' dim_bound_list ')'
                         {
                              current_allocatable_attr = TRUE;
                         }
-        |   access_spec
+		|	tok_PUBLIC
+	    		{
+			  current_public_attr = TRUE;
+			}
+        	|	tok_PRIVATE
+			{
+			  current_private_attr = TRUE;
+			}
         |   language_binding_spec  
         |   intent_attr
         |   tok_OPTIONAL
@@ -2023,14 +2037,12 @@ type_attr	:	tok_DIMENSION '(' dim_bound_list ')'
 arith_type_name	:	sizeable_type_name {
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
-			  reset_type_attrs();
 			}
 				/* Allow *len to modify some arith types */
 		|	sizeable_type_name '*' nonzero_unsigned_int_const
 			{
 			    current_typesize = $3.value.integer;
 			    current_len_text = NULL;
-			    reset_type_attrs();
 #if 0 /* defunct feature */
 			    if(local_wordsize > 0) {
 			      /*  recognize REAL*2w as DOUBLE PRECISION */
@@ -2060,14 +2072,10 @@ arith_type_name	:	sizeable_type_name {
 				/* Treat all KINDs as default */
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
-			  reset_type_attrs();
 			}
 
 				/* Other type disallow *len modifier */
 		|	unsizeable_type_name
-			{
-			    reset_type_attrs();
-			}
 		;
 
 sizeable_type_name:	tok_INTEGER
@@ -2097,14 +2105,12 @@ unsizeable_type_name:	tok_DOUBLEPRECISION
 			     current_datatype = type_DP;
 			     current_typesize = size_DEFAULT;
 			     current_len_text = NULL;
-			     reset_type_attrs();
 			}
 		|	tok_DOUBLECOMPLEX
 			{
 			     current_datatype = type_DCOMPLEX;
 			     current_typesize = size_DEFAULT;
 			     current_len_text = NULL;
-			     reset_type_attrs();
 			     if(f77_double_complex || f90_double_complex) {
 				nonstandard($1.line_num,$1.col_num,f90_double_complex,0);
 			     }
@@ -2114,7 +2120,6 @@ unsizeable_type_name:	tok_DOUBLEPRECISION
 			     current_datatype = type_INTEGER;
 			     current_typesize = 1;
 			     current_len_text = NULL;
-			     reset_type_attrs();
 			     if(f77_byte || f90_byte)
 			       nonstandard($1.line_num,$1.col_num,f90_byte,0);
 			}
@@ -2163,7 +2168,6 @@ plain_char_type_name:	tok_CHARACTER
 			     current_len_text = NULL;
 			     current_size_is_adjustable = 0;
 			     current_size_is_expression = 0;
-			     reset_type_attrs();
 			     integer_context = TRUE;
 			     len_selector_given = FALSE;
 			}
@@ -2184,7 +2188,6 @@ char_type_name	:	plain_char_type_name char_selector
 			     else
 			       current_len_text = NULL;
 
-			     reset_type_attrs();
 				/* Give hint to lexer to continue taking attrs
 				   as keywords despite non-initial position */
 			     if(see_double_colon())
@@ -2649,12 +2652,10 @@ type_attr_spec  :   tok_ABSTRACT
 
 access_spec	:	tok_PUBLIC
 	    		{
-			  current_public_attr = TRUE;
 			  generic_spec_allowed = TRUE;
 			}
         	|	tok_PRIVATE
 			{
-			  current_private_attr = TRUE;
 			  generic_spec_allowed = TRUE;
 			}
         	;
@@ -5414,13 +5415,32 @@ process_attrs(Token *t,Token *dim_bounds)
         apply_attr(t,tok_PUBLIC);
     if(current_private_attr)
         apply_attr(t,tok_PRIVATE);
-    if(current_intent_in_attr)
-        apply_attr(t,tok_IN);
-    if(current_intent_out_attr)
-        apply_attr(t,tok_OUT);
+    if(current_intent_in_attr || current_intent_out_attr)
+	apply_intent_attr(t);
 
     if(dim_bounds != NULL)
 	def_array_dim(t,dim_bounds);
+
+}
+
+/* Routine to do appropriate checking before applying INTENT */
+PRIVATE
+void apply_intent_attr(Token *t)
+{
+    if( ! hashtab[t->value.integer].loc_symtab->argument ) {
+	syntax_error(t->line_num,t->col_num,
+		     "declaring INTENT attribute of non-argument");
+    }
+    else {
+	if(current_intent_in_attr) {
+	    if(current_intent_out_attr)
+		apply_attr(t,tok_INOUT);
+	    else
+		apply_attr(t,tok_IN);
+	}
+	else if(current_intent_out_attr)
+	    apply_attr(t,tok_OUT);
+    }
 }
 
 /*** Temporary routine to fake it, as if the enclosing program unit
