@@ -2501,9 +2501,18 @@ module_nature   :   tok_INTRINSIC
         |   tok_NON_INTRINSIC 
         ;
 
-use_spec    :   module_name
-	| module_name_comma use_only
-	| module_name_comma rename_list
+use_spec:	module_name
+		{
+		  read_module_file($1.value.integer,(Token *)NULL);
+		}
+		| module_name_comma use_only
+		{
+		  read_module_file($1.value.integer,&($2));
+		}
+		| module_name_comma rename_list
+		{
+		  read_module_file($1.value.integer,&($2));
+		}
 	;
 
 
@@ -2520,16 +2529,32 @@ module_name :   symbolic_name
         ;
 
 rename_list :   rename
+	    {
+	        $$.next_token = append_token((Token *)NULL,&($1));
+	    }
         |   rename_list ',' rename
+	    {
+	        $$.next_token = append_token($1.next_token,&($3));
+	    }
         ;
 
 rename  :   symbolic_name tok_rightarrow symbolic_name
+	    {
+	         def_arg_name(&($1));
+	         primary_id_expr(&($1),&($$));
+	    }
         |   tok_OPERATOR '(' operator ')'
             tok_rightarrow tok_OPERATOR '(' operator ')'
         ;
 
 use_only    :   only_keywd ':' EOS
+	    {
+	        $$.next_token = (Token *)NULL;
+	    }
         |   only_keywd ':' only_list EOS
+	    {
+	        $$ = $3;
+	    }
         ;
 
 only_keywd: tok_ONLY
@@ -2539,7 +2564,13 @@ only_keywd: tok_ONLY
 	;
 
 only_list   : only_item  
+	    {
+	        $$.next_token = append_token((Token *)NULL,&($1));
+	    }
         |   only_list ',' only_item
+	    {
+	        $$.next_token = append_token($1.next_token,&($3));
+	    }
         ;
 
 only_item   :   generic_spec
@@ -2547,6 +2578,10 @@ only_item   :   generic_spec
         ;
 
 generic_spec    :   symbolic_name
+		{
+		     def_arg_name(&($1));
+		     primary_id_expr(&($1),&($$));
+		}
         |   tok_OPERATOR '(' operator ')'
         |   tok_ASSIGNMENT '(' '=' ')'
         |   defined_io_generic_spec
@@ -5129,7 +5164,7 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	implicit_type_given = FALSE;
 	//implicit_none = FALSE;
 	global_save = FALSE;
-	module_accessibility = 0; /* undeclared */
+	module_accessibility = 0; /* default */
 	prev_token_class = EOS;
 	complex_const_allowed = FALSE;
     use_keywords_allowed = FALSE;
@@ -5534,6 +5569,7 @@ END_processing(t)
 	   and then save module info to a file.  [LATTER NOT DONE YET] */
 	if (current_prog_unit_type == type_MODULE) {
 	  if(contains_ended) {
+	    visit_children();
 	    check_arglists(current_prog_unit_hash,module_subprog);
 	  }
 
@@ -5542,12 +5578,14 @@ END_processing(t)
 
 	  if(contains_ended) {
 	    clean_globals(current_prog_unit_hash,module_subprog);
+  	    module_accessibility = 0; /* default */
 	  }
 	}
 	/* At END of a non-module subprogram with a CONTAINS section,
 	   need to check internal usage of internal subprograms and
 	   then clear the valid flags of same. */
 	else if(contains_ended) {
+	  visit_children();
 	  check_arglists(current_prog_unit_hash,internal_subprog);
 	  clean_globals(current_prog_unit_hash,internal_subprog);
 	}
@@ -5574,7 +5612,6 @@ END_processing(t)
   true_prev_stmt_line_num = 0;
   integer_context = FALSE;
   global_save = FALSE;
-  module_accessibility = 0; /* undeclared */
   label_dummy_arg_count = 0;
   num_io_unit_usages = 0;
 

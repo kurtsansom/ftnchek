@@ -155,6 +155,7 @@ make_TL_head(t)
 	TH_ptr->top_line_num = (current_filename == top_filename?
 				t->line_num: top_file_line_num);
   	TH_ptr->filename = current_filename;
+	//TH_ptr->symtab_index = loc_symtab_top;
 				/* Clear all the flags */
 	TH_ptr->external_decl = FALSE;
 	TH_ptr->actual_arg = FALSE;

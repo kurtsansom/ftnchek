@@ -468,8 +468,14 @@ a2[i].active_do_var);
 			   expression.
 			*/
 		  if(usage_arg_modified && nonlvalue_out) {
+		    if (a1[i].intent_out) {
+		    arg_error_report(args2,"Actual arg",i,"is const or expr when dummy arg is INTENT out");
+		    }
+		    else {
 		    arg_error_report(args1,"Dummy arg",i,"is modified");
 		    arg_error_report(args2,"Actual arg",i,"is const or expr");
+		    }
+
 		  }
 
 			/* Usage case 2: Using arg that is not set.
@@ -477,6 +483,9 @@ a2[i].active_do_var);
 		  if(usage_var_uninitialized && nonset_in) {
 
 		    arg_error_report(args1,"Dummy arg",i,"is used before set");
+		    if (a1[i].intent_in)
+		    arg_error_report(args2,"Actual arg",i,"is not set when dummy arg in callee is INTENT in");
+		    else
 		    arg_error_report(args2,"Actual arg",i,"is not set");
 		  }
 
@@ -657,13 +666,15 @@ check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for 
 		   }
 		}
 				/* If definition is found but prog unit is
-				   not in call tree, report it unless -lib */
+				   not in call tree, report it unless -lib
+				   or it is a module subprogram
+				*/
 		else{	/* num_defns != 0 */
 		    if(!glob_symtab[i].visited
 		       && datatype_of(glob_symtab[i].type) != type_BLOCK_DATA
 		       && datatype_of(glob_symtab[i].type) != type_MODULE
-		       && !glob_symtab[i].library_prog_unit
-		       && usage_ext_unused ) {
+		       && !(glob_symtab[i].library_prog_unit || (glob_symtab[i].module_subprog && !glob_symtab[i].private))
+		       && usage_ext_unused) {
 			cmp_error_count = 0;
 			(void)argcmp_error_head(glob_symtab[i].name,
 				   defn_list,

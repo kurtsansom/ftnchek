@@ -235,7 +235,8 @@ char *class_name[]
 #endif
 ;
 SYM_SHARED
-char *type_name[]		/* Type names as used in warnings etc.  */
+char *type_name[]		/* Type names as used in warnings etc.
+				   NOTE: Constrained to 4 letters */
 #ifdef SYMTAB
  = {
 	"undf",
@@ -254,7 +255,7 @@ char *type_name[]		/* Type names as used in warnings etc.  */
 	"data",
 	"labl",
 	"naml",
-	"module",
+	"mdul",
 }
 #endif
 ;
@@ -355,6 +356,7 @@ struct tokstruct {
 	long size;		/* sizeof(datatype) */
 	long TOK_type;		/* Storage class & data type of identifier */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
+	//int symtab_index;	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
 	COLNO_t col_num;	/* Column where token occurred */
 	unsigned size_is_adjustable : 1;
@@ -1022,6 +1024,10 @@ PROTO(void make_html,(Lsymtab **sym_list, char *mod_name, Lsymtab *prog_unit ));
 
 			/* in makedcls.c */
 PROTO(void make_declarations,( Lsymtab *sym_list[], char *mod_name ));
+
+			/* in project.c */
+PROTO(void write_module_file, (int h));
+PROTO(void read_module_file, (int h, Token *only));
 
 			/* in symtab.c */
 PROTO(void apply_attr,( Token *id, int attr ));

@@ -33,6 +33,7 @@ as the "MIT License."
 
 #include <stdio.h>
 #include <string.h>
+#include "tokdefs.h"
 #include "ftnchek.h"
 #include "symtab.h"
 #include "symutils.h"
@@ -168,6 +169,9 @@ else {
 
 			/* Are we inside a function or subroutine? */
 		    case class_VAR:
+		      //if( i < curr_scope_bottom ) /* skip defn if not in local scope */
+		//	continue;
+
 		       if(loc_symtab[i].entry_point) {
 if((gsymt=hashtab[h].glob_symtab) == NULL) {
     oops_message(OOPS_NONFATAL,NO_LINE_NUM,NO_COL_NUM,
@@ -215,6 +219,14 @@ else {
 			    gsymt->internal_entry = TRUE;
 			    gsymt->link.prog_unit = curr_gsymt;
 			  }
+
+			  /* Resolve accessibility of module subprog: it
+			    is private if so declared or else if not
+			    declared public and module is declared private.
+			  */
+			  gsymt->private = loc_symtab[i].private ||
+			    (!loc_symtab[i].public &&
+			     module_accessibility == tok_PRIVATE);
 }
 			}/* end if(loc_symtab[i].entry_point) */
 		    	break; /* end case class_VAR */
@@ -229,6 +241,14 @@ else {
                         ArgListHeader *a;
 			int implied_type;
 			while (head_ptr != NULL){
+			  /* Subprogram invoked in an internal subprogram 
+			   * may also have invocations in the containing
+			   * subprogram, which is a different scope.  Here,
+			   * process only those invocations that are in local
+			   * scope, which can be determined from symtab index.
+			   */
+
+//			 if( head_ptr->symtab_index >= curr_scope_bottom ) { /* in curr scope */
 			  if(head_ptr->external_decl || head_ptr->actual_arg)
 			    a=make_arrayless_alist();
 			  else {
@@ -237,7 +257,7 @@ else {
 			    if(debug_latest) {
 			      int j;
 			      (void)fprintf(list_fd,"\n%s arg-same-as: ",
-				      loc_symtab[i].name);
+			              loc_symtab[i].name); 
 			      for(j=0; j<a->numargs; j++) {
 				(void)fprintf(list_fd," %d",a->arg_array[j].same_as);
 			      }
@@ -256,6 +276,7 @@ else {
 			    make_arg_names(head_ptr->tokenlist,
 					   a,gsymt->info.arglist);
 			  }
+			 //}
 			  implied_type = get_type(&(loc_symtab[i]));
 			  a->type = type_pack(
 			         class_SUBPROGRAM,implied_type);
@@ -388,6 +409,11 @@ make_arg_array(t)
 		  arglist[i].common_block = eq->common_block; /*assert !NULL */
 		  arglist[i].common_index = eq->common_index;
 		}
+
+		/* copy intent flags */
+		arglist[i].intent_in = symt->intent_in;
+		arglist[i].intent_out = symt->intent_out;
+
 				/* Look for other arg that is same as this,
 				   also for checking violation of 15.9.3.6.
 				*/
@@ -695,6 +721,8 @@ make_dummy_arg_array (t)
 		arglist[i].array_var = symt->array_var;
 		arglist[i].array_element = FALSE;
 		arglist[i].declared_external = symt->declared_external;
+		arglist[i].intent_in = symt->intent_in;
+		arglist[i].intent_out = symt->intent_out;
 	    }
 	    else {	/* It is a label */
 		arglist[i].info.array_dim = 0;

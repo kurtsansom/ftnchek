@@ -1370,7 +1370,6 @@ PROTO(void debug_symtabs, ( void ));
 	/* in project.c */
 PROTO(void proj_file_out, ( FILE *fd ));
 PROTO(void proj_file_in, ( FILE *fd ));
-PROTO(void write_module_file, (int h));
 
 	/* in symtab.c */
 PROTO(void init_tables, ( void ));

@@ -119,6 +119,7 @@ PROTO(PRIVATE void check_stmt_function_args,( const Lsymtab *symt, Token *id, To
 PROTO(PRIVATE Lsymtab* install_local,( int h, int datatype, int storage_class ));
 PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
+PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
 
 
 
@@ -255,6 +256,11 @@ call_func(id,arg)	/* Process function invocation */
 	if( (symt = (hashtab[h].loc_symtab)) == NULL){
 	   symt = install_local(h,type_UNDECL,class_SUBPROGRAM);
        	   symt->info.toklist = NULL;
+	}
+	else if (!in_curr_scope(symt)) {
+	   /* copy appropriate fields to new masking entry */
+	   symt = inherit_local(h,symt);
+	   hashtab[h].loc_symtab = symt;
 	}
 	else {			/* protect ourself against nonsense */
 	   if( symt->array_var || symt->parameter ) {
@@ -1115,14 +1121,15 @@ def_ext_name(id)		/* Process external lists */
 
 void def_function(int datatype, long int size, char *size_text, Token *id, Token *args, SUBPROG_TYPE subprogtype)
 {
-	int storage_class;
+	int storage_class, t;
 	int h=id->value.integer;
-	Lsymtab *symt;
+	Lsymtab *symt, *old_symt;
 	Gsymtab *gsymt;
 	TokenListHeader *TH_ptr;
    	storage_class = class_SUBPROGRAM;
 
    	if((symt = (hashtab[h].loc_symtab)) == NULL || !(in_curr_scope(symt)) ) {
+	   old_symt = symt;	// save masked entry
 			/* Symbol is new to local symtab: install it.
 			   Since this is the current routine, it has
 			   storage class of a variable. */
@@ -1131,6 +1138,28 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	   symt->file_declared = inctable_index;
 	   symt->size = size;
 	   symt->src.text = size_text;
+
+
+	   /*  Masked entry, if in enclosing scope, must be a reference
+	       internal subprogram by containing prog unit or a
+	       declaration (e.g. PRIVATE) by containing module.  In
+	       latter case, module did not know this is a subprogram,
+	       so we need to update its symtab entry.
+	   */
+	   if (subprogtype == module_subprog && in_enclosing_scope(old_symt)) {
+
+	      t = datatype_of(old_symt->type);
+	      	/* Symbol seen before: check it & change class */
+
+	      if(storage_class_of(old_symt->type) == class_VAR) {
+	          old_symt->type = type_pack(class_SUBPROGRAM,t);
+	          old_symt->info.toklist = NULL;
+
+	           /* copy accessibility attribute to this entry */
+	          symt->private = old_symt->private;
+	          symt->public = old_symt->public;
+	     }
+	   }
 	}
 
 	if(! symt->entry_point)	/* seen before but not as entry */
@@ -1162,12 +1191,6 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	if (subprogtype == module_subprog) {
 		gsymt->module_subprog = TRUE;
 		gsymt->internal_subprog = FALSE;
-			/* Resolve accessibility of module subprog: it
-			  is private if so declared or else if not
-			  declared public and module is declared private.
-			*/
-		gsymt->private = symt->private ||
-		  (!symt->public && module_accessibility == tok_PRIVATE);
 	}
 	else if (subprogtype == internal_subprog) {
 		gsymt->internal_subprog = TRUE;
@@ -3317,6 +3340,26 @@ int in_curr_scope(const Lsymtab *entry)
         return FALSE;
 }
 
+/* Function returns true if symbol table pointer points to entry in
+   the current scoping unit or enclosing scoping unit, between
+   previous scope's bottom and loc_symtab_top.
+ */
+int in_enclosing_scope(const Lsymtab *entry)
+{
+    int prev_scope_bottom;
+
+    if (loc_scope_top >= 2)
+        prev_scope_bottom = loc_scope[loc_scope_top-1].symt_index;
+    else
+	prev_scope_bottom = 0;  // would be get -1 instead
+
+    if (entry >= &loc_symtab[prev_scope_bottom] &&
+            entry < &loc_symtab[loc_symtab_top])
+        return TRUE;
+    else
+        return FALSE;
+}
+
 /* Function returns -1 if entry is in current scope else returns index of
  * loc_scope entry for scope of entry
  */
@@ -3388,3 +3431,41 @@ if (debug_latest) {
 	}
 }
 
+/* Routine to create a new local symbol table for a subprogram
+ * invocation in an internal subprogram.  Because process_lists works
+ * by scanning the local symbol table within the current scope, if a
+ * new entry is not made, then these subprogram invocations will not
+ * be found till the enclosing program unit's scope is scanned.  That
+ * is too late, since argument lists need to be analyzed in the scope
+ * of the internal subprogram.  Therefore we create a new, masking
+ * local symbol table entry which inherits the info already set by the
+ * enclosing program unit, except for info.toklist and mask fields.
+ *
+ * This is only to be called for subprogram invocations, and
+ * enclosing_symt must not be NULL.
+ */
+PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt)
+{
+	Lsymtab *symt = &loc_symtab[loc_symtab_top];
+	if(loc_symtab_top == LOCSYMTABSZ) {
+	  oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
+#ifdef LARGE_MACHINE
+"out of space in local symbol table\n\
+Recompile me with larger LOCSYMTABSZ value\n"
+#else
+"out of space in local symbol table\n\
+Recompile me with LARGE_MACHINE option\n"
+#endif
+		);
+	}
+	else {
+	  (*symt) = (*enclosing_symt); /* copy the masked entry */
+	  symt->info.toklist = NULL;	 /* clear argument list */
+
+	  symt->mask = enclosing_symt;	 /* mask the outer entry */
+	  hashtab[h].com_loc_symtab = symt;
+
+	  ++loc_symtab_top;
+	}
+	return symt;
+}

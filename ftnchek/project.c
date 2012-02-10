@@ -2,7 +2,7 @@
 
     project.c:
 
-	Project-file I/O routines.
+	Project-file and module-file I/O routines.
 
 
 Copyright (c) 2001 by Robert K. Moniot.
@@ -200,14 +200,20 @@ write_module_file(int h)
 
   if( (fd = fopen(module_filename,"w")) == (FILE *)NULL ) {
     (void)fflush(list_fd);
-    (void)fprintf(stderr,"Cannot open module file %s for writing\n",module_filename);
+    (void)fprintf(stderr,"\nERROR: Cannot open module file %s for writing\n",module_filename);
     return;
+  }
+
+  if(do_list) {
+    (void)fflush(list_fd);
+    (void)fprintf(list_fd,"\n\nWriting module file %s\n",module_filename);
   }
 
   WRITE_STR(MODULEFILE_COOKIE,MODULE_VERSION);
   NEXTLINE;
 
-  WRITE_STR("module",hashtab[h].name);
+  WRITE_STR("module",hashtab[h].name); /* record module name & its filename */
+  WRITE_STR(" file",top_filename);
   NEXTLINE;
 
   {
@@ -220,6 +226,8 @@ write_module_file(int h)
     }
     NEXTLINE;
   }
+
+  fclose(fd);			/* Done. */
 }
 
 void
@@ -296,6 +304,7 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist))
 #endif
       if(glob_symtab[i].valid &&
 	storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
+	datatype_of(glob_symtab[i].type) != type_MODULE && /* omit modules */
 	!glob_symtab[i].private && /* for module: omit private routines */
 	(alist=glob_symtab[i].info.arglist) != NULL) {
 			/* Look for defns or calls of this guy. */
@@ -629,7 +638,7 @@ proj_file_in(fd)
  while( (retval=READ_FIRST_STR(PROJFILE_COOKIE,buf)) == 1) {
    if( strcmp(buf,PROJECT_VERSION) != 0 ) {
      (void)fprintf(stderr,
-	 "\nProject file is not correct version -- must be re-created\n");
+	 "\nERROR: project file is not current version -- must be re-created\n");
      exit(1);
    }
    NEXTLINE;
@@ -638,14 +647,14 @@ proj_file_in(fd)
    topfilename = new_global_string(buf);
    NEXTLINE;
 #ifdef DEBUG_PROJECT
- printf("\nread file %s\n",topfilename);
+ if(debug_latest) printf("\nread file %s\n",topfilename);
 #endif
 
 
   READ_NUM(" entries",numentries); /* Get no. of entry points */
   NEXTLINE;
 #ifdef DEBUG_PROJECT
- printf("read entries %d\n",numentries);
+ if(debug_latest) printf("read entries %d\n",numentries);
 #endif
 				/* Read defn arglists */
   for(ientry=0; ientry<numentries; ientry++) {
@@ -655,7 +664,7 @@ proj_file_in(fd)
 
   READ_NUM(" externals",numexts);	/* Get no. of external refs */
 #ifdef DEBUG_PROJECT
- printf("read exts %d\n",numexts);
+ if(debug_latest) printf("read exts %d\n",numexts);
 #endif
   NEXTLINE;
 
@@ -670,7 +679,7 @@ proj_file_in(fd)
 
    READ_NUM(" comblocks",numblocks);
 #ifdef DEBUG_PROJECT
- printf("read num blocks %d\n",numblocks);
+ if(debug_latest) printf("read num blocks %d\n",numblocks);
 #endif
    NEXTLINE;
 
@@ -687,6 +696,67 @@ proj_file_in(fd)
     concatenated together. */
  } while(retval != EOF);
 }
+
+
+/* Routine to read in a module file.
+ */
+
+/**** NOTE: ONLY NOT IMPLEMENTED YET: NEED TO BUILD TOKEN LIST IN PARSER ****/
+void read_module_file(int h, Token *only)
+{
+  FILE *fd;
+  char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
+  unsigned numentries,ientry;
+
+  char *module_filename = make_module_filename(hashtab[h].name);
+
+  if( (fd = fopen(module_filename,"r")) == (FILE *)NULL ) {
+    (void)fflush(list_fd);
+    (void)fprintf(stderr,"\nERROR: Cannot open module file %s for reading\n",module_filename);
+    return;
+  }
+
+  proj_line_num = 1;		/* for oops messages */
+
+  if( READ_FIRST_STR(MODULEFILE_COOKIE,buf) != 1 ||
+      strcmp(buf,MODULE_VERSION) != 0 ) {
+    (void)fflush(list_fd);
+    (void)fprintf(stderr,
+	"\nERROR: module file %s is not current version -- must be re-created\n",
+		  module_filename);
+    exit(1);
+  }
+  NEXTLINE;
+
+  if(do_list) {
+    (void)fflush(list_fd);
+    (void)fprintf(list_fd,"\n\nReading module file %s\n",module_filename);
+  }
+
+		/* read module name (should be same as upcased file stem) */
+   READ_STR("module",buf);
+   modulename = new_global_string(buf);
+		/* Save filename in permanent storage */
+   READ_STR(" file",buf);
+   topfilename = new_global_string(buf);
+   NEXTLINE;
+#ifdef DEBUG_MODULES
+   if(debug_latest) printf("\nModule is %s from file %s\n",modulename,topfilename);
+#endif
+
+  READ_NUM(" entries",numentries); /* Get no. of entry points */
+  NEXTLINE;
+#ifdef DEBUG_MODULES
+ if(debug_latest) printf("read entries %d\n",numentries);
+#endif
+				/* Read defn arglists */
+  for(ientry=0; ientry<numentries; ientry++) {
+      proj_arg_info_in(fd,topfilename,TRUE);
+  }
+  NEXTLINE;
+
+}
+
 
 static char *prev_file_name="";/* used to reduce number of callocs */
 
@@ -759,7 +829,7 @@ proj_arg_info_in(fd,filename,is_defn)
     NEXTLINE;
 
 #ifdef DEBUG_PROJECT
- printf("read id name %s class %d type %d\n",
+ if(debug_latest) printf("read id name %s class %d type %d\n",
 id_name,id_class,id_type);
 #endif
 
@@ -790,7 +860,7 @@ id_name,id_class,id_type);
 
    while(   fscanf(fd,"%5s",sentinel),
 #ifdef DEBUG_PROJECT
- printf("sentinel=[%s]\n",sentinel),
+ if(debug_latest) printf("sentinel=[%s]\n",sentinel),
 #endif
 	 strcmp(sentinel,(is_defn?"defn":"call")) == 0) {
       ArgListHeader *ahead;
@@ -817,7 +887,7 @@ id_name,id_class,id_type);
 		&alist_actual_arg) != 4) READ_ERROR;
       NEXTLINE;
 #ifdef DEBUG_PROJECT
- printf("read alist class %d type %d line %d\n",
+ if(debug_latest) printf("read alist class %d type %d line %d\n",
 alist_class,alist_type,alist_line);
 #endif
 		/* Find current program unit in symtab. If not there, make
@@ -839,7 +909,7 @@ alist_class,alist_type,alist_line);
 	if(is_defn) {
 	  if(prog_unit != gsymt) {
 #ifdef DEBUG_PROJECT
-	    printf("\nLinking entry %s to prog unit %s",
+	    if(debug_latest) printf("\nLinking entry %s to prog unit %s",
 		   gsymt->name,prog_unit->name);
 #endif
 	    gsymt->internal_entry = TRUE;
@@ -852,7 +922,7 @@ alist_class,alist_type,alist_line);
 		   so it will be the first child on the list.
 		*/
 #ifdef DEBUG_PROJECT
-	  printf("\nChild %s of prog unit %s",
+	  if(debug_latest) printf("\nChild %s of prog unit %s",
 		 gsymt->name,prog_unit->name);
 #endif
 	  if(prog_unit->link.child_list == NULL
@@ -860,7 +930,7 @@ alist_class,alist_type,alist_line);
 	    ChildList *node=
 	      (ChildList *)calloc(1,sizeof(ChildList));
 #ifdef DEBUG_PROJECT
-	    printf(" linked in");
+	    if(debug_latest) printf(" linked in");
 #endif
 	    node->child = gsymt;
 	    node->next = prog_unit->link.child_list;
@@ -868,7 +938,7 @@ alist_class,alist_type,alist_line);
 	  }
 #ifdef DEBUG_PROJECT
 	  else {
-	    printf(" (duplicate)");
+	    if(debug_latest) printf(" (duplicate)");
 	  }
 #endif
 	}
@@ -882,7 +952,7 @@ alist_class,alist_type,alist_line);
 	numargs = 0;
 
 #ifdef DEBUG_PROJECT
- printf("read numargs %d\n",numargs);
+ if(debug_latest) printf("read numargs %d\n",numargs);
 #endif
 /*
 **      if(!is_defn) {
@@ -990,7 +1060,7 @@ alist_class,alist_type,alist_line);
 	alist[iarg].active_do_var = arg_active_do_var;
 	NEXTLINE;
 #ifdef DEBUG_PROJECT
- printf("read arg num %d name %s\n",arg_num,arg_name);
+ if(debug_latest) printf("read arg num %d name %s\n",arg_num,arg_name);
 #endif
       }
 
@@ -1042,7 +1112,7 @@ proj_com_info_in(fd,filename)
     READ_NUM(" class",id_class);
     READ_NUM(" type",id_type);
 #ifdef DEBUG_PROJECT
- printf("read com name %s class %d type %d\n",
+ if(debug_latest) printf("read com name %s class %d type %d\n",
 id_name,id_class,id_type);
 #endif
     NEXTLINE;
@@ -1060,8 +1130,8 @@ id_name,id_class,id_type);
 
     READ_NUM(" vars",numvars);
 #ifdef DEBUG_PROJECT
- printf("read unit %s file %s",prog_unit_name,file_name);
- printf(" flags %d %d %d %d line %d\n",
+ if(debug_latest) printf("read unit %s file %s",prog_unit_name,file_name);
+ if(debug_latest) printf(" flags %d %d %d %d line %d\n",
 	clist_any_used,
 	clist_any_set,
 	clist_saved,
@@ -1139,7 +1209,7 @@ id_name,id_class,id_type);
 		&var_future_1) != 8) READ_ERROR;
       NEXTLINE;
 #ifdef DEBUG_PROJECT
- printf("read name %s class %d type %d dims %d size %d\n",
+ if(debug_latest) printf("read name %s class %d type %d dims %d size %d\n",
 var_name,var_class,var_type,var_dims,var_size);
 #endif
 			/* Economize storage by re-using previously allocated
