@@ -86,7 +86,7 @@ this Software without prior written authorization from the author.
 #define class_STMT_FUNCTION 3
 #define class_LABEL 4
 #define class_NAMELIST 5
-
+#define class_DTYPE 6  /* derived type */
 
 	/* Data types for variables, consts, and externals */
 	/* N.B. 0 thru 7 are wired into lookup tables in exprtype.c */
@@ -108,6 +108,9 @@ this Software without prior written authorization from the author.
 #define type_LABEL 14
 #define type_NAMELIST 15
 #define type_MODULE 16
+
+#define MAX_ELEMENTARY_TYPE type_MODULE /* update if new type added above */
+#define MIN_DTYPE_ID (MAX_ELEMENTARY_TYPE + 1) /* starting id for derived types */
 
 #define size_DEFAULT	(0L)	/* code for standard numeric sizes */
 #define size_ADJUSTABLE	(-1L)	/* codes for special char string lengths */
@@ -207,19 +210,18 @@ char *lab_type_name[]
 
 typedef unsigned char BYTE;
 
-			/* Define int of size 16 bits for class/type field */
-#if (SIZEOF_SHORT >= 2)
-typedef unsigned short type_t;
-#else
-#if (SIZEOF_INT >= 2)
-typedef unsigned int type_t;
-#else
-#if (SIZEOF_LONG >= 2)
-typedef unsigned long type_t;
-#endif
-#endif
-#endif
+			/* Define int big enough for class/type field */
 
+typedef unsigned long type_t;
+
+/* eventually we should go over to this */
+#if 0
+typedef struct {
+    int kind;				/* KIND parameter */
+    short type;				/* type id */
+    short class;			/* storage class */
+} type_t;
+#endif
 		/* Array of class and type name translations */
 SYM_SHARED
 char *class_name[]
@@ -354,7 +356,7 @@ struct tokstruct {
 	char *src_text;		/* Original text string of token */
 	long tclass,tsubclass;	/* Token category and subcategory */
 	long size;		/* sizeof(datatype) */
-	long TOK_type;		/* Storage class & data type of identifier */
+	type_t TOK_type;	/* Storage class & data type of identifier */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
 	//int symtab_index;	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
@@ -434,6 +436,7 @@ typedef union {		/* InfoUnion: misc info about symtab entry */
 	     struct TLHead *toklist;  /* ptr to token list */
 	     struct IInfo *intrins_info;/* ptr to intrinsic func info */
 	     struct PInfo *param;	/* parameter information field */
+	     short type_id;	/* id of derived type */
 } InfoUnion;
 
 typedef struct {	/* ArgListElement: holds subprog argument data */
@@ -602,7 +605,7 @@ typedef struct lSymtEntry{
 	  char **textvec;	/* List of source text strings */
 	  TokenListHeader *toklist; /* for namelist & common block makedecls */
 	} src;
-    struct lSymtEntry *mask;  /* Points to masked identifier in enclosing scope*/
+	struct lSymtEntry *mask;  /* Points to masked identifier in enclosing scope*/
 	struct lSymtEntry *equiv_link;	/* Link for equivalence lists */
 		/* common_block is a ptr to block if this is a common
 		   variable, and common_index is its position (starting

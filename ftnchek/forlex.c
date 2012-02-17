@@ -114,27 +114,27 @@ PRIVATE int closeup_saw_whitespace;
 	 (toascii((int)(C)) >= toascii(' ') && \
 	  legal_chars[toascii((int)(C))-toascii(' ')] == (C))) )
 		/* Array has x where ASCII character is not valid.
-		   This defn is not exactly standard f77, since it includes
-		   supported extensions: $ in format,
-		   <> in variable formats, and " in strings.
+		   This defn is not exactly standard fortran, since it includes
+		   $ allowed by some compilers in formats.
 		   Since strlen of array is 96, indexing by [toascii(c)-32]
 		   is always in bounds.
 		 */
-PRIVATE char f77_legal_chars[]=
-" x\"x$xx'()*+,-./0123456789:x<=>xx\
+PRIVATE char fortran_legal_chars[]=
+" x\"x$%x'()*+,-./0123456789:x<=>xx\
 ABCDEFGHIJKLMNOPQRSTUVWXYZxxxxxxabcdefghijklmnopqrstuvwxyzxxxxx";
 
 		/* This is the working copy of list of legal chars, with
-<                  any chars in idletter_list made legal.
+                   any chars in idletter_list made legal using the
+		   -identifier-chars setting.
 		 */
-PRIVATE char legal_chars[sizeof(f77_legal_chars)];
+PRIVATE char legal_chars[sizeof(fortran_legal_chars)];
 
 				/* Routine to fix up list of legal chars */
 void make_legal_char_list(VOID)
 {
     int i;
-			/* Start with the f77 list */
-    (void)strcpy(legal_chars,f77_legal_chars);
+			/* Start with the standard fortran list */
+    (void)strcpy(legal_chars,fortran_legal_chars);
     
 			/* Verify idletter_list has only punctuation chars.
 			   If violators, reset to default of "$_"

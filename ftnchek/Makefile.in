@@ -199,7 +199,7 @@ LDFLAGS         = @LDFLAGS@ $(DEBUG_FLAGS) $(DEVEL_LDFLAGS)
 YFLAGS          = @YFLAGS@ -d
 
 # fortran.o first because of possible remake if tokdefs.h changes (see below)
-OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o exprtype.o \
+OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o dtypes.o exprtype.o \
 		  forlex.o ftnchek.o include.o intake.o intrins.o \
 		  iokeywds.o keywords.o labels.o \
 		  loccheck.o makedcls.o makehtml.o message.o options.o pgsymtab.o \
@@ -231,7 +231,7 @@ BUILDFILES	= $(UNIX_BUILDFILES) $(VMS_BUILDFILES) $(OS2_BUILDFILES) \
 			$(OTHER_BUILDFILES)
 
 SRCS            = advance.c advance.h argcheck.c block_match.h \
-		  calltree.c comcheck.c config-generic.h config-win32.h exprtype.c \
+		  calltree.c comcheck.c config-generic.h config-win32.h dtypes.h dtypes.c exprtype.c \
 		  forlex.c forlex.h fortran.y fortran.c ftnchek.c ftnchek.h \
 		  include.c intake.c intrins.c intrins.h iokeywds.h \
 		  iokeywds_enum.h iokeywds.c \
@@ -240,7 +240,7 @@ SRCS            = advance.c advance.h argcheck.c block_match.h \
 		  options.h pgsymtab.c pgsymtab.h plsymtab.c plsymtab.h \
 		  prlists.c prlocsym.c project.c symspace.c \
 		  symspace.h symtab.c symtab.h symutils.c symutils.h tokdefs.h \
-			utils.h utils.c
+		  utils.h utils.c
 SCRIPTS		= dcl2inc dcl2inc.in dcl2inc.awk dcl2inc.awk.in \
 		  man2ps ftnchek.el
 TESTDIR		= test
@@ -619,11 +619,13 @@ calltree.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
 comcheck.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
+dtypes.o:	config.h dtypes.h ftnchek.h symtab.h symspace.h 
+
 exprtype.o:	config.h ftnchek.h symtab.h tokdefs.h
 
 forlex.o:	config.h ftnchek.h symtab.h tokdefs.h forlex.h advance.h
 
-fortran.o:	config.h ftnchek.h symtab.h block_match.h fortran.c
+fortran.o:	config.h ftnchek.h symtab.h dtypes.h block_match.h fortran.c
 
 ftnchek.o:	config.h ftnchek.h intrins.h options.h utils.h
 
@@ -661,7 +663,7 @@ project.o:	config.h ftnchek.h symtab.h
 
 symspace.o:	config.h ftnchek.h symtab.h symspace.h symutils.h
 
-symtab.o:	config.h ftnchek.h iokeywds.h intrins.h symtab.h \
+symtab.o:	config.h dtypes.h ftnchek.h iokeywds.h intrins.h symtab.h \
 		symspace.h symutils.h tokdefs.h
 
 symutils.o:	config.h ftnchek.h symtab.h symutils.h

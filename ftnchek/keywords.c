@@ -213,7 +213,7 @@ PRIVATE struct {
 {"TARGET",      tok_TARGET,     IK | NI | EK | NP,              0},
 {"THEN",	tok_THEN,	IK | NP | EK,			0},
 {"TO",		tok_TO,		NI | EK,			0},
-{"TYPE",	tok_TYPE,	IK | NP | NI | EK | TY,			0},
+{"TYPE",	tok_TYPE,	IK | NI | EK | TY,		0},
 {"USE",		tok_USE,	IK | NP | NI | EK, 		0},
 {"VOLATILE",   tok_VOLATILE,	IK | NI ,		0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},

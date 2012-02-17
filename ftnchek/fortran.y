@@ -68,6 +68,7 @@ as the "MIT License."
 #include <ctype.h>
 #include "ftnchek.h"
 #include "symtab.h"
+#include "dtypes.h"
 
 	/* The following section is for use with bison-derived
 	   parser.  Define alloca to be malloc for those cases
@@ -250,7 +251,7 @@ PROTO(PRIVATE void check_stmt_sequence,( Token *t, int seq_num ));
 PROTO(PRIVATE void check_f90_stmt_sequence,( Token *t, int f90_seq_num ));
 PROTO(PRIVATE void do_binexpr,( Token *l_expr, Token *op, Token *r_expr,
 			Token *result ));
-PROTO(PRIVATE int do_bounds_type,( Token *t1, Token *t2, Token *t3 ));
+PROTO(PRIVATE type_t do_bounds_type,( Token *t1, Token *t2, Token *t3 ));
 PROTO(PRIVATE void do_unexpr,( Token *op, Token *expr, Token *result ));
 PROTO(PRIVATE Token * empty_token,( Token *t ));
 PROTO(PRIVATE void END_processing,( Token *t ));
@@ -264,6 +265,8 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 #endif
 
 SUBPROG_TYPE find_subprog_type(int stmt_class);
+PRIVATE int get_curr_block_class();
+PRIVATE char *get_curr_block_name();
 
 		/* Uses of Token fields for nonterminals: */
 /* NOTE: As of Aug 1994 these are undergoing revision to separate the
@@ -309,7 +312,7 @@ SUBPROG_TYPE find_subprog_type(int stmt_class);
 %token tok_concat	/*   //   */
 %token tok_double_colon /*   ::   */
 %token tok_lparen	/* special left paren to avoid s/r conflicts */
-%token tok_rightarrow /* => */
+%token tok_rightarrow   /*   =>   */
 %token tok_ABSTRACT
 %token tok_ACCEPT
 %token tok_ALLOCATABLE
@@ -850,40 +853,8 @@ specification_stmt:	anywhere_stmt
 			  check_f90_stmt_sequence(&($1),F90_SEQ_SPECIF);
 			  labeled_stmt_type = LAB_SPECIFICATION;
 			  reset_type_attrs();
-
-/*--------------------------addition-----------------------------------*/
 			}
 		|	use_stmt
-        |   interface_stmt
-            {
-                interface_block = TRUE;
-				push_block(&($1),$1.tclass,construct,NULL, NO_LABEL);
-                stmt_sequence_no = 0;	/* allow subprog decls */
-				push_loc_scope();
-            }
-        |   endinterface_stmt
-            {
-				pop_loc_scope();
-				pop_block(&($1),$1.tclass,NULL,NO_LABEL);
-                interface_block = FALSE;
-            }
-        |   procedure_stmt
-            {
-                if (!interface_block)
-                    syntax_error($1.line_num,$1.col_num,
-                        "procedure statement invalid outside interface block");
-            }
-        |   derived_type_stmt
-            {
-	        push_block(&($1),$1.tclass,construct,curr_stmt_name,
-				       NO_LABEL);
-            }
-        |   endderived_type_stmt
-            {
-	        pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-                curr_stmt_name = NULL;
-/*--------------------------------------------------------------------*/
-            }
 		;
 
 anywhere_stmt	:	entry_stmt
@@ -911,10 +882,40 @@ specif_stmt	:	dimension_stmt
                 |       target_stmt
                 |       allocatable_stmt
 		|	access_stmt
-		|	derived_stmt
+		|	derived_type_decl_stmt
 		|	intent_stmt
+		|	interface_stmt
+		 	{
+		 	    interface_block = TRUE;
+		 	    push_block(&($1),$1.tclass,construct,NULL, NO_LABEL);
+		 	    stmt_sequence_no = 0; /* allow subprog decls */
+		 	    push_loc_scope();
+		 	}
+		|	end_interface_stmt
+		 	{
+		 	    pop_loc_scope();
+		 	    pop_block(&($1),$1.tclass,NULL,NO_LABEL);
+		 	    interface_block = FALSE;
+		 	}
+		|	procedure_stmt
+		 	{
+		 	    if (!interface_block)
+		 	        syntax_error($1.line_num,$1.col_num,
+		 	            "procedure statement invalid outside interface block");
+		 	}
+		|	derived_type_def_stmt
+		 	{
+		 	    push_block(&($1),$1.tclass,construct,curr_stmt_name, NO_LABEL);
+			    push_loc_scope();
+		 	}
+		|	end_derived_type_stmt
+		 	{
+			    get_dtype_components(get_curr_block_name());
+			    pop_loc_scope();
+		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+		 	    curr_stmt_name = NULL;
+			}
 		;
-
 
 /* 7 */
 executable_stmt:		/* Allowed in logical IF */
@@ -2650,40 +2651,42 @@ procedure_stmt_handle  :   tok_PROCEDURE
         |   tok_MODULE tok_PROCEDURE tok_double_colon 
         ;
 
-endinterface_stmt   :   tok_ENDINTERFACE EOS
+end_interface_stmt   :   tok_ENDINTERFACE EOS
         |   tok_ENDINTERFACE generic_spec
         ;
 
-derived_type_stmt   :   derived_type_handle symbolic_name
-        |   derived_type_handle symbolic_name '(' 
-            non_empty_arg_list ')'
+derived_type_def_stmt   :   derived_type_handle dtype_name EOS
         ;
 
-endderived_type_stmt:   tok_ENDTYPE EOS
-        |   tok_ENDTYPE symbolic_name
-        ;
-
+dtype_name: symbolic_name
+		{
+		  def_dtype(&$1);
+		  curr_stmt_name = hashtab[$1.value.integer].name;
+		}
+	;
 derived_type_handle :   derived_type_keyword
         |   derived_type_keyword tok_double_colon
-        |   derived_type_keyword ',' type_attr_spec_list tok_double_colon
+        |   derived_type_keyword ',' access_spec tok_double_colon
         ;
 
 derived_type_keyword    :   tok_TYPE 
         ;
 
-type_attr_spec_list :   type_attr_spec
-        |   type_attr_spec_list ',' type_attr_spec
+end_derived_type_stmt:   tok_ENDTYPE EOS
+        |   tok_ENDTYPE symbolic_name
         ;
 
-type_attr_spec  :   tok_ABSTRACT
-        |   access_spec
-        |   unnamed_bind
-        |   tok_EXTENDS '(' symbolic_name ')'
-            {
-                /* symbolic_name has to be a previously defined
-                   extensible type */
-            }
-        ;
+/*
+structure_component:	primary
+		|	structure_component '%' primary
+		;
+
+part_ref	:	part_name
+		;
+
+part_name	:	array_element_name
+		;
+		*/
 
 access_spec	:	tok_PUBLIC
 	    		{
@@ -2697,7 +2700,11 @@ access_spec	:	tok_PUBLIC
 
 access_stmt	:	access_spec EOS /* PUBLIC or PRIVATE statement */
 			{
-			  if( get_type(hashtab[current_prog_unit_hash].loc_symtab) != type_MODULE) {
+			  /* access statement in a type declaration */
+			  if( get_curr_block_class() == tok_TYPE ) {
+			    /* record access spec in dtype symtab entry */
+			  }
+			  else if( get_type(hashtab[current_prog_unit_hash].loc_symtab) != type_MODULE) {
 			    syntax_error($1.line_num,$1.col_num,
 					 "Accessibility statement not allowed here");
 			  }
@@ -2735,12 +2742,30 @@ access_generic_spec:	symbolic_name
         	|	tok_ASSIGNMENT '(' '=' ')'
 		;
 
-derived_stmt	:	derived_handle symbolic_name
+derived_type_decl_stmt:	derived_type_decl_prefix
+			    derived_type_decl_list EOS
 	     	;
 
-derived_handle	:	tok_TYPE '(' symbolic_name ')' 
-		|	tok_TYPE '(' symbolic_name ')' ',' attr_list
-			tok_double_colon
+derived_type_decl_prefix:	derived_type_decl_handle	
+		|	derived_type_decl_handle tok_double_colon
+		|	derived_type_decl_handle ',' attr_list
+			    tok_double_colon 
+
+derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')' 
+			{
+			  /* Give hint to lexer to continue taking
+			     attrs as keywords despite non-initial
+			     position */
+			  if(see_double_colon())
+			    in_attrbased_typedecl = TRUE;
+			}
+		;
+
+derived_type_decl_list:	derived_type_decl_item
+		|	derived_type_decl_list ',' derived_type_decl_item
+		;
+
+derived_type_decl_item:	symbolic_name
 		;
 
 /*---------------------------------------------------------------*/
@@ -5027,6 +5052,8 @@ scalar_name	:	tok_identifier
 			    ref_identifier(&($1));
 			    primary_id_expr(&($1),&($$));
 			}
+				/* structure component */
+		|	scalar_name '%' symbolic_name
 		;
 
 array_name	:	tok_array_identifier
@@ -5244,7 +5271,7 @@ empty_token(t)
 
 		/* Propagate non-integer type if any of DO loop
 		   bounds are non-integer. */
-PRIVATE int
+PRIVATE type_t
 #if HAVE_STDC
 do_bounds_type(Token *t1, Token *t2, Token *t3)
 #else /* K&R style */
@@ -5252,7 +5279,7 @@ do_bounds_type(t1,t2,t3)
      Token *t1, *t2, *t3;
 #endif /* HAVE_STDC */
 {
-  int result_type;
+  type_t result_type;
        if(datatype_of(t1->TOK_type) != type_INTEGER)result_type = t1->TOK_type;
   else if(datatype_of(t2->TOK_type) != type_INTEGER)result_type = t2->TOK_type;
   else if(datatype_of(t3->TOK_type) != type_INTEGER)result_type = t3->TOK_type;
@@ -6093,3 +6120,17 @@ SUBPROG_TYPE find_subprog_type(int stmt_class)
 			return internal_subprog;
 	}
 }
+
+/* routine to return the statement class of the current block */
+int get_curr_block_class()
+{
+  return block_stack[block_depth-1].sclass;
+}
+
+/* Routine to return the construct name of the current block.  For
+   derived type blocks it is the type name. */
+char *get_curr_block_name()
+{
+  return block_stack[block_depth-1].name;
+}
+
