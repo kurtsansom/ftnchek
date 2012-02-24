@@ -452,7 +452,7 @@ print_var_type(fd,symt)	/* Prints type name then size if explicit */
   int t = get_type(symt);
   int s = get_size(symt,t);
 
-	  (void)fprintf(fd," %4s",type_name[t]);
+	  (void)fprintf(fd," %s",type_name[t]);
 
 		/* Usually either size or * will be printed, and usually
 		   size is 1 digit.  So mostly we print 1 column in

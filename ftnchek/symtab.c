@@ -116,7 +116,9 @@ this Software without prior written authorization from the author.
 PROTO(PRIVATE void call_external,( Lsymtab *symt, Token *id, Token *arg ));
 PROTO(PRIVATE void check_intrins_args,( Token *id, Token *arg ));
 PROTO(PRIVATE void check_stmt_function_args,( const Lsymtab *symt, Token *id, Token *arg ));
+/*
 PROTO(PRIVATE Lsymtab* install_local,( int h, int datatype, int storage_class ));
+*/
 PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
 PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
@@ -2165,7 +2167,7 @@ Recompile me with LARGE_MACHINE option\n"
 }/*install_global*/
 
 
-PRIVATE Lsymtab*
+Lsymtab*
 #if HAVE_STDC
 install_local(int h, int datatype, int storage_class)	/* Install a local symbol */
 	      			/* hash index */
@@ -2208,7 +2210,9 @@ Recompile me with LARGE_MACHINE option\n"
 
 		      /* Set symtab info fields */
 	    symt->type = type_pack(storage_class,datatype);
-	    symt->size = type_size[datatype];
+	    symt->size = (datatype >= MIN_DTYPE_ID)?
+	      size_DEFAULT:		/* derived types are default size */
+	      type_size[datatype];
 	    symt->src.text = NULL;
 	    symt->equiv_link = symt;	/* equivalenced only to self */
 	    symt->common_block = (Gsymtab*)NULL;
@@ -3309,6 +3313,18 @@ if (debug_latest) {
       return -1;
     }
     else  {
+      int i, h;
+		      /* Clear the hash table of local symbol refs */
+      for(i=curr_scope_bottom ; i<loc_symtab_top; i++) {
+	h=hash_lookup(loc_symtab[i].name);
+	/* point hashtable at masked entry in outer scope if any */
+	if(hashtab[h].loc_symtab)
+	  hashtab[h].loc_symtab = hashtab[h].loc_symtab->mask;
+	if(hashtab[h].com_loc_symtab)
+	  hashtab[h].com_loc_symtab = hashtab[h].com_loc_symtab->mask;
+      }
+
+
       loc_symtab_top = curr_scope_bottom;
       curr_scope_bottom = loc_scope[--loc_scope_top].symt_index;
 

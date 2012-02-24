@@ -48,6 +48,7 @@ as the "MIT License."
 #include "symtab.h"
 #include "plsymtab.h"
 #include "loccheck.h"
+#include "dtypes.h"
 
 PROTO(PRIVATE void print_io_unit_usages,(VOID));
 
@@ -261,6 +262,21 @@ print_loc_symbols(VOID)
 
     }/* End printing the namelists */
 
+				/* Print out the derived types declared here */
+    if(do_symtab) {
+       int i,n;
+       for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
+	  if(storage_class_of(loc_symtab[i].type) == class_DTYPE) {
+	     sym_list[n++] = &loc_symtab[i];
+	  }
+       }
+       if(n != 0 ) {
+	  sort_lsymbols(sym_list,n);
+
+	  (void)fprintf(list_fd,"\nDerived types:\n ");
+	  print_dtypes(sym_list,n);
+       }
+    }
 				/* Process the variables */
 
     if(do_symtab || pure_args || pure_common
@@ -747,4 +763,77 @@ cmp_io_units( IO_Unit_Info *u1, IO_Unit_Info *u2 )
 	 return no2 < no1;
       }
    }
+}
+
+
+int print_dtypes(Lsymtab *sym_list[], int n)
+{
+  int i;
+
+  (void)fprintf(list_fd,"\n ");
+
+  for(i=0; i<n; i++) {
+     int dtype_id;
+     int num_components;
+     Dtype *dtype_head;
+
+     /* (these are mutually exclusive attributes) */
+     if( sym_list[i]->private )
+	(void)fprintf(list_fd," Private");
+     if( sym_list[i]->sequence )
+	(void)fprintf(list_fd," Sequence");
+
+    (void)fprintf(list_fd," Type %s\n",sym_list[i]->name);
+    (void)fprintf(list_fd,"   Components:\n ");
+
+	/* look up type defn in dtype table */
+    dtype_id = datatype_of(sym_list[i]->type);
+    dtype_head = dtype_table[dtype_id];
+
+    num_components = dtype_head->num_components;
+    if(num_components > 0) {
+       int j;
+       DtypeComponent *components;
+       components = dtype_head->components;
+
+       for(j=0; j<3; j++) {
+	  (void)fprintf(list_fd,"%5sName Type   Dims","");
+       }
+
+       for(j=0; j<num_components; j++) {
+	  int t = datatype_of(components[j].type);
+	  int s = components[j].size;
+	  if(j % 3 == 0)			/* 3 column format */
+	     (void)fprintf(list_fd,"\n");
+	  else
+	     (void)fprintf(list_fd," ");
+
+	  (void)fprintf(list_fd,"%10s",components[j].name);
+	  (void)fprintf(list_fd," %s",type_name[t]);
+	  if( s != size_DEFAULT )
+	     (void)fprintf(list_fd,"%d",s);
+	  /* Append ^ on pointers and - on private components */
+	  if(components[j].pointer)
+	     (void)fprintf(list_fd,"^");
+	  if(components[j].private)
+	     (void)fprintf(list_fd,"-");
+	  /* fill in blanks for any appended items not printed */
+	  if( s == size_DEFAULT )
+	     (void)fprintf(list_fd," ");
+	  if(!components[j].pointer)
+	     (void)fprintf(list_fd," ");
+	  if(!components[j].private)
+	     (void)fprintf(list_fd," ");
+
+	  if(components[j].array) {
+	     (void)fprintf(list_fd," %ld",
+			   array_dims(components[j].info.array_dim));
+	  }
+	  else {
+	     (void)fprintf(list_fd,"%2s","");
+	  }
+       } /* end for(j=0...) */
+    }	 /* end if num_components > 0 */
+    (void)fprintf(list_fd,"\n ");
+  } /* end for(i=0...) */
 }

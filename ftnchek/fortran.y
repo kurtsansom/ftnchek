@@ -179,6 +179,7 @@ int
     use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
     generic_spec_allowed=FALSE; /* help for recognizing generic_spec */
 
+    dtype_table_top = MIN_DTYPE_ID;
 
 		/* Macro for initializing attributes of type decl. */
 #define reset_type_attrs() (\
@@ -402,6 +403,7 @@ PRIVATE char *get_curr_block_name();
 %token tok_REWIND
 %token tok_SAVE
 %token tok_SELECTCASE
+%token tok_SEQUENCE
 %token tok_STOP
 %token tok_SUBROUTINE
 %token tok_TARGET
@@ -910,11 +912,12 @@ specif_stmt	:	dimension_stmt
 		 	}
 		|	end_derived_type_stmt
 		 	{
-			    get_dtype_components(get_curr_block_name());
+			    process_dtype_components(get_curr_block_name());
 			    pop_loc_scope();
 		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
 		 	    curr_stmt_name = NULL;
 			}
+		|	sequence_stmt
 		;
 
 /* 7 */
@@ -2698,6 +2701,12 @@ access_spec	:	tok_PUBLIC
 			}
         	;
 
+sequence_stmt	:	tok_SEQUENCE
+			/* sequence attribute is mutually exclusive of
+			 * private attribute in derived type definitions
+			 */
+		;
+
 access_stmt	:	access_spec EOS /* PUBLIC or PRIVATE statement */
 			{
 			  /* access statement in a type declaration */
@@ -2758,6 +2767,11 @@ derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')'
 			     position */
 			  if(see_double_colon())
 			    in_attrbased_typedecl = TRUE;
+
+			  /* datatype is index of dtype_table */
+			  current_datatype = dtype_table_top;
+			  current_typesize = size_DEFAULT;
+			  current_len_text = NULL;
 			}
 		;
 
@@ -2766,6 +2780,15 @@ derived_type_decl_list:	derived_type_decl_item
 		;
 
 derived_type_decl_item:	symbolic_name
+			{
+			     /*
+			     declare_type(&($1),
+					  current_datatype,
+					  current_typesize,
+					  current_len_text);
+			     */
+			     process_attrs(&($1),current_dim_bound_list);
+			}
 		;
 
 /*---------------------------------------------------------------*/
@@ -3376,6 +3399,7 @@ assignment_stmt	:	lvalue assignment_op {complex_const_allowed = TRUE;
 
 lvalue		:	variable_name
 		|	array_element_lvalue
+		|	component /* derived type component */
 		|	substring_lvalue
 		|	stmt_function_handle
 		;
@@ -4679,6 +4703,8 @@ primary		:	variable_name
 			}
 		|	array_element_name
 
+		|	component /* derived type component */
+
 		|	function_reference
 
 		|	substring_name
@@ -4869,6 +4895,7 @@ dim_bound_expr	:       /* integer */  arith_expr
 /* 86-87 absent: see 76 */
 
 /* 88 */
+
 array_element_lvalue:	array_name '(' subscript_list ')'
 			{
 				ref_array(&($1),&($3));
@@ -4900,6 +4927,7 @@ array_element_name:	array_name '(' subscript_list ')'
 				$$.next_token = (Token *) NULL;
 			}
 		;
+
 
 subscript_list	:	subscript
 			{
@@ -5052,8 +5080,6 @@ scalar_name	:	tok_identifier
 			    ref_identifier(&($1));
 			    primary_id_expr(&($1),&($$));
 			}
-				/* structure component */
-		|	scalar_name '%' symbolic_name
 		;
 
 array_name	:	tok_array_identifier
@@ -5063,6 +5089,17 @@ array_name	:	tok_array_identifier
 			}
 		;
 
+/* Components of derived type.  Base case needs to include the '%'
+   to avoid shift-reduce conflict with function reference. */
+component	:	variable_name '%' component_name
+		|	array_element_name '%' component_name
+		|	component '%' component_name
+		;
+
+component_name	:	tok_identifier
+		|	tok_identifier '(' subscript_list ')'
+		|	tok_identifier substring_interval
+		;
 
 /* symbolic_name refers to a name without making it into an id expr */
 symbolic_name	:	tok_identifier

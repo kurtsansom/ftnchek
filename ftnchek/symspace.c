@@ -78,18 +78,6 @@ init_symtab(VOID)      /* Clears the current scope of local symbol table */
 {
 	int i,h;
 
-		      /* Clear the hash table of local symbol refs */
-    if (curr_scope_bottom != -1) {	/* -1 means no scope active */
-
-        for(i=curr_scope_bottom ; i<loc_symtab_top; i++) {
-            h=hash_lookup(loc_symtab[i].name);
-            /* point hashtable at masked entry in outer scope if any */
-	    if(hashtab[h].loc_symtab)
-	      hashtab[h].loc_symtab = hashtab[h].loc_symtab->mask;
-            hashtab[h].com_loc_symtab = NULL;
-        }
-    }
-
 
 					/* recover storage space when
 					 * outermost scope is exited.

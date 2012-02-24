@@ -1,22 +1,31 @@
 #ifndef TYPES_H
 #define TYPES_H
 
+#ifdef DTYPE
+#define DTYPE_SHARED
+#else
+#define DTYPE_SHARED extern
+#endif
+
 		/* interface for derived type definitions */
 
 /* Implementation allows type numbers to be 12 bits. Hence 2^12 = 4096 */
 #define MAX_DTYPES 4096
 
+int dtype_table_top; 	/* starting index in Dtype_table */
 
 typedef struct DerivedTypeComponent {
   int id;
-  char *name;			/* not needed for derived types */
-  Type type;
+  char *name;			/* useless for derived types */
+  InfoUnion info;
+  type_t type;
   unsigned long array_dim;	/* array size and no. of dims */
   long size;			/* Size of object in bytes */
   	/* flags */
   unsigned
-  	private: 1,		/* has PRIVATE attribute */
-	pointer: 1;		/* has POINTER attribute */
+	array: 1,		/* is an array */
+	pointer: 1,		/* has POINTER attribute */
+  	private: 1;		/* has PRIVATE attribute */
 } DtypeComponent;
 
 typedef struct DtypeTableEntry {
@@ -27,29 +36,19 @@ typedef struct DtypeTableEntry {
   /* end of fields for root node */
   LINENO_t line_declared;
   short file_declared;
+  unsigned
+  	private: 1,		/* has PRIVATE statement */
+	sequence: 1;		/* has SEQUENCE statement */
 } Dtype;
 
+DTYPE_SHARED
 Dtype *dtype_table[MAX_DTYPES];	/* stores derived type defs */
 
-/* not needed */
-typedef struct DtypeScopeEntry {
-  int Dtypetab_index;		/* array index in Dtype_table */
-  int hash_num;			/* hash number for current scoping unit */
-} Dtypescope;
-
-Dtypescope dtype_scope[MAXSCOPES]; /* stores local Dtypes info */
-int curr_dtype_bottom;		/* first Dtype entry of current scope */
-int dtype_scope_top;		/* next slot in Dtype scope stack */
-/**************/
-
-		/* routines for derived type definitions */
-/* 0 <= dtype_start < loc_symtab_top
- * dtype_start is the index where local symbol entry for derived type
- * is entered. */
-void new_Dtype(int dtype_start); /* create a derived type definition */
 int find_Dtype(char *name);	/* linearly search for derived type 
 				   definition with same name */
-void get_dtype_components(char *name);
+void process_dtype_components(char *name);
 void def_dtype(Token *id);
+
+int print_dtypes();
 
 #endif

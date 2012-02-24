@@ -644,6 +644,7 @@ typedef struct lSymtEntry{
 	     target: 1,		/* has TARGET attribute */
 	     public: 1,		/* has PUBLIC attribute */
 	     private: 1,	/* has PRIVATE attribute */
+	     sequence: 1,	/* has SEQUENCE attribute */
 	     intent_in: 1,	/* has IN attribute */
 	     intent_out: 1,	/* has OUT attribute */
 	     invoked_as_func: 1, /* usage as f(x) was seen */
@@ -1068,6 +1069,7 @@ PROTO(char * get_size_text,( const Lsymtab *symt, int type ));
 PROTO(int get_type,( const Lsymtab *symt ));
 PROTO(unsigned hash_lookup,( char *s ));
 PROTO(Gsymtab* install_global,( int h, int datatype, int storage_class ));
+Lsymtab *install_local(int h, int datatype, int storage_class);
 PROTO(int int_expr_value,( Token *t ));
 PROTO(char * new_global_string,( char *s ));
 PROTO(void free_textvec,( char **p ));

@@ -114,9 +114,9 @@ PRIVATE struct {
 	      context;		/* local-context flags */
 	short split_pos;	/* where keyword may have space */
 } keywords[]={
-{"ABSTRACT",	tok_ABSTRACT,	IK | NP | NI, 	0},
+{"ABSTRACT",	tok_ABSTRACT,	IK | NP | NI,			0},
 {"ACCEPT",	tok_ACCEPT,	IK | EK,			0},
-{"ALLOCATABLE", tok_ALLOCATABLE,        IK | NI | EK | NP,      0},
+{"ALLOCATABLE", tok_ALLOCATABLE,IK | NI | EK | NP,		0},
 {"ALLOCATE",	tok_ALLOCATE,	IK | MP | NI | EK,		0},
 {"ASSIGN",	tok_ASSIGN,	IK | NP | EK | NA,		0},
 {"ASSIGNMENT",	tok_ASSIGNMENT,	NI | MP | EK | GN, 		0},
@@ -152,11 +152,11 @@ PRIVATE struct {
 {"ENDFILE",	tok_ENDFILE,	IK | EK,			3},
 {"ENDFUNCTION",	tok_ENDFUNCTION,IK | NP | NI | EK,		3},
 {"ENDIF",	tok_ENDIF,	IK | NP | NI | EK,		3},
-{"ENDINTERFACE",	tok_ENDINTERFACE,	IK | NP | NI | EK,		3},
+{"ENDINTERFACE",tok_ENDINTERFACE, IK | NP | NI | EK,		3},
 {"ENDMODULE",	tok_ENDMODULE,	IK | NP | NI | EK,		3},
 {"ENDPROGRAM",	tok_ENDPROGRAM,	IK | NP | NI | EK,		3},
 {"ENDSELECT",	tok_ENDSELECT,	IK | NP | NI | EK,		3},
-{"ENDSUBROUTINE",tok_ENDSUBROUTINE,	IK | NP | NI | EK,	3},
+{"ENDSUBROUTINE",tok_ENDSUBROUTINE, IK | NP | NI | EK,		3},
 {"ENDTYPE",	tok_ENDTYPE,	IK | NP | NI | EK,		3},
 {"ENTRY",	tok_ENTRY,	IK | NP | NI | EK,		0},
 {"EQUIVALENCE",	tok_EQUIVALENCE,IK | NI | EK | MP | NA,		0},
@@ -168,25 +168,25 @@ PRIVATE struct {
 {"GOTO",	tok_GOTO,	IK | EK,			2},
 {"IF",		tok_IF,		IK | NI | EK | MP | NA | CN,	0},
 {"IMPLICIT",	tok_IMPLICIT,	IK | NP | NI,			0},
-{"IMPURE",  tok_IMPURE,     IK | NP | NI,   0},
+{"IMPURE",	tok_IMPURE,	IK | NP | NI,			0},
 {"IN",		tok_IN,		IK | NP | NI | EK | NA,		0},
 {"INCLUDE",	tok_INCLUDE,	IK | NP | NI | EK | NA,		0},
-{"INOUT",	tok_INOUT,	IK | NI | EK,		2},
+{"INOUT",	tok_INOUT,	IK | NI | EK,			2},
 {"INQUIRE",	tok_INQUIRE,	IK | EK | MP | NA,		0},
 {"INTEGER",	tok_INTEGER,	IK | NI | EK | TY | TK,		0},
-{"INTENT",	tok_INTENT,	    IK | MP | NI | EK,		0},
-{"INTERFACE",	tok_INTERFACE,   IK | NP | NI | EK,		0},
-{"INTRINSIC",	tok_INTRINSIC,	 IK | NP | NI | EK, 		0},
+{"INTENT",	tok_INTENT,	IK | MP | NI | EK,		0},
+{"INTERFACE",	tok_INTERFACE,	IK | NP | NI | EK,		0},
+{"INTRINSIC",	tok_INTRINSIC,	IK | NP | NI | EK, 		0},
 {"LOGICAL",	tok_LOGICAL,	IK | NI | EK | TY | TK,		0},
-{"MODULE",	tok_MODULE,		IK | NP | NI | EK,		0},
+{"MODULE",	tok_MODULE,	IK | NP | NI | EK,		0},
 {"NAMELIST",	tok_NAMELIST,	IK | NP | NI | EK,		0},
 {"NONE",	tok_NONE,	IK | NI | EK | TY | NA,		0},
-{"NON_INTRINSIC",	tok_NON_INTRINSIC,	IK | NP | NI | EK ,		0},
+{"NON_INTRINSIC",tok_NON_INTRINSIC, IK | NP | NI | EK,		0},
 {"NULLIFY",	tok_NULLIFY,	IK | MP | NI | EK,		0},
 {"ONLY",	tok_ONLY,	NP | NI | EK | UK,		0},
 {"OPEN",	tok_OPEN,	IK | EK | MP | NA,		0},
-{"OPERATOR",	tok_OPERATOR,	MP | NI | EK | GN ,		0},
-{"OPTIONAL",	tok_OPTIONAL,	IK | NI ,		0},
+{"OPERATOR",	tok_OPERATOR,	MP | NI | EK | GN,		0},
+{"OPTIONAL",	tok_OPTIONAL,	IK | NI,			0},
 {"OUT",		tok_OUT,	IK | NP | NI | EK | NA,		0},
 {"PARAMETER",	tok_PARAMETER,	IK | NI | EK | MP | NA,		0},
 {"PAUSE",	tok_PAUSE,	IK | NP | EK,			0},
@@ -194,20 +194,21 @@ PRIVATE struct {
 {"POINTER",     tok_POINTER,    IK | NI | EK,			0},
 #endif
 {"PRINT",	tok_PRINT,	IK | EK,			0},
-{"PRIVATE",    tok_PRIVATE,   IK | NP | NI | EK ,   0},
-{"PROCEDURE",   tok_PROCEDURE,   NP | NI | EK ,   0},
+{"PRIVATE",	tok_PRIVATE,	IK | NP | NI | EK,		0},
+{"PROCEDURE",	tok_PROCEDURE,	NP | NI | EK,			0},
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
-{"PROTECTED",   tok_PROTECTED,	IK | NI ,		0},
-{"PUBLIC",    tok_PUBLIC,   IK | NP | NI | EK,   0},
-{"PURE",    tok_PURE,   IK | NP | NI,   0},
-{"READ",	tok_READ,	IK | EK | GN,	0},
+{"PROTECTED",   tok_PROTECTED,	IK | NI ,			0},
+{"PUBLIC",	tok_PUBLIC,	IK | NP | NI | EK,		0},
+{"PURE",	tok_PURE,	IK | NP | NI,			0},
+{"READ",	tok_READ,	IK | EK | GN,			0},
 {"REAL",	tok_REAL,	IK | NI | EK | TY | TK,		0},
-{"RECURSIVE",   tok_RECURSIVE,   IK | NP | NI,   0},
+{"RECURSIVE",   tok_RECURSIVE,	IK | NP | NI,			0},
 {"RESULT",	tok_RESULT,	IK | NI | EK | MP | NA,		0},
 {"RETURN",	tok_RETURN,	IK | EK,			0},
 {"REWIND",	tok_REWIND,	IK | EK,			0},
 {"SAVE",	tok_SAVE,	IK | NP | NI | EK,		0},
 {"SELECTCASE",	tok_SELECTCASE,	IK | MP | NI | EK | NA | CN | MB,6},
+{"SEQUENCE",    tok_SEQUENCE,   IK | NP | NI | EK,		0},
 {"STOP",	tok_STOP,	IK | NP | EK,			0},
 {"SUBROUTINE",	tok_SUBROUTINE,	IK | NP | NI | EK,		0},
 {"TARGET",      tok_TARGET,     IK | NI | EK | NP,              0},
@@ -215,10 +216,9 @@ PRIVATE struct {
 {"TO",		tok_TO,		NI | EK,			0},
 {"TYPE",	tok_TYPE,	IK | NI | EK | TY,		0},
 {"USE",		tok_USE,	IK | NP | NI | EK, 		0},
-{"VOLATILE",   tok_VOLATILE,	IK | NI ,		0},
+{"VOLATILE",	tok_VOLATILE,	IK | NI,			0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},
 {"WRITE",	tok_WRITE,	IK | EK | MP | NA | GN,		0},
-
 };
 
 
@@ -461,12 +461,15 @@ src_text_buf[src_text_len] = '\0';
 		    token->src_text = hashtab[h].name;
 				/* If it is an array give it a special token
 				   class, so that arrays can be distinguished
-				   from functions in the grammar. */
-		    if((symt=hashtab[h].loc_symtab) != NULL
+				   from functions in the grammar.  However,
+				   mask out possible name in enclosing scope
+				   if this is a component name.
+				*/
+		    if(prev_token_class != '%' &&
+		       (symt=hashtab[h].loc_symtab) != NULL
 		       && symt->array_var) {
 		      token->tclass = tok_array_identifier;
-
-	  }
+		    }
 	}
 	else {			/* It is a keyword.  Embedded space OK if
 				   it is where allowed, but only one.  */
