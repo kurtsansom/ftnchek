@@ -163,7 +163,9 @@ PRIVATE int
     contains_ended,		/* var to remember that a CONTAINS block just ended */
     inside_function=FALSE,	/* is inside a function */
     contains_sect=FALSE,	/* for contains block */
-    interface_block=FALSE;  /* for interface block */
+    interface_block=FALSE,	/* for interface block */
+    sequence_dtype=FALSE,	/* for derived types with SEQUENCE attr */
+    private_dtype=FALSE;	/* for derived types with PRIVATE attr */
 /*----------------------------------------------------*/
 
 
@@ -178,8 +180,6 @@ int
     integer_context=FALSE,	/* says integers-only are to follow */
     use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
     generic_spec_allowed=FALSE; /* help for recognizing generic_spec */
-
-    dtype_table_top = MIN_DTYPE_ID;
 
 		/* Macro for initializing attributes of type decl. */
 #define reset_type_attrs() (\
@@ -268,6 +268,7 @@ PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
 SUBPROG_TYPE find_subprog_type(int stmt_class);
 PRIVATE int get_curr_block_class();
 PRIVATE char *get_curr_block_name();
+PRIVATE void block_stack_top_swap();
 
 		/* Uses of Token fields for nonterminals: */
 /* NOTE: As of Aug 1994 these are undergoing revision to separate the
@@ -479,9 +480,16 @@ stmt_list_item	:	ordinary_stmt
 				 */
 			    if(block_depth > 1 &&
 			       block_stack[block_depth-2].first_line == $1.line_num) {
-				BlockStack temp = block_stack[block_depth-1];
-				block_stack[block_depth-1] = block_stack[block_depth-2];
-				block_stack[block_depth-2] = temp;
+			      block_stack_top_swap();
+				/* If said block construct has pushed local scope,
+				   (currently only applies to TYPE statement)
+				   then the scope stack likewise needs to have
+				   its top two entries swapped so the %MAIN is
+				   outside the construct's scope.
+				 */
+			      if( curr_scope_bottom != 0 ) {
+				symtab_top_swap();
+			      }
 			    }
 			  }
 
@@ -916,6 +924,8 @@ specif_stmt	:	dimension_stmt
 			    pop_loc_scope();
 		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
 		 	    curr_stmt_name = NULL;
+			    sequence_dtype = FALSE;
+			    private_dtype = FALSE;
 			}
 		|	sequence_stmt
 		;
@@ -1179,7 +1189,7 @@ function_stmt	:   unlabeled_function_stmt EOS
 			{
                 if (block_depth > 0 &&
                         block_stack[block_depth-1].sclass == tok_MODULE ||
-                        // external subprog has not been pushed yet
+		    /* external subprog has not been pushed yet */
                         block_depth == 0) {
                     do_suffix(tok_FUNCTION, module_subprog,
                         current_prog_unit_hash,&($2),$1.value.integer);
@@ -1472,7 +1482,7 @@ subroutine_stmt	:   unlabeled_subroutine_stmt EOS
 			{
                 if (block_depth > 0 &&
                         block_stack[block_depth-1].sclass == tok_MODULE ||
-                        // external subprog has not been pushed yet
+		    /* external subprog has not been pushed yet */
                         block_depth == 0) {
                     do_bind_spec(($2).left_token,module_subprog);
                 }
@@ -2698,6 +2708,21 @@ access_spec	:	tok_PUBLIC
         	|	tok_PRIVATE
 			{
 			  generic_spec_allowed = TRUE;
+
+			  if (sequence_dtype) {
+			    syntax_error($1.line_num,$1.col_num,
+			      "SEQUENCE statement already seen for current derived type definition");
+			  }
+			  else if (private_dtype) {
+			    syntax_error($1.line_num,$1.col_num,
+			      "PRIVATE statement already seen for current derived type definition");
+			  }
+			  else {
+			    private_dtype = TRUE;
+			    int h = hash_lookup(get_curr_block_name());
+			    Lsymtab *symt = hashtab[h].loc_symtab;
+			    symt->private = TRUE;
+			  }
 			}
         	;
 
@@ -2705,6 +2730,29 @@ sequence_stmt	:	tok_SEQUENCE
 			/* sequence attribute is mutually exclusive of
 			 * private attribute in derived type definitions
 			 */
+			{
+			  if (block_stack[block_depth-1].sclass !=
+			      tok_TYPE) {
+			    syntax_error($1.line_num,$1.col_num,
+			      "SEQUENCE statement is only allowed in derived type definitions");
+			  }
+			  else if (private_dtype) {
+			    syntax_error($1.line_num,$1.col_num,
+			      "PRIVATE statement already seen for current derived type definition");
+			  }
+			  else {
+			    if (sequence_dtype) {
+			      syntax_error($1.line_num,$1.col_num,
+			        "SEQUENCE statement already seen for current derived type definition");
+			    }
+			    else {
+			      sequence_dtype = TRUE;
+			      int h = hash_lookup(get_curr_block_name());
+			      Lsymtab *symt = hashtab[h].loc_symtab;
+			      symt->sequence = TRUE;
+			    }
+			  }
+			}
 		;
 
 access_stmt	:	access_spec EOS /* PUBLIC or PRIVATE statement */
@@ -2768,8 +2816,18 @@ derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')'
 			  if(see_double_colon())
 			    in_attrbased_typedecl = TRUE;
 
-			  /* datatype is index of dtype_table */
-			  current_datatype = dtype_table_top;
+			  /* When a component is declared to be of the
+			     same type */
+			  if (block_stack[block_depth-1].sclass ==
+			        tok_TYPE && 
+			      strcmp(block_stack[block_depth-1].name,
+			             (&($3))->src_text) == 0) {
+			    current_datatype = dtype_table_top;
+			  }
+			  else {
+			  /* otherwise datatype is index of dtype_table */
+			    current_datatype = find_Dtype(&($3));
+			  }
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 			}
@@ -2781,12 +2839,10 @@ derived_type_decl_list:	derived_type_decl_item
 
 derived_type_decl_item:	symbolic_name
 			{
-			     /*
 			     declare_type(&($1),
 					  current_datatype,
 					  current_typesize,
 					  current_len_text);
-			     */
 			     process_attrs(&($1),current_dim_bound_list);
 			}
 		;
@@ -2803,7 +2859,7 @@ implicit_handle	:	tok_IMPLICIT {implicit_flag=TRUE;}
 implicit_stmt	:	implicit_handle implicit_decl_list EOS
 			{
 			    implicit_flag=FALSE;
-			    //if(implicit_none) {
+			    /* if(implicit_none) { */
 			    if(implicit_info.implicit_none) {
 				syntax_error($1.line_num,$1.col_num,
 				     "conflicts with IMPLICIT NONE");
@@ -2824,7 +2880,6 @@ implicit_stmt	:	implicit_handle implicit_decl_list EOS
 			    else {
 			      if(f77_implicit_none)
 				      nonstandard($2.line_num,$2.col_num,0,0);
-			      //implicit_none = TRUE;
 				  set_implicit_none();
 			    }
 			    check_f90_stmt_sequence(&($1),F90_SEQ_IMPLICIT_NONE);
@@ -5226,7 +5281,6 @@ init_parser(VOID)			/* Initialize various flags & counters */
 	implicit_flag=FALSE;	/* clear flags for IMPLICIT stmt */
 	implicit_letter_flag = FALSE;
 	implicit_type_given = FALSE;
-	//implicit_none = FALSE;
 	global_save = FALSE;
 	module_accessibility = 0; /* default */
 	prev_token_class = EOS;
@@ -5339,7 +5393,7 @@ print_exprlist(s,t)
 		(void)fprintf(list_fd,"(empty)");
 	else {
   	    while( (t=t->next_token) != NULL) {
-		  fprintf(list_fd,"%s ",type_name[datatype_of(t->TOK_type)]);
+		  fprintf(list_fd,"%s ",type_name(datatype_of(t->TOK_type)));
 		  if( is_true(ID_EXPR,t->TOK_flags) )
 			(void)fprintf(list_fd,"(%s) ",token_name(t));
 	    }
@@ -5358,7 +5412,7 @@ print_comlist(s,t)
 		(void)fprintf(list_fd,"(empty)");
 	else {
   	    while( (t=t->next_token) != NULL) {
-		  fprintf(list_fd,"%s ",type_name[datatype_of(t->TOK_type)]);
+		  fprintf(list_fd,"%s ",type_name(datatype_of(t->TOK_type)));
 		  if( is_true(ID_EXPR,t->TOK_flags) )
 			(void)fprintf(list_fd,"(%s) ",token_name(t));
 		}
@@ -5672,7 +5726,6 @@ END_processing(t)
   }
 
   implicit_type_given = FALSE;
-  //implicit_none = FALSE;
   true_prev_stmt_line_num = 0;
   integer_context = FALSE;
   global_save = FALSE;
@@ -6144,16 +6197,13 @@ SUBPROG_TYPE find_subprog_type(int stmt_class)
 {
 	if (!contains_sect || (stmt_class != tok_SUBROUTINE &&
 		stmt_class != tok_FUNCTION))
-		//block_stack[block_depth].subprogtype = not_subprog;
 		return not_subprog;
 	else { /* a subprogram inside a contains block is either
 			  a module subprogram or an internal subprogram */
 		if (block_depth > 0 && block_stack[block_depth-1].sclass
 				== tok_MODULE)
-			//block_stack[block_depth].subprogtype = module_subprog;
 			return module_subprog;
 		else
-			//block_stack[block_depth].subprogtype = internal_subprog;
 			return internal_subprog;
 	}
 }
@@ -6171,3 +6221,14 @@ char *get_curr_block_name()
   return block_stack[block_depth-1].name;
 }
 
+/* Routine to swap the top two entries on block stack.  This is
+   called when first line of a program is opener of a block
+   construct.  That block construct opener was already pushed,
+   and the %MAIN opener needs to come first.
+ */
+void block_stack_top_swap()
+{
+  BlockStack temp = block_stack[block_depth-1];
+  block_stack[block_depth-1] = block_stack[block_depth-2];
+  block_stack[block_depth-2] = temp;
+}

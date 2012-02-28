@@ -1157,7 +1157,7 @@ OPT(int,novice_help,TRUE);	/* Extra help for novices */
  * one for arugments
  * and other for variables in a common block
  */
-//OPT(int,pure_functions,TRUE); 
+/* OPT(int,pure_functions,TRUE); */
 OPT(int,quiet,FALSE);		/* Less verbose output format */
 OPT(int,sixclash,FALSE);	/* To check if names unique in 1st 6 chars */
 OPT(int,print_topo_sort,FALSE);	/* Topological sort of prog units */
@@ -1355,7 +1355,7 @@ PROTO(char* ulongtostr, (unsigned long num));
 		/* Maximum length of a longtostr() result */
 #define MAX_ULONGTOSTR (3*sizeof(unsigned long))
 
-// used in blockstack to differentiate module and internal subprograms
+/* used in blockstack to differentiate module and internal subprograms */
 typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
 
 	/* in pgsymtab.c */

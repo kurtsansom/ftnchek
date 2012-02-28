@@ -266,7 +266,6 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 		continue;
 #endif
 			/*  function return val: ignore 'set but never used' */
-	    //if( list[i]->entry_point && pattern == flag_combo(0,1,0) )
 	    if( list[i]->result_var && pattern == flag_combo(0,1,0) )
 		continue;
 
@@ -603,7 +602,6 @@ check_loose_ends(curmodhash)
 	loc_symtab[i].size == size_ADJUSTABLE &&
        !(loc_symtab[i].argument ||
 	   loc_symtab[i].parameter ||
-	     //loc_symtab[i].entry_point) ) {
 	     loc_symtab[i].result_var) ) {
 	local_err_head(hashtab[curmodhash].name,
 		     choose_filename(&loc_symtab[i],file_declared),
@@ -619,7 +617,6 @@ check_loose_ends(curmodhash)
 	 loc_symtab[i].argument ||
 	 loc_symtab[i].external ||
 	 loc_symtab[i].parameter ||
-	 //loc_symtab[i].entry_point) ) {
 	 loc_symtab[i].result_var) ) {
 	local_err_head(hashtab[curmodhash].name,
 		     choose_filename(&loc_symtab[i],file_declared),

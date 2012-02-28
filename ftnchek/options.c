@@ -224,8 +224,6 @@ PRIVATE struct {
 		 "print program listing",NOT_A_CHECK},
 	{"novice",	&novice_help,
 		 "extra help for novices",NOT_A_CHECK},
-	//{"pure",	&pure_functions,
-	//	 "functions have no side effects",IS_A_CHECK},
 	{"quiet",	&quiet,
 		 "less verbose output",NOT_A_CHECK},
 	{"reference",	&print_ref_list,

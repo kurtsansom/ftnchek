@@ -12,7 +12,14 @@
 /* Implementation allows type numbers to be 12 bits. Hence 2^12 = 4096 */
 #define MAX_DTYPES 4096
 
-int dtype_table_top; 	/* starting index in Dtype_table */
+
+
+DTYPE_SHARED
+int dtype_table_top 	/* starting index in Dtype_table */
+#ifdef DTYPE
+=MIN_DTYPE_ID	/* initialize to first slot after elem types */
+#endif
+;
 
 typedef struct DerivedTypeComponent {
   int id;
@@ -44,7 +51,7 @@ typedef struct DtypeTableEntry {
 DTYPE_SHARED
 Dtype *dtype_table[MAX_DTYPES];	/* stores derived type defs */
 
-int find_Dtype(char *name);	/* linearly search for derived type 
+int find_Dtype(Token *t);	/* linearly search for derived type 
 				   definition with same name */
 void process_dtype_components(char *name);
 void def_dtype(Token *id);

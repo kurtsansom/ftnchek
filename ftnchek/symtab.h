@@ -237,7 +237,7 @@ char *class_name[]
 #endif
 ;
 SYM_SHARED
-char *type_name[]		/* Type names as used in warnings etc.
+char *elementary_type_name[]		/* Type names as used in warnings etc.
 				   NOTE: Constrained to 4 letters */
 #ifdef SYMTAB
  = {
@@ -324,11 +324,13 @@ BYTE type_size[]
 		/* implicit and default typing lookup table.  Two extra spots
 		   provided to accommodate '$' and '_' too.  The size defns
 		   should accommodate EBCDIC as well as ASCII. */
-//SYM_SHARED
-//int implicit_type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
-//    implicit_size[('Z'-'A'+1)+2];
-//SYM_SHARED
-//char *implicit_len_text[('Z'-'A'+1)+2];
+/*
+SYM_SHARED
+int implicit_type[('Z'-'A'+1)+2],	// indexed by [char - 'A']
+    implicit_size[('Z'-'A'+1)+2];
+SYM_SHARED
+char *implicit_len_text[('Z'-'A'+1)+2];
+*/
 
 
 	/* Declaration of Token data structure.  N.B. do not change without
@@ -358,7 +360,7 @@ struct tokstruct {
 	long size;		/* sizeof(datatype) */
 	type_t TOK_type;	/* Storage class & data type of identifier */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
-	//int symtab_index;	/* symtab top when encountered (for scoping)*/
+	/* int symtab_index; */	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
 	COLNO_t col_num;	/* Column where token occurred */
 	unsigned size_is_adjustable : 1;
@@ -376,7 +378,14 @@ typedef struct tokstruct Token;
 
 SYM_SHARED
 long loc_symtab_top,	/* Next avail spot in local symbol table */
-   glob_symtab_top;		/* Ditto global */
+   curr_scope_bottom	/* Start in local symbol table of innermost scope */
+#ifdef SYMTAB
+= -1
+#endif
+    ,
+   glob_symtab_top;	/* Next avail spot in global symbol table */
+
+
 
 SYM_SHARED
 unsigned long loc_str_top;	/* Top of local stringspace */
@@ -704,7 +713,7 @@ typedef struct hashEntry {
 } HashTable;
 
 SYM_SHARED
-    int current_prog_unit_hash	/* hashtable index of current prog unit name */
+  int current_prog_unit_hash	/* hashtable index of current prog unit name */
 #ifdef SYMTAB
  = -1
 #endif
@@ -721,32 +730,35 @@ Implicit implicit_info;
 
 PROTO(void set_implicit_none, ( void ));
 
-//int implicit_type[('Z'-'A'+1)+2],	/* indexed by [char - 'A'] */
-//    implicit_size[('Z'-'A'+1)+2];
-//SYM_SHARED
-//char *implicit_len_text[('Z'-'A'+1)+2];
+/*
+int implicit_type[('Z'-'A'+1)+2],	// indexed by [char - 'A']
+    implicit_size[('Z'-'A'+1)+2];
+SYM_SHARED
+char *implicit_len_text[('Z'-'A'+1)+2];
+*/
 
 /* Local scope management */
 
 typedef struct scope_struct {
-    int symt_index; // array index in local symbol table
-    int hash_num;   // hash number for current scoping unit
+    int symt_index; /* array index in local symbol table */
+    int hash_num;   /* hash number for current scoping unit */
     int exec_stmt_count;
     Implicit implicit;
 } Scope;
-SYM_SHARED int curr_scope_bottom; /* first symtab entry of current scope */
+
 SYM_SHARED Scope loc_scope[MAXSCOPES]; /* stores local scope info */
-SYM_SHARED int loc_scope_top;    // next available slot in scope stack
+SYM_SHARED int loc_scope_top;    /* next available slot in scope stack */
 
 PROTO(void push_loc_scope, ( void )); /* open a new scope */
 PROTO(int pop_loc_scope, ( void ));		/* exit a scope */
+PROTO(void symtab_top_swap, (void));  /* swap top items on symtab */
 PROTO(int in_curr_scope, ( const Lsymtab *entry ));/* test symt entry in scope */
 PROTO(int find_scope, ( const Lsymtab *entry )); /* return index of scope that entry belongs to */
 PROTO(int empty_scope,( void ));
 
 /* Global scope management */
 
-void clean_globals(int h, SUBPROG_TYPE limit); // check if global symbol table entries are true globals
+void clean_globals(int h, SUBPROG_TYPE limit); /* check if global symbol table entries are true globals */
 
 				/* Symbolic names for I/O access modes */
 typedef enum {
@@ -1095,6 +1107,7 @@ PROTO(void save_com_block,( Token *id ));
 PROTO(void set_implicit_type,( int type, long size, char *len_text, int c1, int c2 ));
 PROTO(void stmt_function_stmt,( Token *id ));
 PROTO(char * token_name,( Token *t ));
+PROTO(char * type_name,( type_t t ));
 PROTO(void undef_do_variable,( int h ));
 PROTO(void use_actual_arg,( Token *id ));
 PROTO(void use_implied_do_index,( Token *id ));

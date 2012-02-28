@@ -310,8 +310,6 @@ get_identifier(token)
 				 */
 	  if(possible_keyword) {
 
-	    //if(!isaletter(c)	/* If not alphabetic, cannot be keyword */
-
         /* Keyword can now have underscore. E.g. NON_INTRINSIC */
 	    if(!(isaletter(c) || c == '_')
 	       || klen >= sizeof(keywords[0].name)-1) /* or overlength */

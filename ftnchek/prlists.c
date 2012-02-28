@@ -169,8 +169,6 @@ else {
 
 			/* Are we inside a function or subroutine? */
 		    case class_VAR:
-		      //if( i < curr_scope_bottom ) /* skip defn if not in local scope */
-		//	continue;
 
 		       if(loc_symtab[i].entry_point) {
 if((gsymt=hashtab[h].glob_symtab) == NULL) {
@@ -248,7 +246,6 @@ else {
 			   * scope, which can be determined from symtab index.
 			   */
 
-//			 if( head_ptr->symtab_index >= curr_scope_bottom ) { /* in curr scope */
 			  if(head_ptr->external_decl || head_ptr->actual_arg)
 			    a=make_arrayless_alist();
 			  else {
@@ -276,7 +273,6 @@ else {
 			    make_arg_names(head_ptr->tokenlist,
 					   a,gsymt->info.arglist);
 			  }
-			 //}
 			  implied_type = get_type(&(loc_symtab[i]));
 			  a->type = type_pack(
 			         class_SUBPROGRAM,implied_type);

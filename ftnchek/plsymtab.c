@@ -452,7 +452,7 @@ print_var_type(fd,symt)	/* Prints type name then size if explicit */
   int t = get_type(symt);
   int s = get_size(symt,t);
 
-	  (void)fprintf(fd," %s",type_name[t]);
+	  (void)fprintf(fd," %s",type_name(t));
 
 		/* Usually either size or * will be printed, and usually
 		   size is 1 digit.  So mostly we print 1 column in
@@ -512,7 +512,7 @@ print_arg_array(arglist)	/* prints type and flag info for arguments */
 			i+1,
 			a[i].name,
 			class_name[storage_class_of(a[i].type)],
-			type_name[datatype_of(a[i].type)]
+			type_name(datatype_of(a[i].type))
 		);
 		if(a[i].size != size_DEFAULT)
 		    (void)fprintf(list_fd,
@@ -584,7 +584,7 @@ print_com_array(cmlist)
 			"\n\t%d %s %s",
 			i+1,
 			c[i].name,
-			type_name[datatype_of(c[i].type)]
+			type_name(datatype_of(c[i].type))
 		);
 		if(c[i].size != size_DEFAULT)
 		    (void)fprintf(list_fd,
@@ -627,7 +627,7 @@ print_tokenlist(toklist)	/* prints list of token names or types */
 		(void)fprintf(list_fd," %s %s %s",
 			t->src_text,
 			class_name[storage_class_of(t->TOK_type)],
-			type_name[datatype_of(t->TOK_type)]
+			type_name(datatype_of(t->TOK_type))
 		);
 		t = t->next_token;
 	    }
@@ -654,7 +654,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 		i,
 		loc_symtab[i].name,
 		class_name[storage_class_of(loc_symtab[i].type)],
-		type_name[datatype_of(loc_symtab[i].type)]
+		type_name(datatype_of(loc_symtab[i].type))
 	);
 	if( loc_symtab[i].size != size_DEFAULT )
 	    (void)fprintf(list_fd,
@@ -708,7 +708,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 		i,
 		glob_symtab[i].name,
 		class_name[storage_class_of(glob_symtab[i].type)],
-		type_name[datatype_of(glob_symtab[i].type)]
+		type_name(datatype_of(glob_symtab[i].type))
 	     );
 	    if( glob_symtab[i].size != size_DEFAULT )
 		(void)fprintf(list_fd,

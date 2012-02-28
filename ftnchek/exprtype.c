@@ -146,12 +146,12 @@ sized_typename(type,size)
   static char *char_unk="char*(?)";
   static char *char_adj="char*(*)";
   if(size == size_DEFAULT) {
-    return type_name[type];	/* no explicit size */
+    return type_name(type);	/* no explicit size */
   }
   else {
     if(type != S || size > 0) {
       (void)sprintf(strbuf,"%4s*%ld",	/* type*size */
-	    type_name[type],
+	    type_name(type),
 	    size%1000000);
     }
     else {			/* handle special character size codes */
@@ -405,7 +405,7 @@ binexpr_type(term1,op,term2,result)
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest)
   (void)fprintf(list_fd,"\nt1=%s s1=%d ls1=%d t2=%s s2=%d ls2=%d",
-	  type_name[t1],s1,ls1, type_name[t2], s2, ls2);
+	  type_name(t1),s1,ls1, type_name(t2), s2, ls2);
 #endif
 	if(tc1 == tc2) {/* same type category */
 				/* Intrins args: size promotion illegal */

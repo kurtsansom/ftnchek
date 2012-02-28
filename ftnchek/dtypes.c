@@ -10,13 +10,16 @@
 /* Looks for a derived type with matching name and returns its index from
  * Dtype_table
  */
-int find_Dtype(char *name){
+int find_Dtype(Token *t){
   int i;
+  char *name = hashtab[t->value.integer].name;
 
-  if (dtype_table_top == 0) {
+  /*
+  if (dtype_table_top == MIN_DTYPE_ID) {
     oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
                  "No derived type definitions have been created");
   }
+  */
 
   /* start from top which is MIN_DTYPE_ID so latest masking derived type is returned */
   for (i = dtype_table_top - 1; i >= MIN_DTYPE_ID; i++) {
@@ -35,6 +38,12 @@ void def_dtype(Token *id)
 {
   int h = id->value.integer;
   Lsymtab *symt = hashtab[h].loc_symtab;
+
+  if (dtype_table_top == MAX_DTYPES) {
+    oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
+                 "Reached max limit for derived types");
+    return;
+  }
 
   if (symt != NULL && in_curr_scope(symt)){
   	syntax_error(id->line_num,id->col_num,"Type name is in use");
@@ -55,12 +64,6 @@ void process_dtype_components(char *name)
   Lsymtab *symt = NULL;
   DtypeComponent *curr; 
   Dtype *dtype;
-
-  if (dtype_table_top == MAX_DTYPES) {
-    oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
-                 "Reached max limit for derived types");
-    return;
-  }
 
   if ( (dtype = (Dtype *)malloc(sizeof(Dtype))) == (Dtype *)NULL) {
     oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
@@ -106,7 +109,18 @@ void process_dtype_components(char *name)
     curr->private = loc_symtab[i].private;
     curr++;
   }
-
   dtype_table[dtype_table_top++] = dtype;
 }
 
+/* Routine to return the standard type name of elementary types or
+   the name of derived types.
+ */
+char *type_name(type_t t)
+{
+   if(t < MIN_DTYPE_ID) {		/* elementary type */
+      return elementary_type_name[t];
+   }
+   else {
+      return dtype_table[t]->name;	/* derived type */
+   }
+}

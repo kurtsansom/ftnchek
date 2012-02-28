@@ -74,7 +74,8 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
  relops.f embedded-space.f arg-alias.f common-alias.f dec-parameter.f\
  iffy.f pure-function.f primes.f labeltest.f case.f allkeywords.f\
  blockerrors.f t208f.f lotsalabels.f initializers.f cray-pointers.f\
- keyvars.f empty.f varfmt.f entry1.f entry2.f entry3.f entry4.f
+ keyvars.f empty.f varfmt.f entry1.f entry2.f entry3.f entry4.f\
+ type-first-stmt.f type-notfirst-stmt.f
 
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   internalsub.f90 modulesub.f90 embedded-space-free.f90

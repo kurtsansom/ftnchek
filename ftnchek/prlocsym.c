@@ -150,7 +150,7 @@ print_loc_symbols(VOID)
 
 	  (void)fprintf(list_fd,"\n\nProg unit %s:",progunit_name);
 	  if( this_is_a_function ) (void)fprintf(list_fd," func:");
-	  (void)fprintf(list_fd," %4s",type_name[progunit_type]);
+	  (void)fprintf(list_fd," %4s",type_name(progunit_type));
 			/* Print a * next to non-declared function name */
 	  if(datatype_of(prog_unit->type) == type_UNDECL ) {
 			(void)fprintf(list_fd,"*");
@@ -809,7 +809,7 @@ int print_dtypes(Lsymtab *sym_list[], int n)
 	     (void)fprintf(list_fd," ");
 
 	  (void)fprintf(list_fd,"%10s",components[j].name);
-	  (void)fprintf(list_fd," %s",type_name[t]);
+	  (void)fprintf(list_fd," %s",type_name(t));
 	  if( s != size_DEFAULT )
 	     (void)fprintf(list_fd,"%d",s);
 	  /* Append ^ on pointers and - on private components */
