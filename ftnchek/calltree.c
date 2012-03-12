@@ -57,7 +57,7 @@ as the "MIT License."
 PROTO(PRIVATE int block_is_volatile,( ComListHeader *clist, Gsymtab *main_prog_unit ));
 PROTO(PRIVATE ComListHeader * com_tree_check,( Gsymtab *comblock, Gsymtab
 				       *prog_unit, int level ));
-PROTO(PRIVATE void visit_child,( Gsymtab *gsymt, int level ));
+PROTO(PRIVATE void visit_child,( Gsymtab *gsymt, int level, int wrapup ));
 PROTO(PRIVATE void visit_child_reflist,( Gsymtab *gsymt ));
 #ifdef VCG_SUPPORT
 PROTO(PRIVATE void visit_child_vcg,( Gsymtab *gsymt, int level ));
@@ -77,111 +77,6 @@ PROTO(PRIVATE void print_prog_units,( unsigned n, Gsymtab *list[] ));
 PRIVATE int com_tree_error;
 PRIVATE int numvisited;
 
-/**********************************************************************************
-*
-* append_extension (imported as-is from ftnchek.c ftnchek 3.1.1)
-*
-* MODE_DEFAULT_EXT: Adds extension to file name s if
-*                  none is present, and returns a pointer to the
-*                  new name.  If extension was added, space is allocated
-*                  for the new name.  If not, simply  returns pointer
-*                  to original name.  
-* MODE_REPLACE_EXT: same, except given extension replaces given one if any.
-*
-* Returns char * to newly allocated name string.
-*
-**********************************************************************************/
-#define MODE_DEFAULT_EXT 1
-#define MODE_REPLACE_EXT 2
-PRIVATE char *
-#if HAVE_STDC
-append_extension( char *s, char *ext, int mode )
-#else                        /* K&R style */
-append_extension( s, ext, mode )
-     char *s, *ext;
-     int mode;
-#endif                       /* HAVE_STDC */
-   {
-   int i, len;
-   char *newname;
-#ifdef OPTION_PREFIX_SLASH                      /* set len=chars to NUL or start
-                                                *  of /opt */
-   for ( len = 0; s[len] != '\0' && s[len] != '/'; len++ )
-      continue;
-#else
-   len = ( unsigned ) strlen( s );
-#endif
-   /*
-   *  Search backwards till find the dot, but do not search past directory
-   *  delimiter 
-   */
-   for ( i = len - 1; i > 0; i-- )
-      {
-      if ( s[i] == '.'
-#ifdef UNIX
-           || s[i] == '/'
-#endif
-#ifdef VMS
-           || s[i] == ']' || s[i] == ':'
-#endif
-#ifdef MSDOS
-           || s[i] == '\\' || s[i] == ':'
-#endif
-          )
-         break;
-      }
-
-   if ( mode == MODE_REPLACE_EXT )
-      {
-      if ( s[i] == '.' )                        /* declare length = up to the dot */
-         len = i;
-      newname =
-         ( char * )
-         malloc( ( unsigned ) ( len + ( unsigned ) strlen( ext ) + 1 ) );
-      ( void ) strncpy( newname, s, len );
-      ( void ) strcpy( newname + len, ext );
-      }
-   else
-      {                                         /* MODE_DEFAULT_EXT */
-#ifdef OPTION_PREFIX_SLASH
-      /*
-      *  create new string if new ext or trailing /option 
-      */
-      if ( s[i] != '.' || s[len] != '\0' )
-         {
-         if ( s[i] != '.' )
-            {                                   /* no extension given */
-            newname = ( char * ) malloc( ( unsigned ) ( len +
-                                                        ( unsigned ) strlen( ext )
-                                                        + 1 ) );
-            ( void ) strncpy( newname, s, len );
-            ( void ) strcpy( newname + len, ext );
-            }
-         else
-            {                                   /* extension given but /option
-                                                *  follows */
-            newname = ( char * ) malloc( ( unsigned ) ( len + 1 ) );
-            ( void ) strncpy( newname, s, len );
-            }
-         }
-#else
-      if ( s[i] != '.' )
-         {
-         newname = ( char * ) malloc( ( unsigned ) ( len +
-                                                     ( unsigned ) strlen( ext ) +
-                                                     1 ) );
-         ( void ) strcpy( newname, s );
-         ( void ) strcat( newname, ext );
-         }
-#endif
-      else
-         {
-         newname = s;                           /* use as is */
-         }
-      }
-
-   return newname;
-   }
 
 
 void
@@ -259,7 +154,7 @@ com_xref_list(VOID)	/* Print cross-reference list of com blocks */
 }
 
 void
-visit_children(VOID)
+visit_children(int wrapup)
 {
   int i,
 	num_mains,		/* number of main programs */
@@ -268,18 +163,36 @@ visit_children(VOID)
   
   num_roots =  0;
   for(i=0; i<glob_symtab_top; i++) {
-    if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM
-       && ! glob_symtab[i].internal_entry) {
-      glob_symtab[i].link.child_list=
-	sort_child_list(glob_symtab[i].link.child_list);
+    if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM) {
+
+      /* Clear visited flags set in previous calls (for module &
+	 internal subprog argchecks). */
+      glob_symtab[i].visited = FALSE;
+
+      if( glob_symtab[i].internal_entry ) {
+	glob_symtab[i].link.prog_unit->visited_somewhere = FALSE;
+      }
+      else {
+	glob_symtab[i].visited_somewhere = FALSE;
+
+	/* At end, either sort children of each subprog or put in call order */
+	if(wrapup) {
+	  glob_symtab[i].link.child_list=
+	    sort_child_list(glob_symtab[i].link.child_list);
+	}
+
+
 	/* Count defined but uncalled non-library prog units for use later */
-      if(glob_symtab[i].defined && !glob_symtab[i].used_flag &&
-	 !glob_symtab[i].library_prog_unit)
+	if(glob_symtab[i].defined && !glob_symtab[i].used_flag &&
+	   !glob_symtab[i].library_prog_unit)
 	  ++num_roots;	/* Count tree roots for use if no mains */
+      }
     }
   }
 
-  if(print_ref_list)
+	/* Print heading for call tree output if it was requested */
+  if(wrapup) {
+   if(print_ref_list)
     (void)fprintf(list_fd,"\nList of subprogram references:");
 #ifdef VCG_SUPPORT
   else if(print_vcg_list) {
@@ -289,39 +202,42 @@ visit_children(VOID)
 			/* Global graph options go here.  See ftnchek.h.
 			*/
     (void)fprintf(vcg_fd,VCG_GRAPH_OPTIONS);
-  }
+   }
 #endif
-  else if(print_call_tree)
+   else if(print_call_tree)
     (void)fprintf(list_fd,"\nTree of subprogram calls:");
+  }
 
 				/* Visit children of all main progs */
   for(i=0,num_mains=0; i<glob_symtab_top; i++) {
     if(glob_symtab[i].type == type_pack(class_SUBPROGRAM,type_PROGRAM)) {
       main_prog_unit = &glob_symtab[i];
-      if(print_ref_list)
+      if(wrapup && print_ref_list)
 	visit_child_reflist(main_prog_unit);
 #ifdef VCG_SUPPORT
-      else if(print_vcg_list)
+      else if(wrapup && print_vcg_list)
 	visit_child_vcg(main_prog_unit,1);
 #endif
       else
-	visit_child(main_prog_unit,0);
+	visit_child(main_prog_unit,0,wrapup);
       ++num_mains;
     }
   }
-				/* If no main program found, give
+				/* If no main program found at wrapup, give
 				   warning unless -noextern was set */
   if(num_mains == 0) {
-    if(print_call_tree || print_ref_list
+    if(wrapup) {
+      if(print_call_tree || print_ref_list
 #ifdef VCG_SUPPORT
-       || print_vcg_list
+	 || print_vcg_list
 #endif
-       ) {
-      (void)fprintf(list_fd,"\n  (no main program found)");
-    }
-    else if(usage_ext_undefined) {
-      (void)fprintf(list_fd,
-	"\nNo main program found");
+	 ) {
+	(void)fprintf(list_fd,"\n  (no main program found)");
+      }
+      else if(usage_ext_undefined) {
+	(void)fprintf(list_fd,
+		      "\nNo main program found");
+      }
     }
 		/* If no main, visit trees rooted at uncalled
 		   nonlibrary routines, as the next best thing.
@@ -333,24 +249,28 @@ visit_children(VOID)
       if(storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM
 	&& glob_symtab[i].defined && !glob_symtab[i].used_flag &&
 	 (num_roots == 0 || !glob_symtab[i].library_prog_unit) ) {
-	if(print_ref_list)
+	if(wrapup && print_ref_list)
 	  visit_child_reflist(&glob_symtab[i]);
 #ifdef VCG_SUPPORT
-	else if(print_vcg_list)
+	else if(wrapup && print_vcg_list)
 	  visit_child_vcg(&glob_symtab[i],1);
 #endif
 	else
-	  visit_child(&glob_symtab[i],1); /* indent all trees one level */
+	  visit_child(&glob_symtab[i],1,wrapup); /* indent all trees one level */
       }
     }
   }
+
+  /* Remaining stuff is only for final wrapup phase */
+  if( !wrapup )
+    return;
+
   if(print_call_tree || print_ref_list)
     (void)fprintf(list_fd,"\n");
 #ifdef VCG_SUPPORT
   if(print_vcg_list)
     (void)fprintf(vcg_fd,"}\n");
 #endif
-
 
 			/* Print list of callers of all visited
 			   or non-library prog units, if -crossref
@@ -546,13 +466,7 @@ com_tree_check(comblock,prog_unit,level)
 
 				/* Depth-first search of call tree */
 PRIVATE void
-#if HAVE_STDC
-visit_child(Gsymtab *gsymt, int level)
-#else /* K&R style */
-visit_child(gsymt,level)
-     Gsymtab *gsymt;
-     int level;
-#endif /* HAVE_STDC */
+visit_child(Gsymtab *gsymt, int level, int wrapup)
 {
   static char fmt[]="%000s";	/* Variable format for indenting names */
   ChildList *child_list;
@@ -561,7 +475,7 @@ visit_child(gsymt,level)
   ArgListHeader *arghdr;
 
 
-  if(print_call_tree) {
+  if(wrapup && print_call_tree) {
      if ( htmlcalltree_fd ) {
 				/* Look up defn arglist entry to find the
 				   filename where this guy is defined.
@@ -570,8 +484,8 @@ visit_child(gsymt,level)
 	{
 	   if ( arghdr->is_defn && arghdr->filename )
 	   {
-	      fname = append_extension( arghdr->filename,
-					DEF_HTML_EXTENSION, MODE_REPLACE_EXT );
+	      fname = new_ext( arghdr->filename,
+					DEF_HTML_EXTENSION );
 	   }
 	}
 	if ( terminate_href )
@@ -639,7 +553,7 @@ visit_child(gsymt,level)
     if(fname)
        free( fname );
 
-  }
+  } /* end if wrapup && print_call_tree */
 
 				/* Visit its unvisited children.  Note
 				   that children of internal entry are
@@ -650,9 +564,10 @@ visit_child(gsymt,level)
 
 				/* If already visited, do not visit its
 				   children, but give note to reader if it
-				   has some. */
-  if(call_tree_prune && gsymt->visited) {
-    if(print_call_tree && child_list != NULL)
+				   has some.  Always prune if not wrapup
+				   since not printing anything */
+  if((!wrapup || call_tree_prune) && gsymt->visited) {
+    if(wrapup && print_call_tree && child_list != NULL)
       {
       (void)fprintf(list_fd," (see above)");
          if ( htmlcalltree_fd )
@@ -676,7 +591,7 @@ visit_child(gsymt,level)
     else
       gsymt->visited_somewhere = TRUE;
 
-   if ( print_call_tree )
+   if ( wrapup && print_call_tree )
       {
       if ( terminate_href )
          {
@@ -687,7 +602,7 @@ visit_child(gsymt,level)
 
     ++level;			/* move to next level */
     while(child_list != NULL) {
-      visit_child(child_list->child,level);
+      visit_child(child_list->child,level,wrapup);
       child_list = child_list->next;
     }
   }

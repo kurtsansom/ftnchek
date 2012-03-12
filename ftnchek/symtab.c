@@ -2069,7 +2069,7 @@ get_type(symt)	/* Returns data type of symbol, using implicit if necessary */
 	*/
 unsigned
 #if HAVE_STDC
-hash_lookup(char *s)
+hash_lookup(const char *s)
 #else /* K&R style */
 hash_lookup(s)
 	char *s;
@@ -3339,21 +3339,25 @@ if (debug_latest) {
     }
 }
 
-/* Swaps the top entry in the local symbol table to bottom.  This is used
-   when a statement implying pushing of local scope occurs as first
-   statement of a program, i.e. an implied PROGRAM statement, which
-   gets put into the local symbol table after the said statement has
-   been processed.  The swap makes sure the order is the same as if
-   PROGRAM %MAIN had been processed first.  Then when the interior
-   scope is exited, the entry for %MAIN will not be lost.
+/* Bubbles the top entry in the local symbol table to bottom of
+   current scope, and adjusts bottom so the entry is now in the
+   enclosing scope.  This is used when an entry gets created inside a
+   scope but belongs in the enclosing scope.  So far there are two
+   cases: (1) a statement implying pushing of local scope (e.g. a TYPE
+   statement) occurs as first statement of a program, i.e. an implied
+   PROGRAM statement, which gets put into the local symbol table after
+   the said statement has been processed.  (2) a forward reference to
+   a derived type occurs inside a derived type definition, which will
+   eventually become a defined derived type but initially gets put
+   into the scope of the TYPE definition.
 
-   This routine must not be called if one of the two swapped entries
+   This routine must not be called if any of swapped entries
    is a common block.  This cannot occur if it is used only in the
-   above case, so no check of this restriction is done.
+   above cases, so no check of this restriction is done.
  */
-void symtab_top_swap(void)
+void move_outside_scope(Lsymtab *symt)
 {
-  if( curr_scope_bottom != 1 ) {	/* just in case */
+  if( curr_scope_bottom < 0 ) {	/* just in case */
     oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
 		 "symtab_top_swap called when it shouldn't be");
   }
@@ -3361,18 +3365,18 @@ void symtab_top_swap(void)
   else {
   /* bubble top symtab entry to bottom */
     Lsymtab temp;		/* holder for swap */
-    int i;
-
+    int i,top;
+    top = symt - loc_symtab;	/* index of entry to move out of scope */
     temp = loc_symtab[loc_symtab_top-1];
-    for(i=loc_symtab_top-1; i>0; i--) {
+    for(i=top; i>curr_scope_bottom; i--) {
       loc_symtab[i] = loc_symtab[i-1];
     }
-    loc_symtab[0] = temp;
+    loc_symtab[curr_scope_bottom] = temp;
 
   /* Find the hash table entries of the symtab entries
      and change their symtab pointers to the new values.
    */
-    for(i=0; i<loc_symtab_top; i++) {
+    for(i=curr_scope_bottom; i<=top; i++) {
       int h;
       h = hash_lookup(loc_symtab[i].name);
       hashtab[h].loc_symtab = &loc_symtab[i];
@@ -3382,12 +3386,9 @@ void symtab_top_swap(void)
      to account for removing the top entry from local scope. */
     curr_scope_bottom++;
 
-    /* Fix the value of hash_num saved on scope stack when
-       scope was pushed
-     */
-    loc_scope[loc_scope_top-1].hash_num = current_prog_unit_hash;
   }
 }
+
 
 /* Function returns true if symbol table pointer points to entry in
    the current scoping unit, between curr_scope_bottom and loc_symtab_top.
@@ -3492,7 +3493,7 @@ if (debug_latest) {
 	}
 }
 
-/* Routine to create a new local symbol table for a subprogram
+/* Routine to create a new local symbol table entry for a subprogram
  * invocation in an internal subprogram.  Because process_lists works
  * by scanning the local symbol table within the current scope, if a
  * new entry is not made, then these subprogram invocations will not

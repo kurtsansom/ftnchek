@@ -576,6 +576,8 @@ PRIVATE WarnOptionList
 				"Nonstandard I/O keywords"},
   {"long-line",		&f90_overlength,
 				"Statements with code past max columns"},
+  {"long-name",		&f90_long_names,
+				"Identifiers over 31 chars"},
   {"mixed-expr",	&f90_mixed_expr,
 				"Incompatible type combinations in exprs"},
   {"name-dollarsign",	&f90_dollarsigns,

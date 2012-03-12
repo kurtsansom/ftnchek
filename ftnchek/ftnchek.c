@@ -81,13 +81,10 @@ PROTO( int shell_mung, (int *  argc_p, char ***  argv_p,
 			int  parameter_number,  char *  option_string));
 #endif
 
-PROTO(PRIVATE char * append_extension,( char *s, const char *ext, int mode ));
 
 PROTO(PRIVATE void error_summary,( char *fname ));
 
 PROTO(int main,( int argc, char *argv[] ));
-
-PROTO(PRIVATE char * new_ext,( char *s, const char *ext ));
 
 PROTO(PRIVATE void open_outfile,( char *s ));
 
@@ -104,6 +101,8 @@ PROTO(PRIVATE void resource_summary,( void ));
 PROTO(PRIVATE void src_file_in,( char *infile ));
 
 PROTO(PRIVATE void wrapup,( void ));
+
+PRIVATE char *append_extension( const char *s, const char *ext, int mode );
 
 PRIVATE int project_file_input;	/* true if input is from .prj file */
 
@@ -617,7 +616,7 @@ wrapup(VOID)	/* look at cross references, etc. */
 	}
 #endif
 
-	visit_children();	/* Make call tree & check visited status */
+	visit_children(/*wrapup=*/TRUE); /* Make call tree & check visited status */
 	check_com_usage();	/* Look for unused common stuff */
 	check_comlists();	/* Look for common block mismatches */
 	check_arglists(-1,not_subprog);	/* Look for subprog defn/call mismatches */
@@ -634,12 +633,14 @@ wrapup(VOID)	/* look at cross references, etc. */
 #endif
 }
 
-
+/* Utilities for dealing with file extensions.
+ */
 #define MODE_DEFAULT_EXT 1
 #define MODE_REPLACE_EXT 2
+
 PRIVATE char *
 #if HAVE_STDC
-append_extension(char *s, const char *ext, int mode)
+append_extension(const char *s, const char *ext, int mode)
 #else /* K&R style */
 append_extension(s,ext,mode)
      char *s,*ext;
@@ -648,10 +649,9 @@ append_extension(s,ext,mode)
 {
 		/* MODE_DEFAULT_EXT: Adds extension to file name s if
 		   none is present, and returns a pointer to the
-		   new name.  If extension was added, space is allocated
-		   for the new name.  If not, simply  returns pointer
-		   to original name.  MODE_REPLACE_EXT: same, except given
-		   extension replaces given one if any.
+		   new name.  MODE_REPLACE_EXT: same, except given
+		   extension replaces given one if any.  In all cases,
+		   new space is allocated for the returned filename.
 		*/
 	int i,len;
 	char *newname;
@@ -710,7 +710,12 @@ append_extension(s,ext,mode)
 	  }
 #endif
 	  else {
-	    newname = s;	/* use as is */
+			/* Already has an extension, use as is, but
+			   make copy since arg s is const, and caller may
+			   free result.
+			 */
+	    newname = (char *) malloc( (unsigned)(strlen(s)+1) );
+	    (void)strcpy(newname,s);
 	  }
 	}
 
@@ -723,7 +728,7 @@ append_extension(s,ext,mode)
 		*/
 char *
 #if HAVE_STDC
-add_ext(char *s, const char *ext)			/* adds default filename extension to s */
+add_ext(const char *s, const char *ext)			/* adds default filename extension to s */
 #else /* K&R style */
 add_ext(s,ext)			/* adds default filename extension to s */
 	char *s,*ext;
@@ -732,9 +737,9 @@ add_ext(s,ext)			/* adds default filename extension to s */
   return append_extension(s,ext,MODE_DEFAULT_EXT);
 }
 
-PRIVATE char *
+char *
 #if HAVE_STDC
-new_ext(char *s, const char *ext)
+new_ext(const char *s, const char *ext)
 #else /* K&R style */
 new_ext(s,ext)
 	char *s,*ext;

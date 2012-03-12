@@ -37,7 +37,8 @@ as the "MIT License."
 	Shared routines:
 	   void proj_file_out() writes data from symbol table to project file.
 	   void proj_file_in() reads data from project file to symbol table.
-
+	   void write_module_file() writes data to module file
+	   void read_module_file() reads data from module file
 	Private routines:
 		int has_defn()	    TRUE if external has defn in current file
 		int has_call()	    TRUE if external has call in current file
@@ -53,6 +54,7 @@ as the "MIT License."
 #include "ftnchek.h"
 #define PROJECT
 #include "symtab.h"
+#include "symspace.h"
 #include <string.h>
 #include "utils.h"
 
@@ -83,13 +85,16 @@ PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
 PROTO(PRIVATE void proj_alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
 PROTO(PRIVATE void proj_arg_info_in,( FILE *fd, char *filename, int is_defn ));
+PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
+PROTO(PRIVATE void mod_var_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist)));
 PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
 PROTO(PRIVATE void proj_prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
 PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], int *blocks, int *defns ));
 PROTO(PRIVATE void proj_comblock_out, (FILE *fd, Gsymtab *sym_list[], int numblocks, int numdefns));
 PROTO(PRIVATE void proj_clist_out,( Gsymtab *gsymt, FILE *fd ));
-PROTO(PRIVATE void proj_com_info_in,( FILE *fd, char *filename ));
+PROTO(PRIVATE void proj_com_info_in,( FILE *fd, const char *filename ));
+PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename));
 
 
 
@@ -193,9 +198,6 @@ void
 write_module_file(int h)
 {
   FILE *fd;
-  Lsymtab *lsym_list[LOCSYMTABSZ]; /* temp. list of global symtab entries to print */
-  Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
-
   char *module_filename = make_module_filename(hashtab[h].name);
 
   if( (fd = fopen(module_filename,"w")) == (FILE *)NULL ) {
@@ -216,7 +218,24 @@ write_module_file(int h)
   WRITE_STR(" file",top_filename);
   NEXTLINE;
 
+			/* Write local variables & parameters */
   {
+    Lsymtab *lsym_list[LOCSYMTABSZ]; /* temp. list of local symtab entries to print */
+    int i,numvars;
+    numvars = find_variables(lsym_list);
+    WRITE_NUM(" locals",(long)numvars);
+    NEXTLINE;
+    for(i=0; i<numvars; i++) {
+      mod_var_out(lsym_list[i],fd);
+    }
+    (void)fprintf(fd," end\n");
+  }
+
+  NEXTLINE;
+
+			/* Write interface defns of module subprograms */
+  {
+    Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
     int i,numdefns;
     numdefns = find_prog_units(gsym_list,has_defn);
     WRITE_NUM(" entries",(long)numdefns);
@@ -279,10 +298,51 @@ proj_file_out(fd)
 
   /* Write the common block section of project file */
   {
-    int i,numblocks,numdefns;
+    int numblocks,numdefns;
     find_comblocks(sym_list,&numblocks,&numdefns);
     proj_comblock_out(fd,sym_list,numblocks,numdefns);
   }
+}
+
+
+PRIVATE int
+find_variables(Lsymtab *sym_list[])
+{
+  int i, numvars;
+  numvars=0;
+  for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
+    if( storage_class_of(loc_symtab[i].type) == class_VAR &&
+	datatype_of(loc_symtab[i].type) != type_MODULE && /* skip module's own entry */
+	!loc_symtab[i].private ) { /* for module: omit private variables */
+      sym_list[numvars++] = &loc_symtab[i];
+    }
+  }
+  return numvars;
+}
+
+PRIVATE void
+mod_var_out(Lsymtab *lsymt,FILE *fd)
+{
+  WRITE_STR(" var",lsymt->name);
+  WRITE_NUM(" type",get_type(lsymt));
+  WRITE_NUM(" size",(long)lsymt->size);
+  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+		lsymt->parameter,
+		lsymt->array_var,
+		lsymt->common_var,
+		lsymt->allocatable,
+		lsymt->pointer,
+		lsymt->target,
+		0,0);		/* for future use */
+  if(lsymt->array_var) {
+    NEXTLINE;
+    WRITE_NUM(" dims",lsymt->info.array_dim);
+  }
+  else if(lsymt->parameter) {
+    NEXTLINE;
+    WRITE_STR(" value",lsymt->info.param->src_text);
+  }
+  NEXTLINE;
 }
 
       /* Routine to pack sym_list array with pointers to global symtab entries
@@ -706,7 +766,6 @@ void read_module_file(int h, Token *only)
 {
   FILE *fd;
   char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
-  unsigned numentries,ientry;
 
   char *module_filename = make_module_filename(hashtab[h].name);
 
@@ -744,21 +803,123 @@ void read_module_file(int h, Token *only)
    if(debug_latest) printf("\nModule is %s from file %s\n",modulename,topfilename);
 #endif
 
-  READ_NUM(" entries",numentries); /* Get no. of entry points */
-  NEXTLINE;
+   {
+     int numvars,ivar;
+     char sentinel[5];
+
+     READ_NUM(" locals",numvars);
+     NEXTLINE;
+#ifdef DEBUG_MODULES
+ if(debug_latest) printf("read locals %d\n",numvars);
+#endif
+				/* Read local variables */
+     for(ivar=0; ivar<numvars; ivar++) {
+       mod_var_in(fd,topfilename);
+     }
+     fscanf(fd,"%5s",sentinel);
+#ifdef DEBUG_MODULES
+ if(debug_latest) printf("read sentinel %s\n",sentinel);
+#endif
+     if(strcmp(sentinel,"end") != 0) READ_ERROR;
+     NEXTLINE;
+   }
+
+   {
+     int numentries,ientry;
+
+     READ_NUM(" entries",numentries); /* Get no. of entry points */
+     NEXTLINE;
 #ifdef DEBUG_MODULES
  if(debug_latest) printf("read entries %d\n",numentries);
 #endif
-				/* Read defn arglists */
-  for(ientry=0; ientry<numentries; ientry++) {
-      proj_arg_info_in(fd,topfilename,TRUE);
-  }
-  NEXTLINE;
+				/* Read interface defn arglists */
+     for(ientry=0; ientry<numentries; ientry++) {
+       proj_arg_info_in(fd,topfilename,TRUE);
+     }
+     NEXTLINE;
+   }
 
 }
 
 
 static char *prev_file_name="";/* used to reduce number of callocs */
+
+PRIVATE void
+mod_var_in(FILE *fd, const char *filename)
+{
+  char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
+  long id_type;
+  long id_size;
+  int id_param,			/* flag bits */
+    id_array_var,
+    id_common_var,
+    id_allocatable,
+    id_pointer,
+    id_target,
+    id_dummy1,
+    id_dummy2;
+  unsigned long id_array_dim;
+
+  READ_STR(" var",id_name);
+  READ_LONG(" type",id_type);
+  READ_LONG(" size",id_size);
+  fscanf(fd," flags %d %d %d %d %d %d %d %d",
+	 &id_param,
+	 &id_array_var,
+	 &id_common_var,
+	 &id_allocatable,
+	 &id_pointer,
+	 &id_target,
+	 &id_dummy1,
+	 &id_dummy2);
+#ifdef DEBUG_MODULES
+  if(debug_latest) printf("Read var %s %ld %ld\n",id_name,id_type,id_size);
+#endif
+  {
+    /* Install decl, masking any existing. */
+    int h = hash_lookup(id_name);
+    Lsymtab *symt = install_local(h,datatype_of(id_type),class_VAR);
+    symt->size = id_size;
+    symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
+    symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
+
+    if( id_array_var ) {
+      NEXTLINE;
+      READ_LONG(" dims",id_array_dim);
+      symt->array_var = TRUE;
+      symt->info.array_dim = id_array_dim;
+    }
+    else if( id_param ) {
+      NEXTLINE;
+      READ_STR(" value",id_param_text);
+      symt->set_flag = TRUE;
+      symt->parameter = TRUE;
+      symt->line_set = symt->line_declared;
+      symt->file_set = symt->file_declared;
+      symt->info.param = new_param_info();
+      symt->info.param->seq_num = ++parameter_count;
+      switch(datatype_of(id_type)) {
+      case type_INTEGER:
+	sscanf(id_param_text,"%ld",&(symt->info.param->value.integer));
+	break;
+      case type_STRING:
+	id_param_text[strlen(id_param_text)] = '\0'; /* remove trailing quote */
+	symt->info.param->value.string = new_global_string(id_param_text+1); /* skip leading quote */
+	break;
+      case type_REAL:
+      case type_DP:
+	sscanf(id_param_text,"%lf",&(symt->info.param->value.dbl));
+	break;
+      default:
+	symt->info.param->value.integer = 0;
+	break;
+      }
+    }
+  }
+
+  NEXTLINE;
+}
+
 
 			/* Read arglist info */
 PRIVATE void
@@ -1073,7 +1234,7 @@ alist_class,alist_type,alist_line);
 
 PRIVATE void
 #if HAVE_STDC
-proj_com_info_in(FILE *fd, char *filename)
+proj_com_info_in(FILE *fd, const char *filename)
 #else /* K&R style */
 proj_com_info_in(fd,filename)
      FILE *fd;

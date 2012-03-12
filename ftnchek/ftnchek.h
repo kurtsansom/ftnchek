@@ -599,7 +599,7 @@ PROTO(VOID exit,(int));
 #define MAXLINE 132	/* Maximum input line length.  Ignores past this. */
 #endif
 #ifndef MAXIDSIZE
-#define MAXIDSIZE 31	/* Longest identifier allowed */
+#define MAXIDSIZE 64	/* Longest identifier allowed, 1+limit in 2003 */
 #endif
 #ifndef MAX_SRC_TEXT
 #define MAX_SRC_TEXT (20*66) /* Longest text string of a token */
@@ -975,6 +975,7 @@ OPT(int,f90_intrinsics,F90_ALL);
 OPT(int,f90_io_keywords,F90_ALL);
 OPT(int,f90_mixed_expr,F90_ALL);
 OPT(int,f90_overlength,F90_ALL);
+OPT(int,f90_long_names,F90_ALL);
 OPT(int,f90_param_implicit_type,F90_ALL);
 OPT(int,f90_param_noparen,F90_ALL);
 OPT(int,f90_quad_constants,F90_ALL);
@@ -1314,9 +1315,6 @@ SHARED IncludePathNode *include_path_list; /* header to the list */
 	/* in exprtype.c */
 PROTO(void init_typesizes, ( void ));
 
-	/* in ftnchek.c */
-PROTO( char * add_ext,( char *s, const char *ext ));
-PROTO( int has_extension,( const char *name, const char *ext ));
 
 	/* in forlex.c and advance.c */
 PROTO(void make_legal_char_list, ( void ));
@@ -1335,6 +1333,12 @@ PROTO(int pop_include_file,( void ));
 	/* in fortran.y/fortran.c */
 PROTO(void init_parser, ( void ));
 PROTO(int yyparse,  ( void ));
+
+	/* in ftnchek.c */
+PROTO(void visit_children, ( int wrapup ));
+PROTO(char *add_ext, ( const char *s, const char *ext ));
+PROTO(char *new_ext, ( const char *s, const char *ext ));
+PROTO(int has_extension, ( const char *name, const char *ext ));
 
 	/* in message.c */
 PROTO(void msg_tail, ( const char *s ));
@@ -1362,7 +1366,6 @@ typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
 PROTO(void check_arglists, ( int hashno, SUBPROG_TYPE limit ));
 PROTO(void check_comlists, ( void ));
 PROTO(void check_com_usage, ( void ));
-PROTO(void visit_children, ( void ));
 
 	/* in plsymtab.c */
 PROTO(void debug_symtabs, ( void ));

@@ -453,8 +453,17 @@ src_text_buf[src_text_len] = '\0';
 		    }
 #endif
 
-		    if(src_text_len < MAX_SRC_TEXT)
-		      src_text_buf[src_text_len] = '\0';
+		    /* Here enforce maximum identifier length
+		       MAXIDSIZE.  Warning is given (-f77 or -f90) in
+		       print_loc_symbols, not here.
+		     */
+#if MAXIDSIZE >= MAX_SRC_TEXT	/* check assertion so no overrun below */
+Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
+#endif
+		    if( src_text_len > MAXIDSIZE ) {
+		      src_text_len = MAXIDSIZE;
+		    }
+		    src_text_buf[src_text_len] = '\0';
 		    token->value.integer = h = hash_lookup(src_text_buf);
 		    token->src_text = hashtab[h].name;
 				/* If it is an array give it a special token

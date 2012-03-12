@@ -22,10 +22,8 @@ int dtype_table_top 	/* starting index in Dtype_table */
 ;
 
 typedef struct DerivedTypeComponent {
-  int id;
   char *name;			/* useless for derived types */
-  InfoUnion info;
-  type_t type;
+  type_t type;			
   unsigned long array_dim;	/* array size and no. of dims */
   long size;			/* Size of object in bytes */
   	/* flags */
@@ -44,18 +42,20 @@ typedef struct DtypeTableEntry {
   LINENO_t line_declared;
   short file_declared;
   unsigned
-  	private: 1,		/* has PRIVATE statement */
+  	public: 1,		/* is PUBLIC type */
+  	private: 1,		/* is PRIVATE type */
+	private_components: 1,  /* has PRIVATE stmt within def */
 	sequence: 1;		/* has SEQUENCE statement */
 } Dtype;
 
 DTYPE_SHARED
 Dtype *dtype_table[MAX_DTYPES];	/* stores derived type defs */
 
-int find_Dtype(Token *t);	/* linearly search for derived type 
-				   definition with same name */
-void process_dtype_components(char *name);
-void def_dtype(Token *id);
-
-int print_dtypes();
-
+int find_dtype(Token *t, int in_dtype_def);
+Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def);  /* store derived type definition name in local
+    symbol table */
+void print_dtypes(Lsymtab *sym_list[], int n);  /* print names of derived type definitions from 
+    dtype_table */
+void privatize_components(const char *name);
+void process_dtype_components(const char *name);
 #endif

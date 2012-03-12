@@ -570,11 +570,35 @@ check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for 
 	int i, curr_i;
 	ArgListHeader *defn_list, *alist;
 
+#ifdef DEBUG_GLOBALS
+if(debug_latest) {
+  (void)fprintf(list_fd,"\nGlobal symbol table (limit=%s):",
+		(limit==module_subprog?"module":
+		 (limit==internal_subprog?"internal":"not subprog"))
+		);
+}
+#endif
+
 /* start the scan from index of current program unit, whose hashtable
    index is in hashno
  */
 	curr_i = ((hashno == -1) ? 0 : hashtab[hashno].glob_symtab - &glob_symtab[0]);
 	for (i=curr_i; i<glob_symtab_top; i++){
+
+#ifdef DEBUG_GLOBALS
+if(debug_latest) {
+(void)fprintf(list_fd,
+	      "\n%3d%10s %8s %2svalid %5s %7s",
+	      i,
+	      glob_symtab[i].name,
+	      (glob_symtab[i].module_subprog?"module":
+	       (glob_symtab[i].internal_subprog?"internal":"subprog")),
+	      (glob_symtab[i].valid?"":"in"),
+	      class_name[storage_class_of(glob_symtab[i].type)],
+	      (glob_symtab[i].visited?"visited":"")
+	      );
+}
+#endif
 		/***************************** added ****************************/
 	  if (glob_symtab[i].valid) {
 		if ((limit == module_subprog && glob_symtab[i].module_subprog) ||
@@ -608,6 +632,22 @@ check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for 
 				   usages.  Count how many defns found. */
 		list_item = alist;
 		while(list_item != NULL){
+#ifdef DEBUG_GLOBALS
+if(debug_latest) {
+ int a;
+ (void)fprintf(list_fd,
+	      "\n\tArglist %s",
+	      (list_item->is_defn?"defn":(list_item->is_call?"call":(list_item->actual_arg?"arg ":"ext ")))
+	      );
+ for(a=0; a<list_item->numargs; a++) {
+   (void)fprintf(list_fd,
+		 ", %s %s",
+		 list_item->arg_array[a].name,
+		 type_name(datatype_of(list_item->arg_array[a].type))
+		 );
+ }
+}
+#endif
 		    if(list_item->is_defn){
 					/* report multiple defns */
 			if(usage_ext_multiply_defined && num_defns > 0) {
@@ -678,7 +718,11 @@ check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for 
 			cmp_error_count = 0;
 			(void)argcmp_error_head(glob_symtab[i].name,
 				   defn_list,
-				   "never invoked");
+/*
+				   glob_symtab[i].used_flag?"not in call tree":"never invoked"
+*/
+				    "never invoked"
+						);
 			sub_error_report(defn_list,"Defined");
 		    }
 		}

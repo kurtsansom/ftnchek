@@ -373,7 +373,7 @@ if(debug_latest){
 (void)fprintf(list_fd,"\n\t1=in prog unit %s line %u file %s (%s)",
 		    c1->prog_unit->name,
 		    c1->line_num,
-		    c1->topfile
+		    c1->topfile,
 	            c1->filename);
 (void)fprintf(list_fd,"\n\t2=in prog unit %s line %u file %s (%s)",
 		    c2->prog_unit->name,

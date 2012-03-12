@@ -6,7 +6,7 @@
 */
 
 PROTO(TokenListHeader * make_TL_head,( Token *t ));
-PROTO(char * new_local_string,( char *s ));
+PROTO(char * new_local_string,( const char *s ));
 PROTO(ParamInfo * new_param_info,( void ));
 
 SYM_SHARED long

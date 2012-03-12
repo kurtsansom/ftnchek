@@ -284,7 +284,7 @@ manpage: ftnchek$(manext)
 
 #  Development version includes debugging machinery not normally used.  It
 #  evaluates some floating-point expressions including sqrt, so needs math lib.
-devel:
+devel: tags TAGS
 	$(MAKE) prog DEVEL_CFLAGS='-DDEVELOPMENT' LDLIBS='$(LDLIBS) -lm'
 
 check: prog
@@ -619,11 +619,11 @@ calltree.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
 comcheck.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
-dtypes.o:	config.h dtypes.h ftnchek.h symtab.h symspace.h 
+dtypes.o:	config.h dtypes.h ftnchek.h symtab.h symspace.h tokdefs.h
 
-exprtype.o:	config.h ftnchek.h symtab.h tokdefs.h
+exprtype.o:	config.h ftnchek.h symtab.h symutils.h tokdefs.h
 
-forlex.o:	config.h ftnchek.h symtab.h tokdefs.h forlex.h advance.h
+forlex.o:	config.h ftnchek.h symtab.h tokdefs.h forlex.h
 
 fortran.o:	config.h ftnchek.h symtab.h dtypes.h block_match.h fortran.c
 
@@ -655,15 +655,15 @@ pgsymtab.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
 plsymtab.o:	config.h ftnchek.h plsymtab.h symtab.h
 
-prlists.o:	config.h ftnchek.h symtab.h symutils.h
+prlists.o:	config.h ftnchek.h symtab.h symutils.h tokdefs.h
 
-prlocsym.o:	config.h ftnchek.h loccheck.h plsymtab.h symtab.h
+prlocsym.o:	config.h ftnchek.h dtypes.h loccheck.h plsymtab.h symtab.h
 
-project.o:	config.h ftnchek.h symtab.h
+project.o:	config.h ftnchek.h symtab.h symspace.h utils.h
 
 symspace.o:	config.h ftnchek.h symtab.h symspace.h symutils.h
 
-symtab.o:	config.h dtypes.h ftnchek.h iokeywds.h intrins.h symtab.h \
+symtab.o:	config.h ftnchek.h intrins.h symtab.h \
 		symspace.h symutils.h tokdefs.h
 
 symutils.o:	config.h ftnchek.h symtab.h symutils.h

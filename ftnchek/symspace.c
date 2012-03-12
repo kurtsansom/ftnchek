@@ -212,7 +212,7 @@ new_global_string(s)
 		   (bottom up), and copy it there. */
 char *
 #if HAVE_STDC
-new_local_string(char *s)
+new_local_string(const char *s)
 #else /* K&R style */
 new_local_string(s)
 	char *s;

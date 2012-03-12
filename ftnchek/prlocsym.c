@@ -414,6 +414,28 @@ print_loc_symbols(VOID)
 	}
     }
 
+		/* issue -f90 warning for identifiers
+		   longer than 31 characters
+		 */
+    if(f90_long_names) {
+	int i,n;
+	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
+	       if(strlen(loc_symtab[i].name) > (unsigned)31)
+		  sym_list[n++] = &loc_symtab[i];
+	}
+
+	if(n != 0) {
+
+	   sort_lsymbols(sym_list,n);
+
+	   local_warn_head(progunit_name,
+			  top_filename,
+			  NO_LINE_NUM, sym_list[0], FALSE,
+			       "Names longer than 31 chars (nonstandard):");
+	   (void) print_lsyms(sym_list,n,FALSE);
+	}
+    }
+
 	/* If -f77 flag given, list names with underscore or dollarsign */
 
     if(f77_underscores || f77_dollarsigns || f90_dollarsigns) {
@@ -766,7 +788,7 @@ cmp_io_units( IO_Unit_Info *u1, IO_Unit_Info *u2 )
 }
 
 
-int print_dtypes(Lsymtab *sym_list[], int n)
+void print_dtypes(Lsymtab *sym_list[], int n)
 {
   int i;
 
@@ -777,6 +799,12 @@ int print_dtypes(Lsymtab *sym_list[], int n)
      int num_components;
      Dtype *dtype_head;
 
+
+#ifdef DEBUG_DTYPE
+if(debug_latest) {
+  (void)fprintf(list_fd,"#%d",datatype_of(sym_list[i]->type));
+}
+#endif
      /* (these are mutually exclusive attributes) */
      if( sym_list[i]->private )
 	(void)fprintf(list_fd," Private");
@@ -827,7 +855,7 @@ int print_dtypes(Lsymtab *sym_list[], int n)
 
 	  if(components[j].array) {
 	     (void)fprintf(list_fd," %ld",
-			   array_dims(components[j].info.array_dim));
+			   array_dims(components[j].array_dim));
 	  }
 	  else {
 	     (void)fprintf(list_fd,"%2s","");

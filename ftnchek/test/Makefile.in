@@ -80,6 +80,9 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   internalsub.f90 modulesub.f90 embedded-space-free.f90
 
+# Files for checkproject and checkcalltree
+POLYGRAF=polygraf.f fungraf.f coregfx.f coreunix.f
+
 # set of files for testing f77/f90/f95 options
 F90= iokeywords.f f95deleted.f 
 
@@ -223,7 +226,7 @@ checkall:	checksyntax checksettings checkother
 
 checksyntax:	checklistings checkexpert checkf90 checkexpr
 checksettings:	checkargs checkarray checkcommon checkintrinsic checkoutput checkusage
-checkother:	checkproject checkrc checkwildcard checkmakedcls \
+checkother:	checkproject checkcalltree checkrc checkwildcard checkmakedcls \
 	checkmkhtml checkvcg checkdcl2inc checkftnpp
 
 #  User should make precheck before running checks.  It looks out for
@@ -364,6 +367,31 @@ checkarray:
 		"FLIST=$(ARRAY)" "FLAGS=-port"
 	@-echo "done"
 
+# checkcalltree checks the -call=tree & reference setting and -sort switch
+# (-call=vcg is checked separately by checkvcg)
+checkcalltree:
+	@-echo |$(AWK) '{printf("%s","checking -call setting and -sort switch:");}'
+	@$(FTNCHEK) -nocheck -call=tree $(POLYGRAF) > polygraf.fc1
+	@$(COMPARE) polygraf.fc1
+	@$(FTNCHEK) -nocheck -call=tree,no-prune $(POLYGRAF) > polygraf.fc2
+	@$(COMPARE) polygraf.fc2
+	@$(FTNCHEK) -nocheck -call=tree,no-sort $(POLYGRAF) > polygraf.fc3
+	@$(COMPARE) polygraf.fc3
+	@$(FTNCHEK) -nocheck -call=tree,no-prune,no-sort $(POLYGRAF) > polygraf.fc4
+	@$(COMPARE) polygraf.fc4
+	@$(FTNCHEK) -nocheck -call=reference $(POLYGRAF) > polygraf.fc5
+	@$(COMPARE) polygraf.fc5
+	@$(FTNCHEK) -nocheck -call=reference,no-prune $(POLYGRAF) > polygraf.fc6
+	@$(COMPARE) polygraf.fc6
+	@$(FTNCHEK) -nocheck -call=reference,no-sort $(POLYGRAF) > polygraf.fc7
+	@$(COMPARE) polygraf.fc7
+	@$(FTNCHEK) -nocheck -call=reference,no-prune,no-sort $(POLYGRAF) > polygraf.fc8
+	@$(COMPARE) polygraf.fc8
+	@$(FTNCHEK) -nocheck -sort $(POLYGRAF) > polygraf.fc9
+	@$(COMPARE) polygraf.fc9
+	@-echo "done"
+
+
 #checkcommon checks the -common=n setting
 checkcommon:
 	@-echo |$(AWK) '{printf("%s","checking -common setting:");}'
@@ -471,7 +499,6 @@ checkusage:
 # Note that correct.f is used in LISTOUT also, but with default
 # compilation options.  So we make listing file suffix .fc1 here
 
-POLYGRAF=polygraf.f fungraf.f coregfx.f coreunix.f	# files included
 checkproject:
 	@-echo |$(AWK) '{printf("%s","checking project files:");}'
 	@$(RM) correct.prj correct.fc1 correct.pcl
@@ -481,10 +508,10 @@ checkproject:
 	do \
 	    $(COMPARE) $$f ; \
 	done
-	@$(RM) $(POLYGRAF:.f=.prj) polygraf.fc1 polygraf.pcl
-	@$(FTNCHEK) -project $(POLYGRAF) >& polygraf.fc1
+	@$(RM) $(POLYGRAF:.f=.prj) polygraf.fcl polygraf.pcl
+	@$(FTNCHEK) -project $(POLYGRAF) >& polygraf.fcl
 	@$(FTNCHEK) $(POLYGRAF:.f=.prj) >& polygraf.pcl
-	@-for f in $(POLYGRAF:.f=.prj) polygraf.fc1 polygraf.pcl ; \
+	@-for f in $(POLYGRAF:.f=.prj) polygraf.fcl polygraf.pcl ; \
 	do \
 	    $(COMPARE) $$f ; \
 	done

@@ -475,7 +475,7 @@ typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	short numargs;
 	ArgListElement *arg_array;
 	struct gSymtEntry *prog_unit;
-	char *filename,*topfile;
+	const char *filename,*topfile;
 	LINENO_t line_num,top_line_num;
 	unsigned
 	     is_defn: 1,
@@ -505,7 +505,7 @@ typedef struct CMHead {	/* ComListHeader: head node of common var list */
 	LINENO_t line_num,top_line_num;
 	ComListElement *com_list_array;
 	struct gSymtEntry *prog_unit;
-	char *filename,*topfile;
+	const char *filename,*topfile;
 	struct CMHead *next;
 	unsigned
 	  any_used:1,		/* any of its variables accessed */
@@ -651,8 +651,9 @@ typedef struct lSymtEntry{
              allocated_flag:1,    /* pointer/allocatable variable is allocated */
              used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
-	     public: 1,		/* has PUBLIC attribute */
-	     private: 1,	/* has PRIVATE attribute */
+	     public: 1,		/* has PUBLIC attribute / public type */
+	     private: 1,	/* has PRIVATE attribute / private type */
+	     private_components: 1,	/* PRIVATE decl inside type defn */
 	     sequence: 1,	/* has SEQUENCE attribute */
 	     intent_in: 1,	/* has IN attribute */
 	     intent_out: 1,	/* has OUT attribute */
@@ -662,7 +663,7 @@ typedef struct lSymtEntry{
 	     declared_intrinsic: 1; /* explicitly declared intrinsic */
 	     unsigned size_is_adjustable : 1; /* CHARACTER*(*) declaration */
 	     unsigned size_is_expression : 1; /* CHARACTER*(expr) declaration */
-		 unsigned result_var : 1; /* variable is result name for a function */
+	     unsigned result_var : 1; /* variable is result name for a function */
 } Lsymtab;
 
 typedef struct gSymtEntry{	/* Global symbol table element */
@@ -751,10 +752,11 @@ SYM_SHARED int loc_scope_top;    /* next available slot in scope stack */
 
 PROTO(void push_loc_scope, ( void )); /* open a new scope */
 PROTO(int pop_loc_scope, ( void ));		/* exit a scope */
-PROTO(void symtab_top_swap, (void));  /* swap top items on symtab */
+PROTO(void move_outside_scope, (Lsymtab *symt));	  /* move symt entry into enclosing scope */
 PROTO(int in_curr_scope, ( const Lsymtab *entry ));/* test symt entry in scope */
 PROTO(int find_scope, ( const Lsymtab *entry )); /* return index of scope that entry belongs to */
 PROTO(int empty_scope,( void ));
+PROTO(int in_enclosing_scope, (const Lsymtab *entry));
 
 /* Global scope management */
 
@@ -1079,7 +1081,7 @@ PROTO(DBLVAL float_expr_value,( Token *t ));
 PROTO(int get_size,( const Lsymtab *symt, int type ));
 PROTO(char * get_size_text,( const Lsymtab *symt, int type ));
 PROTO(int get_type,( const Lsymtab *symt ));
-PROTO(unsigned hash_lookup,( char *s ));
+PROTO(unsigned hash_lookup,( const char *s ));
 PROTO(Gsymtab* install_global,( int h, int datatype, int storage_class ));
 Lsymtab *install_local(int h, int datatype, int storage_class);
 PROTO(int int_expr_value,( Token *t ));

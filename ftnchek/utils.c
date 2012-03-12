@@ -27,16 +27,10 @@ fixes that. */
 #define TOUPPER(c) (islower((int)(c)) ? toupper((int)(c)) : (c))
 
 int
-#if HAVE_STDC
 our_strcasecmp(
 register const char *s1,
 register const char *s2
 )
-#else /* NOT HAVE_STDC */
-our_strcasecmp(s1, s2)
-register const char *s1;
-register const char *s2;
-#endif /* HAVE_STDC */
 {
     while ((*s1) && (TOUPPER(*s1) == TOUPPER(*s2)))
     {
@@ -62,18 +56,11 @@ end-of-string, whichever comes first.
 ***********************************************************************/
 
 int
-#if HAVE_STDC
 our_strncasecmp(
 const char	*s1,
 const char	*s2,
 size_t		n
 )
-#else /* NOT HAVE_STDC */
-our_strncasecmp(s1,s2,n)
-const char	*s1;
-const char	*s2;
-size_t		n;
-#endif /* HAVE_STDC */
 {
     int	   c1;
     int	   c2;
@@ -111,4 +98,5 @@ strtolower(char *s)
       (*s) = (char)tolower((int)(*s));
     s++;
   }
+  return s;
 }

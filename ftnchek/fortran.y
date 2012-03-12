@@ -116,6 +116,7 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     current_private_attr,	/* set if PRIVATE attr given */
     current_intent_in_attr,	/* set if intent IN attr given */
     current_intent_out_attr,	/* set if intent OUT attr given */
+    current_access_spec,	/* value of access spec in type defn stmt */
     label_dummy_arg_count,	/* number of labels in dummy argument list */
     len_selector_given, /* flag for use in processing CHARACTER decls */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
@@ -488,7 +489,12 @@ stmt_list_item	:	ordinary_stmt
 				   outside the construct's scope.
 				 */
 			      if( curr_scope_bottom != 0 ) {
-				symtab_top_swap();
+				move_outside_scope(hashtab[current_prog_unit_hash].loc_symtab);
+				/* Fix the value of hash_num saved on
+				   scope stack when scope was pushed
+				*/
+				loc_scope[loc_scope_top-1].hash_num =
+				  current_prog_unit_hash;
 			      }
 			    }
 			  }
@@ -1187,10 +1193,8 @@ unlabeled_entry_stmt	:	tok_ENTRY symbolic_name
 function_stmt	:   unlabeled_function_stmt EOS
 		|   unlabeled_function_stmt suffix
 			{
-                if (block_depth > 0 &&
-                        block_stack[block_depth-1].sclass == tok_MODULE ||
-		    /* external subprog has not been pushed yet */
-                        block_depth == 0) {
+                if (block_depth == 0 /* external subprog has not been pushed yet */
+                      ||  block_stack[block_depth-1].sclass == tok_MODULE ) {
                     do_suffix(tok_FUNCTION, module_subprog,
                         current_prog_unit_hash,&($2),$1.value.integer);
                 }
@@ -1480,10 +1484,8 @@ module_handle	:	tok_MODULE
 subroutine_stmt	:   unlabeled_subroutine_stmt EOS
         |   unlabeled_subroutine_stmt proc_language_binding_spec
 			{
-                if (block_depth > 0 &&
-                        block_stack[block_depth-1].sclass == tok_MODULE ||
-		    /* external subprog has not been pushed yet */
-                        block_depth == 0) {
+                if (block_depth == 0 /* external subprog has not been pushed yet */
+                        || block_stack[block_depth-1].sclass == tok_MODULE ) {
                     do_bind_spec(($2).left_token,module_subprog);
                 }
                 else {
@@ -2673,13 +2675,22 @@ derived_type_def_stmt   :   derived_type_handle dtype_name EOS
 
 dtype_name: symbolic_name
 		{
-		  def_dtype(&$1);
+		  def_dtype(&$1,current_access_spec,TRUE);
 		  curr_stmt_name = hashtab[$1.value.integer].name;
 		}
 	;
 derived_type_handle :   derived_type_keyword
+		{			/* access spec not declared */
+		  current_access_spec = 0;
+		}
         |   derived_type_keyword tok_double_colon
+		{			/* access spec not declared */
+		  current_access_spec = 0;
+		}
         |   derived_type_keyword ',' access_spec tok_double_colon
+		{
+		  current_access_spec = $3.tclass;
+		}
         ;
 
 derived_type_keyword    :   tok_TYPE 
@@ -2708,21 +2719,6 @@ access_spec	:	tok_PUBLIC
         	|	tok_PRIVATE
 			{
 			  generic_spec_allowed = TRUE;
-
-			  if (sequence_dtype) {
-			    syntax_error($1.line_num,$1.col_num,
-			      "SEQUENCE statement already seen for current derived type definition");
-			  }
-			  else if (private_dtype) {
-			    syntax_error($1.line_num,$1.col_num,
-			      "PRIVATE statement already seen for current derived type definition");
-			  }
-			  else {
-			    private_dtype = TRUE;
-			    int h = hash_lookup(get_curr_block_name());
-			    Lsymtab *symt = hashtab[h].loc_symtab;
-			    symt->private = TRUE;
-			  }
 			}
         	;
 
@@ -2731,8 +2727,7 @@ sequence_stmt	:	tok_SEQUENCE
 			 * private attribute in derived type definitions
 			 */
 			{
-			  if (block_stack[block_depth-1].sclass !=
-			      tok_TYPE) {
+			  if (get_curr_block_class() != tok_TYPE) {
 			    syntax_error($1.line_num,$1.col_num,
 			      "SEQUENCE statement is only allowed in derived type definitions");
 			  }
@@ -2757,9 +2752,32 @@ sequence_stmt	:	tok_SEQUENCE
 
 access_stmt	:	access_spec EOS /* PUBLIC or PRIVATE statement */
 			{
+			/* This production is NOT used for the
+			   accessibility attribute in an attribute-based 
+			   type declaration. */
+
 			  /* access statement in a type declaration */
 			  if( get_curr_block_class() == tok_TYPE ) {
 			    /* record access spec in dtype symtab entry */
+			    if (curr_stmt_class == tok_PUBLIC) {
+			      syntax_error($1.line_num,$1.col_num,
+			      	     "PUBLIC statement is not allowed in derived type definition");
+
+			    }
+			    else if (sequence_dtype) {
+			      syntax_error($1.line_num,$1.col_num,
+					   "SEQUENCE statement already seen for current derived type definition");
+			    }
+			    else if (private_dtype) {
+			      syntax_error($1.line_num,$1.col_num,
+					   "PRIVATE statement already seen for current derived type definition");
+			    }
+			    else {
+			      if (curr_stmt_class == tok_PRIVATE) {
+			        private_dtype = TRUE;
+				privatize_components(get_curr_block_name());
+			      }
+			    }
 			  }
 			  else if( get_type(hashtab[current_prog_unit_hash].loc_symtab) != type_MODULE) {
 			    syntax_error($1.line_num,$1.col_num,
@@ -2810,26 +2828,34 @@ derived_type_decl_prefix:	derived_type_decl_handle
 
 derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')' 
 			{
+			  int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
 			  /* Give hint to lexer to continue taking
 			     attrs as keywords despite non-initial
 			     position */
 			  if(see_double_colon())
 			    in_attrbased_typedecl = TRUE;
 
-			  /* When a component is declared to be of the
-			     same type */
-			  if (block_stack[block_depth-1].sclass ==
-			        tok_TYPE && 
-			      strcmp(block_stack[block_depth-1].name,
-			             (&($3))->src_text) == 0) {
-			    current_datatype = dtype_table_top;
-			  }
-			  else {
-			  /* otherwise datatype is index of dtype_table */
-			    current_datatype = find_Dtype(&($3));
-			  }
+			  /* Get the index of the type.  If this is a
+			     forward reference, a new datatype will be
+			     assigned.  This is an error outside of a
+			     type definition, or inside one if
+			     variable is not a pointer.  Here we treat
+			     all forward references alike, leaving
+			     error diagnostics for later when all the
+			     facts are known.
+			   */
+			  current_datatype = find_dtype(&($3),in_dtype_def);
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
+
+			  /* I don't think this is right -- RKM */
+			  if (current_datatype == dtype_table_top &&
+			      block_stack[block_depth-1].sclass == tok_TYPE &&
+			      strcmp(block_stack[block_depth-1].name,
+			             (&($3))->src_text) != 0) {
+			    syntax_error($3.line_num,$3.col_num,
+			        "Derived type not defined");
+			  }
 			}
 		;
 
@@ -5687,7 +5713,7 @@ END_processing(t)
 	   and then save module info to a file.  [LATTER NOT DONE YET] */
 	if (current_prog_unit_type == type_MODULE) {
 	  if(contains_ended) {
-	    visit_children();
+	    visit_children(/*wrapup=*/FALSE);
 	    check_arglists(current_prog_unit_hash,module_subprog);
 	  }
 
@@ -5703,7 +5729,7 @@ END_processing(t)
 	   need to check internal usage of internal subprograms and
 	   then clear the valid flags of same. */
 	else if(contains_ended) {
-	  visit_children();
+	  visit_children(/*wrapup=*/FALSE);
 	  check_arglists(current_prog_unit_hash,internal_subprog);
 	  clean_globals(current_prog_unit_hash,internal_subprog);
 	}
@@ -5721,8 +5747,10 @@ END_processing(t)
 
   /* exiting a scope, return to enclosing scope if any */
   if( block_depth > 0 ) {
+#ifdef DEBUG_SCOPE
 	  if(debug_latest)
 	      fprintf(list_fd,"\n(block is not empty)");
+#endif
   }
 
   implicit_type_given = FALSE;
