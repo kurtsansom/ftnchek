@@ -49,6 +49,7 @@ as the "MIT License."
 		wrapup()	Look at cross references, etc.
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 #if HAVE_STRINGS_H

@@ -36,6 +36,7 @@ Acknowledgement: the above permission notice is what is known
 as the "MIT License."
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <stdlib.h> 
 #include <string.h>

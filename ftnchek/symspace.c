@@ -30,6 +30,7 @@ Acknowledgement: the above permission notice is what is known
 as the "MIT License."
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 
@@ -76,7 +77,6 @@ init_globals(VOID)                	/* Clears the global symbol table */
 void
 init_symtab(VOID)      /* Clears the current scope of local symbol table */
 {
-	int i,h;
 
 					/* recover storage space when
 					 * outermost scope is exited.

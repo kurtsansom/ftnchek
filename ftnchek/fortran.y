@@ -63,6 +63,7 @@ as the "MIT License."
 */
 
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -241,6 +242,7 @@ PRIVATE int
 
 				/* Defns of private functions */
 
+void ddd_hook();
 PROTO(PRIVATE void push_block,(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 			       char *name, LABEL_t label));
 PROTO(PRIVATE void pop_block,(Token *t, int stmt_class,
@@ -3481,6 +3483,9 @@ assignment_stmt	:	lvalue assignment_op {complex_const_allowed = TRUE;
 lvalue		:	variable_name
 		|	array_element_lvalue
 		|	component /* derived type component */
+			{
+			    ref_component(&($1),&($$),TRUE);
+			}
 		|	substring_lvalue
 		|	stmt_function_handle
 		;
@@ -4785,6 +4790,9 @@ primary		:	variable_name
 		|	array_element_name
 
 		|	component /* derived type component */
+			{
+			    ref_component(&($1),&($$),FALSE);
+			}
 
 		|	function_reference
 
@@ -5173,8 +5181,22 @@ array_name	:	tok_array_identifier
 /* Components of derived type.  Base case needs to include the '%'
    to avoid shift-reduce conflict with function reference. */
 component	:	variable_name '%' component_name
+			{
+			    /* Create initial linked list ->compname->varname */
+			    $3.next_token = append_token((Token*)NULL,&($1));
+			    $$.next_token = append_token($3.next_token,&($3));
+			}
 		|	array_element_name '%' component_name
+			{
+			    /* Create initial linked list ->compname->varname */
+			    $3.next_token = append_token((Token*)NULL,&($1));
+			    $$.next_token = append_token($3.next_token,&($3));
+			}
 		|	component '%' component_name
+			{
+			    /* Link new component onto front of list */
+			    $$.next_token = append_token($1.next_token,&($3));
+			}
 		;
 
 component_name	:	tok_identifier
@@ -6259,4 +6281,9 @@ void block_stack_top_swap()
   BlockStack temp = block_stack[block_depth-1];
   block_stack[block_depth-1] = block_stack[block_depth-2];
   block_stack[block_depth-2] = temp;
+}
+
+void ddd_hook()
+{
+    printf("hello");
 }

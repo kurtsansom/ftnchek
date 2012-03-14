@@ -45,6 +45,7 @@ as the "MIT License."
         init_typesizes(wdsize)	Sets standard type sizes
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>

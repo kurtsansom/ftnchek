@@ -96,6 +96,7 @@ this Software without prior written authorization from the author.
  check_stmt_function_args(symt,id,arg)  ditto for statement functions
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -3230,9 +3231,9 @@ void print_sizeofs()			/* For development: print sizeof for
 				   various data structures */
 {
 #ifdef __STDC__
-#define PrintObjSize(OBJ) (void)fprintf(list_fd,#OBJ " size = %d\n",sizeof(OBJ))
+#define PrintObjSize(OBJ) (void)fprintf(list_fd,#OBJ " size = %ld\n",sizeof(OBJ))
 #else			/* K&R form */
-#define PrintObjSize(OBJ) (void)fprintf(list_fd,"OBJ size = %d\n",sizeof(OBJ))
+#define PrintObjSize(OBJ) (void)fprintf(list_fd,"OBJ size = %ld\n",sizeof(OBJ))
 #endif
   PrintObjSize(char *);
   PrintObjSize(Token);

@@ -58,4 +58,5 @@ void print_dtypes(Lsymtab *sym_list[], int n);  /* print names of derived type d
     dtype_table */
 void privatize_components(const char *name);
 void process_dtype_components(const char *name);
+void ref_component(Token *comp, Token *result, int lvalue);
 #endif

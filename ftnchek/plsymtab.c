@@ -55,6 +55,7 @@ as the "MIT License."
 
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -411,6 +412,10 @@ print_variables(sym_list,n)
 	  if(datatype_of(sym_list[i]->type) == type_UNDECL ) {
 	    implicits++;
 	    (void)fprintf(list_fd,"*");
+	  }
+	  /* Append ^ on pointers */
+	  else if(sym_list[i]->pointer) {
+	    (void)fprintf(list_fd,"^");
 	  }
 	  else if(sym_list[i]->size == size_DEFAULT)
 	    (void)fprintf(list_fd," "); /* print blank if no size or * */

@@ -1,3 +1,4 @@
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>

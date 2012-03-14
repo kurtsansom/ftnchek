@@ -48,7 +48,6 @@ No guarantees accompany this software."
 #define PROJECT_VERSION		"P4" /* Project file format version number */
 #define MODULE_VERSION		"M1" /* Module file format version number */
 
-#include "config.h"		/* Get system-specific information */
 
 		/* Define macro PROTO for declaring function prototypes.  If
 		   compiler doesn't accept prototypes, use -DNO_PROTOTYPES.

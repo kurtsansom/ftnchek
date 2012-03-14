@@ -136,6 +136,9 @@ this Software without prior written authorization from the author.
 #define is_num_log_type(t) ((unsigned)(t) <= type_LOGICAL)
 				/* test for real/d.p./complex/d.complx type */
 #define is_float_type(t) ((unsigned)(t)>=type_REAL && (unsigned)(t)<=type_DCOMPLEX)
+				/* tests for elementary vs derived type */
+#define is_elementary_type(t) ((unsigned)(t) < MIN_DTYPE_ID)
+#define is_derived_type(t) ((unsigned)(t) >= MIN_DTYPE_ID)
 
 	/* Type categories equate DoubleP to Real, Double Complex
 	   to Complex, and Hollerith to Int to simplify expression
@@ -365,6 +368,7 @@ struct tokstruct {
 	COLNO_t col_num;	/* Column where token occurred */
 	unsigned size_is_adjustable : 1;
 	unsigned size_is_expression : 1;
+	unsigned pointer : 1;	/* has POINTER attribute */
 };
 
 typedef struct tokstruct Token;

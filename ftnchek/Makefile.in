@@ -619,7 +619,7 @@ calltree.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
 comcheck.o:	config.h ftnchek.h pgsymtab.h symtab.h
 
-dtypes.o:	config.h dtypes.h ftnchek.h symtab.h symspace.h tokdefs.h
+dtypes.o:	config.h dtypes.h ftnchek.h symtab.h symspace.h symutils.h tokdefs.h
 
 exprtype.o:	config.h ftnchek.h symtab.h symutils.h tokdefs.h
 

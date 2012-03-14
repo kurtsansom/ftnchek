@@ -1,3 +1,4 @@
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -5,6 +6,7 @@
 #include "ftnchek.h"
 #include "symtab.h"
 #include "symspace.h"
+#include "symutils.h"
 #include "dtypes.h"
 #include "tokdefs.h"
 
@@ -12,8 +14,11 @@ PRIVATE int duplicate_dtype( int type_id );  /* check if derived type definition
     exists in dtype_table */
 PRIVATE int is_same_components(int s_id,int t_id,
        const DtypeComponent *source, const DtypeComponent *target, int num_components);
+PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d, int s, int lvalue);
 
-
+PRIVATE void make_error_dtype_token( Token *result );
+PRIVATE DtypeComponent *find_component(int d, const char *s);
+PRIVATE void replace_type(int dup, int prev);
 
 /* Looks for a derived type with matching name and returns its index from
  * Dtype_table.  If not found, it is a forward reference so a new type
@@ -172,6 +177,7 @@ void process_dtype_components(const char *name)
 {
   int i, h, d;
   int type_id;
+  int is_fwd_ref;			/* watch for forward refs */
   int num_components;
   Lsymtab *symt;
   Dtype *dtype;
@@ -204,6 +210,8 @@ void process_dtype_components(const char *name)
   dtype->num_components = num_components;
   dtype->private_components = symt->private_components;
   dtype->sequence = symt->sequence;
+  is_fwd_ref = (dtype->line_declared == NO_LINE_NUM);
+  dtype->line_declared = symt->line_declared;
 
   if ( num_components > 0 && (dtype->components =
 	(DtypeComponent *)malloc(num_components*sizeof(DtypeComponent)))
@@ -232,14 +240,22 @@ void process_dtype_components(const char *name)
   }
 			    /* see if it is a duplicate derived type */
   if ( (d = duplicate_dtype(type_id)) != -1 ) {
-    /* This is normal if two independent prog units declare type identically */
-    /* Change type in local symbol table entry to existing definition */
+    /* This is normal if two independent prog units declare type
+     * identically and include SEQUENCE attribute.
+     */
+
     symt->type = type_pack(class_DTYPE,d);
+
+    if(is_fwd_ref)
+      replace_type(type_id,d);	/* change refs to this type to pre-existing number  */
+
     if(dtype->components)
       free(dtype->components);		/* clean up unneeded space */
     free(dtype);
-    if( type_id == dtype_table_top+1 ) /* took latest avail type */
-    	--dtype_table_top;  /* recover the slot, otherwise it's wasted */
+    if( type_id == dtype_table_top-1 ) /* took latest avail type */
+    	--dtype_table_top;  /* recover the slot */
+    else
+        dtype_table[type_id] = NULL;       /* otherwise it's wasted, mark it as a hole */
   }
   else {				/* it is new; accept defn */
 
@@ -249,7 +265,7 @@ void process_dtype_components(const char *name)
   if(debug_latest) {
     fprintf(list_fd,"\nPROCESS_DTYPE_COMPONENTS: Number of derived type definitions : %d",
             dtype_table_top - MIN_DTYPE_ID);
-    if (d != 1) {
+    if (d != -1 && dtype_table[type_id] != NULL) {
       fprintf(list_fd,"\nNumber of components for %s : %d",
               dtype_table[type_id]->name, num_components);
     }
@@ -263,7 +279,7 @@ void process_dtype_components(const char *name)
  */
 char *type_name(type_t t)
 {
-   if(t < MIN_DTYPE_ID) {		/* elementary type */
+  if(is_elementary_type(t)) {		/* elementary type */
       return elementary_type_name[t];
    }
    else {
@@ -295,7 +311,7 @@ PRIVATE int duplicate_dtype( int type_id )
 
   /* check each derived type definition */
   for (i = MIN_DTYPE_ID; i < dtype_table_top; i++) {
-    if( i == type_id )			/* skip self */
+    if( i == type_id || dtype_table[i] == (Dtype *)NULL )	/* skip self, holes */
       continue;
 
     target = dtype_table[i];
@@ -365,4 +381,169 @@ int is_same_components(int s_id,int t_id,
   }
 
   return TRUE;
+}
+
+/* Checks if a derived type definition stored in dtype_table['d'] has a
+ * component with the name 's'.  If found then it returns ptr to the
+ * component else it returns NULL.
+ */
+PRIVATE
+DtypeComponent *find_component(int d, const char *s)
+{
+  int i;
+  int n = dtype_table[d]->num_components;
+  DtypeComponent *comp = dtype_table[d]->components;
+
+  for (i = 0; i < n; i++ ) {
+    if ( strcmp(s, comp->name) == 0 )
+      return comp; /* found component of same name */
+    comp++;
+  }
+
+  return NULL;
+}
+
+/* Takes an arranged list of components and recursively checks if a
+ * component which is an elementary type exists in previous component
+ * which was a derived type. Upon reaching the last component, its
+ * type is transferred to the 'result' argument.
+ *
+ * Note : Argument 'd' is type number of previous component.
+ * If comp != NULL, d must be a derived type.
+ */
+PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d, int size, int lvalue)
+{
+  DtypeComponent *comp_dtype;
+
+
+  if(comp == NULL) {			/* end of list */
+    result->TOK_type = type_pack(class_VAR, d);
+    result->size = size;
+
+    /* Set appropriate usage flags both in base variable symtab and in
+     * token, for use if item is a subroutine argument.
+     * NOTE: usage of components of a variable is not tracked: all
+     * usage is imputed to the variable itself (as with arrays vs
+     * array elements).
+     */
+    make_true(LVALUE_EXPR,result->TOK_flags);
+    if (lvalue) {
+      base->line_set = result->line_num;
+      base->set_flag = TRUE;
+      base->assigned_flag = TRUE;
+      make_true(SET_FLAG,result->TOK_flags);
+      make_true(ASSIGNED_FLAG,result->TOK_flags);
+    }
+    else {
+      if(!base->set_flag) {
+	base->used_before_set = TRUE;
+        make_true(USED_BEFORE_SET,result->TOK_flags);
+      }
+      base->line_used = result->line_num;
+      base->used_flag = TRUE;
+    }
+
+  }
+  else {			   /* recursively do next component */
+    char *component_name = hashtab[comp->value.integer].name;
+
+    /* Look up the component in the derived type */
+    if ((comp_dtype=find_component(d, component_name)) == NULL) {
+      make_error_dtype_token( result );
+      syntax_error(comp->line_num,comp->col_num,component_name);
+      msg_tail("is not a component of type");
+      msg_tail(type_name(d));
+    }
+    else {
+      /* If there is a next component, make sure this component is derived type */
+      if (!is_derived_type(comp_dtype->type) && comp->next_token != NULL) {
+	make_error_dtype_token( result );
+	syntax_error(comp->line_num,comp->col_num,component_name);
+	msg_tail("is not a derived type");
+	return;
+      }
+    
+      /* set POINTER attribute */
+      result->pointer = comp_dtype->pointer;
+      ref_component_list(comp->next_token, result, base, comp_dtype->type, comp_dtype->size, lvalue);
+    }
+  }
+}
+
+/* Routine to follow a dtype component reference out to the end
+   to determine its type.  The result is updated to be suitable
+   for use as a primary in an expression.
+*/
+void ref_component(Token *comp, Token *result, int lvalue)
+{
+  int h, d, s;
+  Token *curr;
+  Lsymtab *symt;
+
+  curr = reverse_tokenlist(comp->next_token); /* Put list into left-right order */
+
+#ifdef DEBUG_DTYPE
+  if(debug_latest) {
+    Token *item;
+    fprintf(list_fd,"\nComponents: ");
+    for(item=curr; item != NULL; item = item->next_token)
+      fprintf(list_fd,"%s ",hashtab[item->value.integer].name);
+    fprintf(list_fd,"\n");
+  }
+#endif
+  h = curr->value.integer;
+  symt = hashtab[h].loc_symtab;
+
+  d = datatype_of(symt->type);
+  s = symt->size;
+
+  if( storage_class_of(symt->type) != class_VAR ) { /* base is not a variable?? */
+    make_error_dtype_token( result );
+    syntax_error(curr->line_num,curr->col_num,symt->name);
+    msg_tail("is not a variable");
+    return;
+  }
+
+  if (!is_derived_type(d)) {		/* base not a derived type?? */
+    make_error_dtype_token( result );
+    syntax_error(curr->line_num,curr->col_num,symt->name);
+    msg_tail("is not a derived type");
+    return;
+  }
+
+  /*  Here next_token is always non-NULL since ref_component is called
+   *  only for base%component[%component...] references. */
+  ref_component_list(curr->next_token, result, symt, d, s, lvalue);
+}
+
+PRIVATE
+void make_error_dtype_token( Token *result )
+{
+    result->TOK_type = type_pack(class_VAR, type_ERROR);
+    result->size = size_DEFAULT;
+    result->TOK_flags = 0;
+}
+
+/* Routine to fix references to a type that went into symbol table due
+   to a forward ref, using newly assigned number, which then turned
+   out to be a duplicate type.  Strictly speaking, this should repeat,
+   finding types now recognized as duplicates, until no changes are
+   made.  That is for a future enhancement.
+ */
+PRIVATE void replace_type(int dup, int prev)
+{
+  int i;
+  for(i=0; i<loc_symtab_top; i++) {
+    if( storage_class_of(loc_symtab[i].type) == class_DTYPE ) {
+      int d = datatype_of(loc_symtab[i].type);
+      Dtype *dtype = dtype_table[d];
+      int n = dtype->num_components;
+      DtypeComponent *comp = dtype->components;
+      int c;
+      for (c = 0; c < n; c++ ) {
+	if(comp[c].type == dup)
+	  comp[c].type = prev;
+      }
+    }
+  }
 }

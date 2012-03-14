@@ -42,6 +42,7 @@ as the "MIT License."
 		check_arglists()  Scans global symbol table for subprograms
 				  and finds subprogram defn if it exists.
 */
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 

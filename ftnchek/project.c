@@ -49,6 +49,7 @@ as the "MIT License."
 		void proj_com_info_in()  Inputs common lists
 */
 
+#include "config.h"		/* Get system-specific information */
 #include <stdio.h>
 #include <string.h>
 #include "ftnchek.h"
@@ -56,6 +57,9 @@ as the "MIT License."
 #include "symtab.h"
 #include "symspace.h"
 #include <string.h>
+#if HAVE_STRINGS_H
+#include <strings.h>	/* we use strncasecmp */
+#endif
 #include "utils.h"
 
 /* Two options, proj_trim_calls and proj_trim_common, control whether
@@ -324,7 +328,7 @@ PRIVATE void
 mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
   WRITE_STR(" var",lsymt->name);
-  WRITE_NUM(" type",get_type(lsymt));
+  WRITE_NUM(" type",(long)get_type(lsymt));
   WRITE_NUM(" size",(long)lsymt->size);
   (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		lsymt->parameter,
@@ -795,6 +799,10 @@ void read_module_file(int h, Token *only)
 		/* read module name (should be same as upcased file stem) */
    READ_STR("module",buf);
    modulename = new_global_string(buf);
+   if( strncasecmp(modulename,module_filename,strlen(modulename)) != 0 ) {
+     fprintf(list_fd,"\nWarning: module name %s differs from file stem %s",
+	     modulename,module_filename);
+   }
 		/* Save filename in permanent storage */
    READ_STR(" file",buf);
    topfilename = new_global_string(buf);
