@@ -78,7 +78,9 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
  type-first-stmt.f type-notfirst-stmt.f
 
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
-  internalsub.f90 modulesub.f90 embedded-space-free.f90
+  internalsub.f90 modulesub.f90 embedded-space-free.f90 nontype.f90\
+  illegal-fwd-ref.f90 illegal-nameclash.f90 type-no-components.f90\
+  type-host-associate.f90
 
 # Files for checkproject and checkcalltree
 POLYGRAF=polygraf.f fungraf.f coregfx.f coreunix.f
@@ -270,6 +272,7 @@ clean mostlyclean clobber distclean realclean spotless: clearfail
 	-$(RM) *~ \#*
 	-$(RM) a.out core core.*
 	-$(RM) $(VARY)/*
+	-$(RM) *.fkm
 
 # checklistings checks listing output on programs in LISTOUT and FREEFORM
 checklistings: announcelistings $(LISTOUT:.f=.chk) $(FREEFORM:.f90=.chk)

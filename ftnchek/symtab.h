@@ -368,7 +368,6 @@ struct tokstruct {
 	COLNO_t col_num;	/* Column where token occurred */
 	unsigned size_is_adjustable : 1;
 	unsigned size_is_expression : 1;
-	unsigned pointer : 1;	/* has POINTER attribute */
 };
 
 typedef struct tokstruct Token;
@@ -930,6 +929,8 @@ typedef struct PSpace {
 #define NOT_DO_TERMINAL_STMT    0x80000 /* stmt illegal as end of DO loop */
 #define DO_VARIABLE		0x100000 /* id is active DO index variable */
 #define SYNTAX_ERROR_FLAG	0x200000/* concentrator for syntax errors */
+#define POINTER_EXPR		0x400000 /* has POINTER attribute */
+#define TARGET_EXPR		0x800000 /* has TARGET attribute */
 
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
 SYM_SHARED
@@ -1037,6 +1038,7 @@ PROTO(char *keytok_name,(int tclass));
 
 			/* in fortran.y/fortran.c */
 PROTO(void check_seq_header,( Token *t ));
+PROTO(Token * append_token,( Token *tlist, Token *t ));
 
 			/* in prlocsym.c */
 PROTO(void print_loc_symbols,( void ));

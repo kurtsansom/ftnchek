@@ -40,7 +40,7 @@ typedef struct DtypeTableEntry {
   DtypeComponent *components;
   /* end of fields for root node */
   LINENO_t line_declared;
-  short file_declared;
+  char *filename;
   unsigned
   	public: 1,		/* is PUBLIC type */
   	private: 1,		/* is PRIVATE type */

@@ -121,7 +121,7 @@ Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def)
     symt = install_local(h,type_id,class_DTYPE);
     /* If this is a definition, record where.  If forward ref, leave undefined */
     symt->line_declared = dtype->line_declared = (dtype_def?id->line_num:NO_LINE_NUM);
-    symt->file_declared = dtype->file_declared = inctable_index;
+    dtype->filename = current_filename;
 
     dtype->name = new_global_string(id->src_text);
     dtype->num_components = 0;		/* no components defined yet */
@@ -205,6 +205,10 @@ void process_dtype_components(const char *name)
      PRIVATE statement.
    */
   num_components = loc_symtab_top - curr_scope_bottom;
+  if (num_components == 0) {
+    warning(symt->line_declared, NO_COL_NUM,
+            "No components in derived type definition");
+  }
   type_id = datatype_of(symt->type);
   dtype = dtype_table[type_id];
   dtype->num_components = num_components;
@@ -427,6 +431,7 @@ PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d
      * array elements).
      */
     make_true(LVALUE_EXPR,result->TOK_flags);
+    make_false(ID_EXPR,result->TOK_flags);
     if (lvalue) {
       base->line_set = result->line_num;
       base->set_flag = TRUE;
@@ -463,8 +468,15 @@ PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d
 	return;
       }
     
-      /* set POINTER attribute */
-      result->pointer = comp_dtype->pointer;
+      /* Set POINTER attribute in result to match component.  Last component
+       * wins. */
+      if(comp_dtype->pointer)
+	make_true(POINTER_EXPR,result->TOK_flags);
+      else
+	make_false(POINTER_EXPR,result->TOK_flags);
+
+      make_false(TARGET_EXPR,result->TOK_flags);	/* components cannot be targets */
+
       ref_component_list(comp->next_token, result, base, comp_dtype->type, comp_dtype->size, lvalue);
     }
   }
@@ -494,7 +506,7 @@ void ref_component(Token *comp, Token *result, int lvalue)
   h = curr->value.integer;
   symt = hashtab[h].loc_symtab;
 
-  d = datatype_of(symt->type);
+  d = get_type(symt);
   s = symt->size;
 
   if( storage_class_of(symt->type) != class_VAR ) { /* base is not a variable?? */
@@ -535,7 +547,7 @@ PRIVATE void replace_type(int dup, int prev)
   int i;
   for(i=0; i<loc_symtab_top; i++) {
     if( storage_class_of(loc_symtab[i].type) == class_DTYPE ) {
-      int d = datatype_of(loc_symtab[i].type);
+      int d = get_type(&loc_symtab[i]);
       Dtype *dtype = dtype_table[d];
       int n = dtype->num_components;
       DtypeComponent *comp = dtype->components;

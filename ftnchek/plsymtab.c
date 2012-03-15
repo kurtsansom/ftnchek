@@ -414,11 +414,16 @@ print_variables(sym_list,n)
 	    (void)fprintf(list_fd,"*");
 	  }
 	  /* Append ^ on pointers */
-	  else if(sym_list[i]->pointer) {
+	  if(sym_list[i]->pointer) {
 	    (void)fprintf(list_fd,"^");
 	  }
-	  else if(sym_list[i]->size == size_DEFAULT)
+	  if(datatype_of(sym_list[i]->type) != type_UNDECL &&
+	     sym_list[i]->size == size_DEFAULT)
 	    (void)fprintf(list_fd," "); /* print blank if no size or * */
+	  /* should print blank here if no ^ but that is not consistent
+	     with previous output format.  Fix all this when symbol table
+	     output is revised for longer type names.
+	   */
 
 
 			/* print no. of dimensions next to var name */

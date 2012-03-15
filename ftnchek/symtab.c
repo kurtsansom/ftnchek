@@ -142,7 +142,7 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	int h=id->value.integer;
 	Lsymtab *symt;
 
-	if( (symt=hashtab[h].loc_symtab) == NULL) {
+	if( (symt=hashtab[h].loc_symtab) == NULL || !in_curr_scope(symt) ) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
@@ -151,7 +151,8 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	/* macro to set an attribute bit in symtab: if already set, flag
 	   the error, otherwise set the bit in all equivalenced entries.
 	 */
-#define check_and_set_attr( ATTRBIT ) if( (symt->ATTRBIT) ) { \
+#define check_and_set_attr( ATTRBIT ) \
+	if( (symt->ATTRBIT) ) {					 \
 	     syntax_error(id->line_num,id->col_num,"redundant"); \
 	     msg_tail(keytok_name(attr)); msg_tail("declaration"); } \
 	else {  Lsymtab *equiv=symt; \
@@ -160,11 +161,6 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	    equiv = equiv->equiv_link; \
 	  } while(equiv != symt); }
 
-	if (! in_curr_scope(symt)) {
-		symt = install_local(h,type_UNDECL,class_VAR);
-		symt->line_declared = id->line_num;
-		symt->file_declared = inctable_index;
-	}
 	/* Same but also checks whether a mutually exclusive bit is
 	 * set. 
 	 */
@@ -722,15 +718,12 @@ def_arg_name(id)		/* Process items in argument list */
 	int h=id->value.integer;
 	Lsymtab *symt;
 
-	if( (symt=hashtab[h].loc_symtab) == NULL) {
+
+			/* Dummy args mask names in enclosing scope. */
+	if( (symt=hashtab[h].loc_symtab) == NULL || ! in_curr_scope(symt)) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
-	}
-	else {           /* Symbol has been seen before: check it */
-		if (! in_curr_scope(symt)) {
-			symt = install_local(h,type_UNDECL,class_VAR);
-		}
 	}
 	symt->argument = TRUE;
 }/*def_arg_name*/
@@ -868,7 +861,7 @@ def_com_block(id,comlist)	/* Process common blocks and save_stmt */
 	}
 
 
-	if( (symt = hashtab[h].com_loc_symtab) == NULL){
+	if( (symt = hashtab[h].com_loc_symtab) == NULL || !in_curr_scope(symt)){
 	   symt = install_local(h,type_COMMON_BLOCK,class_COMMON_BLOCK);
 	   symt->info.toklist = NULL;
 	}
@@ -2505,6 +2498,11 @@ ref_variable(id)	/* Variable reference: install in symtab */
 	    symt->line_declared = id->line_num; /* implicit declaration */
 	    symt->file_declared = inctable_index;
 	}
+	/* transfer pointer/target attributes to token */
+      if(symt->pointer)
+	make_true(POINTER_EXPR,id->TOK_flags);
+      if(symt->target)
+	make_true(TARGET_EXPR,id->TOK_flags);
 }/*ref_variable*/
 
 
@@ -2899,7 +2897,8 @@ use_variable(id)		/* Set the use-flag of variable. */
                  /*** handle pointer/allocatable variables ***/ 
     if (symt->pointer)
     {
-       use_pointer(id);
+      make_true(POINTER_EXPR,id->TOK_flags);
+      use_pointer(id);
     }
     else if (symt->allocatable){
              if (!symt->allocated_flag){
@@ -2943,35 +2942,32 @@ use_pointer(id)                /* Set the use-flag of variable. */
         Token *id;
 #endif /* HAVE_STDC */
 {
-        int h=id->value.integer;
-        Lsymtab *symt;
+	
+	if( is_true(ID_EXPR,id->TOK_flags) ) {	/* is this a variable? */
+	  int h=id->value.integer;
+	  Lsymtab *symt;
 
-        if( (symt=hashtab[h].loc_symtab) == NULL) {
-           symt = install_local(h,type_UNDECL,class_VAR);
-           symt->line_declared = id->line_num;
-           symt->file_declared = inctable_index;
-        }
-     if (!(symt->pointer || symt->target)){
-        syntax_error(id->line_num,id->col_num,
-                        "pointer/target attribute expected on:");
-	msg_tail(symt->name);
-      }
-     else {
-           if(!(symt->allocated_flag || symt->target)) 
-           symt->used_before_allocation = TRUE;
-	   symt->line_used = id->line_num;
-	   symt->file_used = inctable_index;
-        }
+	  if( (symt=hashtab[h].loc_symtab) == NULL) {
+	    symt = install_local(h,type_UNDECL,class_VAR);
+	    symt->line_declared = id->line_num;
+	    symt->file_declared = inctable_index;
+	  }
 
-        if(! symt->used_flag) { /* record first line where used */
+	  if(!(symt->allocated_flag || symt->target)) 
+	    symt->used_before_allocation = TRUE;
+	  symt->line_used = id->line_num;
+	  symt->file_used = inctable_index;
+
+
+	  if(! symt->used_flag) { /* record first line where used */
             symt->line_used = id->line_num;
             symt->file_used = inctable_index;
-        }
-        if(! symt->set_flag) {
-           symt->used_before_set = TRUE;
-        }
-        symt->used_flag = TRUE;
-
+	  }
+	  if(! symt->set_flag) {
+	    symt->used_before_set = TRUE;
+	  }
+	  symt->used_flag = TRUE;
+	}
    
 
 }/*use_pointer*/
@@ -2985,6 +2981,8 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 	Token *id;
 #endif /* HAVE_STDC */
 {
+	
+      if( is_true(ID_EXPR,id->TOK_flags) ) {	/* is this a variable? */
 	int h=id->value.integer;
 	Lsymtab *symt;
 	if((symt=hashtab[h].loc_symtab) == NULL) {
@@ -3019,7 +3017,7 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 	    symt->file_set = inctable_index;
 	  symt->set_flag = TRUE;
 	}
-        
+      }
 
 }/*use_pointer_lvalue*/
 
@@ -3231,7 +3229,7 @@ void print_sizeofs()			/* For development: print sizeof for
 				   various data structures */
 {
 #ifdef __STDC__
-#define PrintObjSize(OBJ) (void)fprintf(list_fd,#OBJ " size = %ld\n",sizeof(OBJ))
+#define PrintObjSize(OBJ) (void)fprintf(list_fd,#OBJ " size = %ld\n",(long)sizeof(OBJ))
 #else			/* K&R form */
 #define PrintObjSize(OBJ) (void)fprintf(list_fd,"OBJ size = %ld\n",sizeof(OBJ))
 #endif

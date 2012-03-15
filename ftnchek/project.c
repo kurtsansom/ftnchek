@@ -43,10 +43,10 @@ as the "MIT License."
 		int has_defn()	    TRUE if external has defn in current file
 		int has_call()	    TRUE if external has call in current file
 		int count_com_defns() Counts multiple common defns.
-		void proj_alist_out() Outputs argument lists
-		void proj_clist_out() Outputs common lists
-		void proj_arg_info_in()  Inputs argument lists
-		void proj_com_info_in()  Inputs common lists
+		void alist_out() Outputs argument lists
+		void clist_out() Outputs common lists
+		void arg_info_in()  Inputs argument lists
+		void com_info_in()  Inputs common lists
 */
 
 #include "config.h"		/* Get system-specific information */
@@ -87,18 +87,19 @@ PROTO(PRIVATE char *getstrn,(char s[], int n, FILE *fd));
 PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
-PROTO(PRIVATE void proj_alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
-PROTO(PRIVATE void proj_arg_info_in,( FILE *fd, char *filename, int is_defn ));
+PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
+PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn ));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
 PROTO(PRIVATE void mod_var_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist)));
 PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
-PROTO(PRIVATE void proj_prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
-PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], int *blocks, int *defns ));
-PROTO(PRIVATE void proj_comblock_out, (FILE *fd, Gsymtab *sym_list[], int numblocks, int numdefns));
-PROTO(PRIVATE void proj_clist_out,( Gsymtab *gsymt, FILE *fd ));
-PROTO(PRIVATE void proj_com_info_in,( FILE *fd, const char *filename ));
+PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
+PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns ));
+PROTO(PRIVATE void comblocks_out, (FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns));
+PROTO(PRIVATE void clist_out,( Gsymtab *gsymt, ComListHeader *c, FILE *fd ));
+PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, int module ));
 PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename));
+PROTO(PRIVATE ComListHeader *comblock_used_by,(ComListHeader *clist, Gsymtab *module));
 
 
 
@@ -245,9 +246,18 @@ write_module_file(int h)
     WRITE_NUM(" entries",(long)numdefns);
     NEXTLINE;
     for(i=0; i<numdefns; i++) {
-      proj_prog_unit_out(gsym_list[i],fd,/*do_defns=*/TRUE);
+      prog_unit_out(gsym_list[i],fd,/*do_defns=*/TRUE);
     }
     NEXTLINE;
+  }
+
+  /* Write the common block section of module file */
+  {
+    Gsymtab *gsym_list[GLOBSYMTABSZ];
+    Gsymtab *module = hashtab[h].glob_symtab;
+    int numblocks,numdefns;
+    find_comblocks(gsym_list,module,&numblocks,&numdefns);
+    comblocks_out(fd,gsym_list,module,numblocks,numdefns);
   }
 
   fclose(fd);			/* Done. */
@@ -282,7 +292,7 @@ proj_file_out(fd)
       WRITE_NUM(" entries",(long)numdefns);
       NEXTLINE;
       for(i=0; i<numdefns; i++) {
-	proj_prog_unit_out(sym_list[i],fd,/*do_defns=*/TRUE);
+	prog_unit_out(sym_list[i],fd,/*do_defns=*/TRUE);
       }
       NEXTLINE;
 
@@ -294,7 +304,7 @@ proj_file_out(fd)
       WRITE_NUM(" externals",(long)numcalls);
       NEXTLINE;
       for(i=0; i<numcalls; i++) {
-	proj_prog_unit_out(sym_list[i],fd,/*do_defns=*/FALSE);
+	prog_unit_out(sym_list[i],fd,/*do_defns=*/FALSE);
       }
       NEXTLINE;
 
@@ -303,8 +313,8 @@ proj_file_out(fd)
   /* Write the common block section of project file */
   {
     int numblocks,numdefns;
-    find_comblocks(sym_list,&numblocks,&numdefns);
-    proj_comblock_out(fd,sym_list,numblocks,numdefns);
+    find_comblocks(sym_list,(Gsymtab *)NULL,&numblocks,&numdefns);
+    comblocks_out(fd,sym_list,(Gsymtab *)NULL,numblocks,numdefns);
   }
 }
 
@@ -404,7 +414,7 @@ trim_calls(int orig_num, Gsymtab *sym_list[])
       
 
 PRIVATE void
-proj_prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
+prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 {
 	  if(do_defns)
 	    WRITE_STR(" entry",gsymt->name);
@@ -430,24 +440,57 @@ proj_prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 		  0,
 		  0);
 	  NEXTLINE;
-	  proj_alist_out(gsymt,fd,do_defns);
+	  alist_out(gsymt,fd,do_defns);
 }
 
+/* Routine to scan list of common block headers to find a declaration
+   from the given module.
+
+   We could get away with just using the front element except that
+   module subprograms can declare the same blocks, and these defns
+   will come in front of the module's.
+ */
+
+PRIVATE
+ComListHeader *comblock_used_by(ComListHeader *clist, Gsymtab *module)
+{
+  while(clist != NULL) {
+    if(clist->prog_unit == module)
+      return clist;
+    clist = clist->next;
+  }
+  return NULL;
+}
+
+/* Routine to make a list of common blocks.
+ *
+ * For project files, argument "module" is NULL, and all common blocks
+ * declared in the current file are selected, unless
+ * -project=trim-common and -lib are specified, in which case only one
+ * declaration of each common block is kept.
+ *
+ * For modules, "module" is pointer to the global symtab entry of the
+ * module.  Only blocks declared in the module are selected.
+ */
 
 PRIVATE void
-find_comblocks(Gsymtab *sym_list[], int *blocks, int *defns)
+find_comblocks(Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns)
 {
     int i,numblocks,numdefns;
     ComListHeader *clist;
     for(i=0,numblocks=numdefns=0;i<glob_symtab_top;i++) {
       if(storage_class_of(glob_symtab[i].type) == class_COMMON_BLOCK
 	 && (clist=glob_symtab[i].info.comlist) != NULL &&
-	 clist->topfile == top_filename ) {
-			/* No keepall: save only one com decl if -lib mode */
-	if( proj_trim_common && library_mode)
+	 (module?
+	  (comblock_used_by(clist,module)!=NULL):
+	  (clist->topfile == top_filename)) ) {
+			/* -project=trim-common: save only one com decl if
+			   -lib mode.  For module, will use only one decl. */
+	if( module || (proj_trim_common && library_mode) )
 	  numdefns++;
 	else
-			/* keepall or -nolib mode: keep all com decls */
+			/* -project=no-trim-common or -nolib
+			   mode: keep all com decls */
 	  numdefns += count_com_defns(clist);
 
 	sym_list[numblocks++] = &glob_symtab[i];
@@ -458,24 +501,43 @@ find_comblocks(Gsymtab *sym_list[], int *blocks, int *defns)
 }
 
 PRIVATE void
-proj_comblock_out(FILE *fd, Gsymtab *sym_list[], int numblocks, int numdefns)
+comblocks_out(FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns)
 {
     int i;
     WRITE_NUM(" comblocks",(long)numdefns);
     NEXTLINE;
     for(i=0; i<numblocks; i++) {
-      proj_clist_out(sym_list[i],fd);
+      Gsymtab *gsymt=sym_list[i];
+      ComListHeader *c=gsymt->info.comlist;
+
+      if( module ) {
+			/* for modules: print only declaration
+			   from the module */
+	clist_out(gsymt,comblock_used_by(c,module),fd);
+      }
+      else {
+	while( c != NULL && c->topfile == top_filename ) {
+	  clist_out(gsymt,c,fd);
+
+			/* for project files: -project=no-trim-common
+			   or -nolib: loop thru all defns.  Otherwise
+			   only keep the first. */
+	  if(proj_trim_common && library_mode)
+	    break;
+	  c = c->next;
+	}/* end while c != NULL */
+      }
     }
     NEXTLINE;
 }
 
 
 
-	/* proj_alist_out: writes arglist data from symbol table to
-	   project file. */
+	/* alist_out: writes arglist data from symbol table to
+	   project or module file. */
 
 PRIVATE void
-proj_alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
+alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 
 {
   ArgListHeader *a=gsymt->info.arglist;
@@ -568,27 +630,19 @@ proj_alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
      a = a->next;
    }/* end while(a!=NULL)*/
    (void)fprintf(fd," end\n");
-}/*proj_alist_out*/
+}/*alist_out*/
 
 
 
-	/* proj_clist_out writes common var list data from symbol
-	   table to project file. */
+	/* clist_out writes common var list data from symbol
+	   table to project or module file. */
 
 PRIVATE void
-#if HAVE_STDC
-proj_clist_out(Gsymtab *gsymt, FILE *fd)
-#else /* K&R style */
-proj_clist_out(gsymt,fd)
-     Gsymtab *gsymt;
-     FILE *fd;
-#endif /* HAVE_STDC */
+  clist_out(Gsymtab *gsymt, ComListHeader *c, FILE *fd)
 {
-    ComListHeader *c=gsymt->info.comlist;
     ComListElement *cvar;
     int i,n;
 
-    while( c != NULL && c->topfile == top_filename ) {
 
       WRITE_STR(" block",gsymt->name);
       WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
@@ -632,12 +686,6 @@ proj_clist_out(gsymt,fd)
 		0);
       NEXTLINE;
       }
-			/* keepall or -nolib: loop thru all defns.
-			   Otherwise only keep the first. */
-      if(proj_trim_common && library_mode)
-	break;
-      c = c->next;
-    }/* end while c != NULL */
 }
 
 #undef WRITE_STR
@@ -722,7 +770,7 @@ proj_file_in(fd)
 #endif
 				/* Read defn arglists */
   for(ientry=0; ientry<numentries; ientry++) {
-      proj_arg_info_in(fd,topfilename,TRUE);
+      arg_info_in(fd,topfilename,TRUE);
   }
   NEXTLINE;
 
@@ -734,7 +782,7 @@ proj_file_in(fd)
 
 				/* Read invocation & ext def arglists */
   for(iext=0; iext<numexts; iext++) {
-    proj_arg_info_in(fd,topfilename,FALSE);
+    arg_info_in(fd,topfilename,FALSE);
   }
   NEXTLINE;
 
@@ -748,7 +796,7 @@ proj_file_in(fd)
    NEXTLINE;
 
    for(iblock=0; iblock<numblocks; iblock++) {
-     proj_com_info_in(fd,topfilename);
+     com_info_in(fd,topfilename,FALSE);
    }
    NEXTLINE;
 
@@ -765,7 +813,7 @@ proj_file_in(fd)
 /* Routine to read in a module file.
  */
 
-/**** NOTE: ONLY NOT IMPLEMENTED YET: NEED TO BUILD TOKEN LIST IN PARSER ****/
+/**** NOTE: 'ONLY' NOT IMPLEMENTED YET: NEED TO BUILD TOKEN LIST IN PARSER ****/
 void read_module_file(int h, Token *only)
 {
   FILE *fd;
@@ -832,6 +880,7 @@ void read_module_file(int h, Token *only)
      NEXTLINE;
    }
 
+				/* Read subprogram info */
    {
      int numentries,ientry;
 
@@ -842,11 +891,26 @@ void read_module_file(int h, Token *only)
 #endif
 				/* Read interface defn arglists */
      for(ientry=0; ientry<numentries; ientry++) {
-       proj_arg_info_in(fd,topfilename,TRUE);
+       arg_info_in(fd,topfilename,TRUE);
      }
      NEXTLINE;
    }
 
+			/* Read common block info */
+   {
+     int iblock, numblocks;
+
+     READ_NUM(" comblocks",numblocks);
+     NEXTLINE;
+#ifdef DEBUG_PROJECT
+ if(debug_latest) printf("read num blocks %d\n",numblocks);
+#endif
+
+     for(iblock=0; iblock<numblocks; iblock++) {
+       com_info_in(fd,topfilename,TRUE);
+     }
+     NEXTLINE;
+   }
 }
 
 
@@ -923,6 +987,10 @@ mod_var_in(FILE *fd, const char *filename)
 	break;
       }
     }
+    symt->common_var = id_common_var;
+    symt->allocatable = id_allocatable;
+    symt->pointer = id_pointer;
+    symt->target = id_target;
   }
 
   NEXTLINE;
@@ -932,10 +1000,10 @@ mod_var_in(FILE *fd, const char *filename)
 			/* Read arglist info */
 PRIVATE void
 #if HAVE_STDC
-proj_arg_info_in(FILE *fd, char *filename, int is_defn)
+arg_info_in(FILE *fd, char *filename, int is_defn)
                    		/* name of toplevel file */
 #else /* K&R style */
-proj_arg_info_in(fd,filename,is_defn)
+arg_info_in(fd,filename,is_defn)
     FILE *fd;
     char *filename;		/* name of toplevel file */
     int is_defn;
@@ -1241,13 +1309,7 @@ alist_class,alist_type,alist_line);
 
 
 PRIVATE void
-#if HAVE_STDC
-proj_com_info_in(FILE *fd, const char *filename)
-#else /* K&R style */
-proj_com_info_in(fd,filename)
-     FILE *fd;
-     char *filename;
-#endif /* HAVE_STDC */
+com_info_in(FILE *fd, const char *filename, int module)
 {
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1];
     char file_name[MAXNAME+1];
@@ -1276,6 +1338,8 @@ proj_com_info_in(fd,filename)
       ComListHeader *chead,*prev_chead;
       ComListElement *clist,*prev_clist;
 
+      /* Items needed for module input */
+    Token toklist;		/* header for list of common block elements */
 
     READ_STR(" block",id_name);
     READ_NUM(" class",id_class);
@@ -1334,7 +1398,7 @@ id_name,id_class,id_type);
 	prog_unit = install_global(h,type_UNDECL,class_SUBPROGRAM);
       }
 
-			/* Initialize arglist and link it to symtab */
+			/* Initialize arglist and link it to global symtab */
       chead->numargs = (short)numvars;
       chead->line_num = clist_line;
       chead->top_line_num = clist_topline;
@@ -1357,6 +1421,9 @@ id_name,id_class,id_type);
 	prev_clist = prev_chead->com_list_array;
       }
 
+      if(module) {
+	toklist.next_token = NULL; /* initialize header */
+      }
 			/* Fill comlist array from project file */
     for(ivar=0; ivar<numvars; ivar++) {
       READ_NUM(" var",var_num); if(var_num != ivar+1) READ_ERROR;
@@ -1395,8 +1462,50 @@ var_name,var_class,var_type,var_dims,var_size);
       clist[ivar].set = var_set;
       clist[ivar].used_before_set = var_used_before_set;
       clist[ivar].assigned = var_assigned;
+
+			/* If reading a module, the common variables
+			   have local symbol table entries that need
+			   to be associated with the block.
+			 */
+      if( module ) {
+	int h = hash_lookup(var_name);
+	Lsymtab *com_var;
+	Token t;
+	if( (com_var=hashtab[h].loc_symtab) == NULL || !com_var->common_var ) {
+	  oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
+		       "Common info in module is inconsistent");
+	}
+	com_var->common_block = gsymt;
+	com_var->common_index = ivar;
+
+	/* Conjure up a token for this item.  Note that all items have
+	   been seen before when inputting locals.
+	 */
+	implied_id_token(&t,var_name);
+	t.size = var_size;
+	t.TOK_type = type_pack(var_class,var_type);
+	t.TOK_flags = 0;	/* clear all flags */
+	t.line_num = line_num;	/* line number of USE statement */
+	t.col_num = NO_COL_NUM;
+	
+	append_token(toklist.next_token,&t);
+      }
     }
-}/*proj_com_info_in*/
+			/* If this is a module definition, need to
+			   create a local symbol table entry for the
+			   using program unit to record set/used
+			   status etc.  Make tokens as if this were a
+			   parsed COMMON declaration.
+			 */
+    if( module ) {
+      Token block_id;
+      implied_id_token(&block_id,id_name);
+      block_id.line_num = line_num;
+      block_id.col_num = NO_COL_NUM;
+      def_com_block(&block_id,toklist.next_token);
+    }
+
+}/*com_info_in*/
 
 	/*  Function to read n-1 characters, or up to newline, whichever
 	 *  comes first.  Differs from fgets in that the newline is replaced

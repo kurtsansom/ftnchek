@@ -305,6 +305,7 @@ clean mostlyclean:
 	-$(RM) y.tab.h
 	-$(RM) config.status config.log config.cache
 	-$(RM) ftnchek.html.orig ftnchek.html.rej
+	-$(RM) *.fkm
 
 # Remove almost everything that make can rebuild.  We do not remove
 # fortran.c since some places don't have yacc or bison.

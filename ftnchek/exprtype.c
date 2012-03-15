@@ -794,7 +794,7 @@ assignment_stmt_type(term1,equals,term2)
 	type2 = datatype_of(term2->TOK_type),
 	result_type;
 
-    if( ! is_computational_type(type1) ) {
+    if( ! is_computational_type(type1) && ! is_derived_type(type1)) {
       if( misc_warn ) {
 		syntax_error(term1->line_num,term1->col_num,
 			"numeric or character quantity expected:");
@@ -802,7 +802,7 @@ assignment_stmt_type(term1,equals,term2)
       }
       result_type = E;
     }
-    else if( ! is_computational_type(type2) ) {
+    else if( ! is_computational_type(type2) && ! is_derived_type(type1)) {
       if( misc_warn ) {
 		syntax_error(term2->line_num,term2->col_num,
 			"numeric or character quantity expected:");
@@ -987,18 +987,33 @@ if(debug_latest) {
 	    msg_tail(" converted to real");
 	}
       }
-/**** handling for pointer ***/
+/**** handling for pointer assignment ***/
     if (equals->tclass == tok_rightarrow){
+      if( is_true(POINTER_EXPR,term2->TOK_flags) ) {	/* rhs may be TARGET */
         use_pointer(term2);
-        use_pointer_lvalue(term1);
+      }
+      else if( !is_true(TARGET_EXPR,term2->TOK_flags) ) {
+	syntax_error(term2->line_num,term2->col_num,
+		     "pointer/target attribute expected on:");
+	msg_tail(hashtab[term2->value.integer].name);
+      }
+
+      if( is_true(POINTER_EXPR,term1->TOK_flags) ) {
+	use_pointer_lvalue(term1);
+      }
+      else {
+	syntax_error(term1->line_num,term1->col_num,
+		     "pointer attribute expected on:");
+	msg_tail(hashtab[term1->value.integer].name);
+      }
     }
     else {
-/**** handling for pointer ***/
-    if(is_true(ID_EXPR,term2->TOK_flags))
+/**** handling for non-pointer assignment ***/
+      if(is_true(ID_EXPR,term2->TOK_flags))
 	use_variable(term2);
 
-    use_lvalue(term1);
-   }
+      use_lvalue(term1);
+    }
 }
 
 void
@@ -1108,6 +1123,18 @@ func_ref_expr(id,args,result)
 #endif
 	result->size = retsize;
 	result->next_token = (Token *)NULL;
+
+	/* transfer pointer/target attributes to token */
+      if(symt->pointer)
+	make_true(POINTER_EXPR,result->TOK_flags);
+      else
+	make_false(POINTER_EXPR,result->TOK_flags);
+      if(symt->target)
+	make_true(TARGET_EXPR,result->TOK_flags);
+      else
+	make_false(TARGET_EXPR,result->TOK_flags);
+
+
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {

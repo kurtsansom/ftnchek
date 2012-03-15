@@ -250,7 +250,6 @@ PROTO(PRIVATE void pop_block,(Token *t, int stmt_class,
 PROTO(PRIVATE void check_construct_name_match,(Token *stmt, char *name));
 
 PROTO(PRIVATE Token * add_tree_node,( Token *node, Token *left, Token *right ));
-PROTO(PRIVATE Token * append_token,( Token *tlist, Token *t ));
 PROTO(PRIVATE void check_stmt_sequence,( Token *t, int seq_num ));
 PROTO(PRIVATE void check_f90_stmt_sequence,( Token *t, int f90_seq_num ));
 PROTO(PRIVATE void do_binexpr,( Token *l_expr, Token *op, Token *r_expr,
@@ -1324,7 +1323,6 @@ prefix_spec :   declaration_type_spec
         ;
 
 declaration_type_spec:  type_name
-        |   tok_TYPE '(' type_name ')'
         ;
 
 		/* Fortran2010 R1231 */
@@ -1454,6 +1452,7 @@ function_keyword:	tok_FUNCTION
 type_name	:	arith_type_name
 		|	plain_char_type_name
 		|	char_type_name
+		|	derived_type_decl_handle
 		;
 
 /* 11 not present: see 9 */
@@ -5690,7 +5689,7 @@ END_processing(t)
 
   if(current_prog_unit_hash != -1) {
     int current_prog_unit_type =
-		datatype_of(hashtab[current_prog_unit_hash].loc_symtab->type);
+    		get_type(hashtab[current_prog_unit_hash].loc_symtab);
     if(exec_stmt_count == 0 && !interface_block) {
 	  if(misc_warn) {
 	    char *prog_unit_type_name = NULL;
@@ -5833,7 +5832,7 @@ add_tree_node(node,left,right)
 }
 
 		/* Routine to add token t to the front of a token list. */
-PRIVATE Token *
+Token *
 #if HAVE_STDC
 append_token(Token *tlist, Token *t)
 #else /* K&R style */
@@ -6283,7 +6282,9 @@ void block_stack_top_swap()
   block_stack[block_depth-2] = temp;
 }
 
+#ifdef DEVELOPMENT
 void ddd_hook()
 {
     printf("hello");
 }
+#endif

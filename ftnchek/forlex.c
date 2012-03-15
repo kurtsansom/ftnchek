@@ -386,6 +386,8 @@ closeup(VOID)
 	 * and when a main prog without program statement is found,
 	 * and when an unnamed block data statement is found,
 	 * so processing of named and unnamed cases can be handled uniformly.
+	 * Also called when reading module with common declarations to
+	 * create tokens for common block and its elements for def_com_block.
 	*/
 void
 #if HAVE_STDC

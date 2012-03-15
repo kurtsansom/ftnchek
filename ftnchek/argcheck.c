@@ -49,11 +49,13 @@ as the "MIT License."
 #include "ftnchek.h"
 #include "symtab.h"
 #include "pgsymtab.h"
+#include "dtypes.h"
 
 				/* Local functions defined */
 
 PROTO(PRIVATE void arg_array_cmp,( char *name, ArgListHeader *args1,
 			   ArgListHeader *args2 ));
+PROTO(PRIVATE void report_dtype_line_declared, (int line_declared));
 
 
      		/* Compares subprogram calls with definition */
@@ -151,12 +153,18 @@ arg_array_cmp(name,args1,args2)
 				 "is type");
 		if( t1 != type_LABEL ) /*label arg: only print storage class*/
 		  msg_tail(typespec(t1,!defsize1,(long)s1,FALSE,0));
+		if( is_derived_type(t1) ) {/*print line number for derived types */
+		  report_dtype_line_declared(dtype_table[t1]->line_declared);
+		}
 		msg_tail(class_name[storage_class_of(a1[i].type)]);
 				     
 		arg_error_report(args2,args2->is_defn? "Dummy arg": "Actual arg",i,
 				 "is type");
 		if( t2 != type_LABEL ) /*label arg: only print storage class*/
 		  msg_tail(typespec(t2,!defsize2,(long)s2,FALSE,0L));
+		if( is_derived_type(t2) ) {/*print line number for derived types */
+		  report_dtype_line_declared(dtype_table[t2]->line_declared);
+		}
 		msg_tail(class_name[storage_class_of(a2[i].type)]);
 				 
 		if(args1->is_defn
@@ -564,6 +572,13 @@ a2[i].active_do_var);
 }/* arg_array_cmp */
 
 
+PRIVATE void
+report_dtype_line_declared(int line_declared)
+{
+	char msg[] = "declared on line 000000";
+	sprintf(msg,"declared on line %-6d",line_declared);
+	msg_tail(msg);
+}
 
 void
 check_arglists(int hashno, SUBPROG_TYPE limit)	/* Scans global symbol table for subprograms */
