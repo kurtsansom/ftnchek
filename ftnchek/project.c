@@ -56,6 +56,7 @@ as the "MIT License."
 #define PROJECT
 #include "symtab.h"
 #include "symspace.h"
+#include "dtypes.h"
 #include <string.h>
 #if HAVE_STRINGS_H
 #include <strings.h>	/* we use strncasecmp */
@@ -88,8 +89,10 @@ PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
 PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
-PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn ));
+PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn, int module ));
+PROTO(PRIVATE int find_types, (Lsymtab *sym_list[]));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
+PROTO(PRIVATE void mod_type_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE void mod_var_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist)));
 PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
@@ -97,10 +100,12 @@ PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
 PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns ));
 PROTO(PRIVATE void comblocks_out, (FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns));
 PROTO(PRIVATE void clist_out,( Gsymtab *gsymt, ComListHeader *c, FILE *fd ));
-PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, int module ));
+PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, const char *modulename ));
+PROTO(PRIVATE void mod_type_in,(FILE *fd, const char *module_name, const char *filename));
 PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename));
 PROTO(PRIVATE ComListHeader *comblock_used_by,(ComListHeader *clist, Gsymtab *module));
-
+PROTO(PRIVATE void initialize_typemap, (VOID));
+PROTO(PRIVATE int map_type, (int t_in));
 
 
 PRIVATE int
@@ -157,7 +162,7 @@ count_com_defns(clist)		/* Returns number of common decls in list  */
 
 #define WRITE_STR(LEADER,S)	(void)(fprintf(fd,LEADER), fprintf(fd," %s",S))
 #define WRITE_ARG(LEADER,S)	(void)(fprintf(fd,LEADER), fprintf(fd," %s",S))
-#define WRITE_NUM(LEADER,NUM)	(void)(fprintf(fd,LEADER), fprintf(fd," %ld",NUM))
+#define WRITE_NUM(LEADER,NUM)	(void)(fprintf(fd,LEADER), fprintf(fd," %ld",(long)(NUM)))
 #define NEXTLINE		(void)fprintf(fd,"\n")
 
 
@@ -188,7 +193,7 @@ make_module_filename(const char *module_name)
   (void)strtolower(module_filename+path_len); /* filename is lowercased version of name */
   (void)strcat(module_filename,DEF_MODULE_EXTENSION);
 
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
   if(debug_latest) {
     fprintf(list_fd,"\nModule %s: ",module_name);
     fprintf(list_fd,"File %s ",current_filename);
@@ -223,12 +228,26 @@ write_module_file(int h)
   WRITE_STR(" file",top_filename);
   NEXTLINE;
 
+			/* Write derived type definitions */
+  {
+    Lsymtab *lsym_list[LOCSYMTABSZ]; /* temp. list of local symtab entries to print */
+    int i,numtypes;
+    numtypes = find_types(lsym_list);
+    WRITE_NUM(" types",numtypes);
+    NEXTLINE;
+    for(i=0; i<numtypes; i++) {
+      mod_type_out(lsym_list[i],fd);
+    }
+    (void)fprintf(fd," end\n");
+  }
+
+  NEXTLINE;
 			/* Write local variables & parameters */
   {
     Lsymtab *lsym_list[LOCSYMTABSZ]; /* temp. list of local symtab entries to print */
     int i,numvars;
     numvars = find_variables(lsym_list);
-    WRITE_NUM(" locals",(long)numvars);
+    WRITE_NUM(" locals",numvars);
     NEXTLINE;
     for(i=0; i<numvars; i++) {
       mod_var_out(lsym_list[i],fd);
@@ -243,7 +262,7 @@ write_module_file(int h)
     Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
     int i,numdefns;
     numdefns = find_prog_units(gsym_list,has_defn);
-    WRITE_NUM(" entries",(long)numdefns);
+    WRITE_NUM(" entries",numdefns);
     NEXTLINE;
     for(i=0; i<numdefns; i++) {
       prog_unit_out(gsym_list[i],fd,/*do_defns=*/TRUE);
@@ -289,7 +308,7 @@ proj_file_out(fd)
 
       numdefns = find_prog_units(sym_list,has_defn);
 
-      WRITE_NUM(" entries",(long)numdefns);
+      WRITE_NUM(" entries",numdefns);
       NEXTLINE;
       for(i=0; i<numdefns; i++) {
 	prog_unit_out(sym_list[i],fd,/*do_defns=*/TRUE);
@@ -301,7 +320,7 @@ proj_file_out(fd)
       if(proj_trim_calls)
 	numcalls = trim_calls(numcalls,sym_list);
 
-      WRITE_NUM(" externals",(long)numcalls);
+      WRITE_NUM(" externals",numcalls);
       NEXTLINE;
       for(i=0; i<numcalls; i++) {
 	prog_unit_out(sym_list[i],fd,/*do_defns=*/FALSE);
@@ -320,6 +339,21 @@ proj_file_out(fd)
 
 
 PRIVATE int
+find_types(Lsymtab *sym_list[])
+{
+  int i, numtypes;
+  numtypes=0;
+  for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
+    if( storage_class_of(loc_symtab[i].type) == class_DTYPE &&
+	!loc_symtab[i].private ) { /* omit private types */
+      sym_list[numtypes++] = &loc_symtab[i];
+    }
+  }
+  return numtypes;
+}
+
+
+PRIVATE int
 find_variables(Lsymtab *sym_list[])
 {
   int i, numvars;
@@ -334,12 +368,59 @@ find_variables(Lsymtab *sym_list[])
   return numvars;
 }
 
+
+PRIVATE void
+mod_type_out(Lsymtab *lsymt, FILE *fd)
+{
+  type_t type_index;
+  Dtype *dtype;
+  DtypeComponent *curr;
+  int i, num_components;
+
+  WRITE_STR(" dtype",lsymt->name);
+  WRITE_NUM(" type",(type_index=get_type(lsymt)));
+  WRITE_STR(" module",dtype_table[type_index]->module_name);
+  WRITE_NUM(" size",lsymt->size);
+  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+		lsymt->public,
+		lsymt->private,		/* never present in module file */
+		lsymt->private_components,
+		lsymt->sequence,
+		0,0,0,0);		/* for future use */
+  NEXTLINE;
+
+  dtype = dtype_table[type_index];	/* find the type definition */
+  num_components = dtype->num_components;
+
+  WRITE_NUM(" components",num_components);
+  NEXTLINE;
+
+  curr = dtype->components;
+  for(i=0; i<num_components; i++) {
+    WRITE_STR(" component",curr[i].name);
+    WRITE_NUM(" type",curr[i].type);
+    WRITE_NUM(" size",curr[i].size);
+    (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+		  curr[i].array,
+		  curr[i].pointer,
+		  curr[i].private,
+		  0,0,0,0,0);		/* for future use */
+    if(curr[i].array) {
+      NEXTLINE;
+      WRITE_NUM(" dims",curr[i].array_dim);
+    }
+    NEXTLINE;
+  }
+
+}
+
+
 PRIVATE void
 mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
   WRITE_STR(" var",lsymt->name);
-  WRITE_NUM(" type",(long)get_type(lsymt));
-  WRITE_NUM(" size",(long)lsymt->size);
+  WRITE_NUM(" type",get_type(lsymt));
+  WRITE_NUM(" size",lsymt->size);
   (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		lsymt->parameter,
 		lsymt->array_var,
@@ -369,7 +450,7 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist))
     int i,num_entries;
     ArgListHeader *alist;
     for(i=num_entries=0;i<glob_symtab_top;i++) {
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
   if(debug_latest) {
       fprintf(list_fd,"\n%d %s",i,glob_symtab[i].name);
       fprintf(list_fd," %svalid",glob_symtab[i].valid?"":"in");
@@ -378,7 +459,6 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist))
 #endif
       if(glob_symtab[i].valid &&
 	storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
-	datatype_of(glob_symtab[i].type) != type_MODULE && /* omit modules */
 	!glob_symtab[i].private && /* for module: omit private routines */
 	(alist=glob_symtab[i].info.arglist) != NULL) {
 			/* Look for defns or calls of this guy. */
@@ -421,9 +501,9 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 	  else
 	    WRITE_STR(" external",gsymt->name);
 
-	  WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
-	  WRITE_NUM(" type",(long)datatype_of(gsymt->type));
-	  WRITE_NUM(" size",(long)gsymt->size);
+	  WRITE_NUM(" class",storage_class_of(gsymt->type));
+	  WRITE_NUM(" type",datatype_of(gsymt->type));
+	  WRITE_NUM(" size",gsymt->size);
 		/* Flag values stored are cumulative only for current file
 		   so they will not depend on what files were previously
 		   read in current run.  When project file is read, flags
@@ -486,8 +566,8 @@ find_comblocks(Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns)
 	  (clist->topfile == top_filename)) ) {
 			/* -project=trim-common: save only one com decl if
 			   -lib mode.  For module, will use only one decl. */
-	if( module || (proj_trim_common && library_mode) )
-	  numdefns++;
+	      if( !module && (proj_trim_common && library_mode) )
+		numdefns++;
 	else
 			/* -project=no-trim-common or -nolib
 			   mode: keep all com decls */
@@ -504,29 +584,22 @@ PRIVATE void
 comblocks_out(FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns)
 {
     int i;
-    WRITE_NUM(" comblocks",(long)numdefns);
+    WRITE_NUM(" comblocks",numdefns);
     NEXTLINE;
     for(i=0; i<numblocks; i++) {
       Gsymtab *gsymt=sym_list[i];
       ComListHeader *c=gsymt->info.comlist;
 
-      if( module ) {
-			/* for modules: print only declaration
-			   from the module */
-	clist_out(gsymt,comblock_used_by(c,module),fd);
-      }
-      else {
 	while( c != NULL && c->topfile == top_filename ) {
 	  clist_out(gsymt,c,fd);
 
 			/* for project files: -project=no-trim-common
 			   or -nolib: loop thru all defns.  Otherwise
 			   only keep the first. */
-	  if(proj_trim_common && library_mode)
+	  if(module == NULL && proj_trim_common && library_mode)
 	    break;
 	  c = c->next;
 	}/* end while c != NULL */
-      }
     }
     NEXTLINE;
 }
@@ -570,11 +643,11 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 
       WRITE_STR(" unit",a->prog_unit->name);
       WRITE_STR(" file",a->filename);
-      WRITE_NUM(" line",(long)a->line_num);
-      WRITE_NUM(" top",(long)a->top_line_num);
-      WRITE_NUM(" class",(long)storage_class_of(a->type));
-      WRITE_NUM(" type",(long)datatype_of(a->type));
-      WRITE_NUM(" size",(long)a->size);
+      WRITE_NUM(" line",a->line_num);
+      WRITE_NUM(" top",a->top_line_num);
+      WRITE_NUM(" class",storage_class_of(a->type));
+      WRITE_NUM(" type",datatype_of(a->type));
+      WRITE_NUM(" size",a->size);
       (void)fprintf(fd," flags %d %d %d %d",
 	      a->is_defn,
 	      a->is_call,
@@ -583,7 +656,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
       NEXTLINE;
       n=a->numargs;
       if(a->is_defn || a->is_call) {
-	WRITE_NUM(" args",(long)n);
+	WRITE_NUM(" args",n);
 	NEXTLINE;
       }
 
@@ -593,18 +666,18 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
        */
       arg = a->arg_array;
       for(i=0; i<n; i++) {
-	WRITE_NUM(" arg",(long)i+1);
+	WRITE_NUM(" arg",i+1);
 	WRITE_ARG(" name",arg[i].name);
 	NEXTLINE;
-	WRITE_NUM(" class",(long)storage_class_of(arg[i].type));
-	WRITE_NUM(" type",(long)datatype_of(arg[i].type));
-	WRITE_NUM(" size",(long)arg[i].size);
+	WRITE_NUM(" class",storage_class_of(arg[i].type));
+	WRITE_NUM(" type",datatype_of(arg[i].type));
+	WRITE_NUM(" size",arg[i].size);
 	diminfo = (
 		   ((storage_class_of(arg[i].type) == class_VAR) &&
 		   is_computational_type(datatype_of(arg[i].type))) ?
 		     arg[i].info.array_dim: 0 );
-	WRITE_NUM(" dims",(long)array_dims(diminfo));
-	WRITE_NUM(" elts",(long)array_size(diminfo));
+	WRITE_NUM(" dims",array_dims(diminfo));
+	WRITE_NUM(" elts",array_size(diminfo));
 	{ char *cblk;
 	  if( arg[i].common_block == (Gsymtab *)NULL )
 	    cblk = "-";	/* place holder if no block name */
@@ -612,8 +685,8 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 	    cblk = arg[i].common_block->name;
 	  WRITE_STR(" cblk",cblk);
 	}
-	WRITE_NUM(" cndx",(long)arg[i].common_index);
-	WRITE_NUM(" same",(long)arg[i].same_as);
+	WRITE_NUM(" cndx",arg[i].common_index);
+	WRITE_NUM(" same",arg[i].same_as);
 	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		arg[i].is_lvalue,
 		arg[i].set_flag,
@@ -645,20 +718,20 @@ PRIVATE void
 
 
       WRITE_STR(" block",gsymt->name);
-      WRITE_NUM(" class",(long)storage_class_of(gsymt->type));
-      WRITE_NUM(" type",(long)datatype_of(gsymt->type));
+      WRITE_NUM(" class",storage_class_of(gsymt->type));
+      WRITE_NUM(" type",datatype_of(gsymt->type));
       NEXTLINE;
       WRITE_STR(" unit",c->prog_unit->name);
       WRITE_STR(" file",c->filename);
-      WRITE_NUM(" line",(long)c->line_num);
-      WRITE_NUM(" top",(long)c->top_line_num);
+      WRITE_NUM(" line",c->line_num);
+      WRITE_NUM(" top",c->top_line_num);
       (void)fprintf(fd," flags %d %d %d %d",
 	      c->any_used,
 	      c->any_set,
 	      c->saved,
 	      0);		/* Flag for possible future use */
       NEXTLINE;
-      WRITE_NUM(" vars",(long)(n=c->numargs));
+      WRITE_NUM(" vars",(n=c->numargs));
       NEXTLINE;
 
     /* Next lines, 2 per variable.
@@ -667,14 +740,14 @@ PRIVATE void
      */
       cvar = c->com_list_array;
       for(i=0; i<n; i++) {
-	WRITE_NUM(" var",(long)i+1);
+	WRITE_NUM(" var",i+1);
 	WRITE_STR(" name",cvar[i].name);
 	NEXTLINE;
-	WRITE_NUM(" class",(long)storage_class_of(cvar[i].type));
-	WRITE_NUM(" type",(long)datatype_of(cvar[i].type));
-	WRITE_NUM(" size",(long)cvar[i].size);
-	WRITE_NUM(" dims",(long)array_dims(cvar[i].dimen_info));
-	WRITE_NUM(" elts",(long)array_size(cvar[i].dimen_info));
+	WRITE_NUM(" class",storage_class_of(cvar[i].type));
+	WRITE_NUM(" type",datatype_of(cvar[i].type));
+	WRITE_NUM(" size",cvar[i].size);
+	WRITE_NUM(" dims",array_dims(cvar[i].dimen_info));
+	WRITE_NUM(" elts",array_size(cvar[i].dimen_info));
 	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		cvar[i].used,
 		cvar[i].set,
@@ -727,6 +800,8 @@ PRIVATE int nil(VOID)/* to make lint happy */
 PRIVATE unsigned proj_line_num;		
 			/* Line number in proj file for diagnostic output */
 
+PRIVATE int type_map[MAX_DTYPES];	/* for mapping module's type ids to user's type ids */
+
 void
 #if HAVE_STDC
 proj_file_in(FILE *fd)
@@ -740,6 +815,7 @@ proj_file_in(fd)
   unsigned numentries,ientry, numexts,iext, numblocks,iblock;
 
   proj_line_num = 1;
+  initialize_typemap();
 
   /* Allow project file to contain (manually) concatenated project files.
      These will be processed as if the separate project files were
@@ -770,7 +846,7 @@ proj_file_in(fd)
 #endif
 				/* Read defn arglists */
   for(ientry=0; ientry<numentries; ientry++) {
-      arg_info_in(fd,topfilename,TRUE);
+    arg_info_in(fd,topfilename,TRUE,FALSE);
   }
   NEXTLINE;
 
@@ -782,7 +858,7 @@ proj_file_in(fd)
 
 				/* Read invocation & ext def arglists */
   for(iext=0; iext<numexts; iext++) {
-    arg_info_in(fd,topfilename,FALSE);
+    arg_info_in(fd,topfilename,FALSE,FALSE);
   }
   NEXTLINE;
 
@@ -796,7 +872,7 @@ proj_file_in(fd)
    NEXTLINE;
 
    for(iblock=0; iblock<numblocks; iblock++) {
-     com_info_in(fd,topfilename,FALSE);
+     com_info_in(fd,topfilename,(const char *)NULL);
    }
    NEXTLINE;
 
@@ -828,6 +904,7 @@ void read_module_file(int h, Token *only)
   }
 
   proj_line_num = 1;		/* for oops messages */
+  initialize_typemap();		/* derived types may need to be re-indexed */
 
   if( READ_FIRST_STR(MODULEFILE_COOKIE,buf) != 1 ||
       strcmp(buf,MODULE_VERSION) != 0 ) {
@@ -855,9 +932,26 @@ void read_module_file(int h, Token *only)
    READ_STR(" file",buf);
    topfilename = new_global_string(buf);
    NEXTLINE;
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
    if(debug_latest) printf("\nModule is %s from file %s\n",modulename,topfilename);
 #endif
+			/* Read derived type definitions */
+   {
+     int i,numtypes;
+     char sentinel[5];
+
+     READ_NUM(" types",numtypes);
+     NEXTLINE;
+     for(i=0; i<numtypes; i++) {
+       mod_type_in(fd,modulename,topfilename);
+     }
+     fscanf(fd,"%5s",sentinel);
+#ifdef DEBUG_PROJECT
+ if(debug_latest) printf("read sentinel %s\n",sentinel);
+#endif
+     if(strcmp(sentinel,"end") != 0) READ_ERROR;
+     NEXTLINE;
+   }
 
    {
      int numvars,ivar;
@@ -865,7 +959,7 @@ void read_module_file(int h, Token *only)
 
      READ_NUM(" locals",numvars);
      NEXTLINE;
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
  if(debug_latest) printf("read locals %d\n",numvars);
 #endif
 				/* Read local variables */
@@ -873,7 +967,7 @@ void read_module_file(int h, Token *only)
        mod_var_in(fd,topfilename);
      }
      fscanf(fd,"%5s",sentinel);
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
  if(debug_latest) printf("read sentinel %s\n",sentinel);
 #endif
      if(strcmp(sentinel,"end") != 0) READ_ERROR;
@@ -886,13 +980,14 @@ void read_module_file(int h, Token *only)
 
      READ_NUM(" entries",numentries); /* Get no. of entry points */
      NEXTLINE;
-#ifdef DEBUG_MODULES
+#ifdef DEBUG_PROJECT
  if(debug_latest) printf("read entries %d\n",numentries);
 #endif
 				/* Read interface defn arglists */
      for(ientry=0; ientry<numentries; ientry++) {
-       arg_info_in(fd,topfilename,TRUE);
+       arg_info_in(fd,topfilename,TRUE,TRUE);
      }
+     /* sentinel "end" is checked in arg_info_in */
      NEXTLINE;
    }
 
@@ -907,8 +1002,9 @@ void read_module_file(int h, Token *only)
 #endif
 
      for(iblock=0; iblock<numblocks; iblock++) {
-       com_info_in(fd,topfilename,TRUE);
+       com_info_in(fd,topfilename,modulename);
      }
+     /* no sentinel "end" after com blocks */
      NEXTLINE;
    }
 }
@@ -916,11 +1012,195 @@ void read_module_file(int h, Token *only)
 
 static char *prev_file_name="";/* used to reduce number of callocs */
 
+
+PRIVATE void
+mod_type_in(FILE *fd, const char *module_name, const char *filename)
+{
+  char dtype_name[MAXNAME+1], 
+       type_module[MAXNAME+1],
+       component_name[MAXNAME+1];
+  type_t dtype_type, component_type;
+  long dtype_size, component_size;
+  int i, dtype_num_components;
+  int dtype_public,		/* dtype flag bits */
+    dtype_private,
+    dtype_private_components,
+    dtype_sequence,
+    dtype_dummy1,
+    dtype_dummy2,
+    dtype_dummy3,
+    dtype_dummy4,
+    component_array,		/* component flag bits */
+    component_pointer,
+    component_private,
+    component_dummy1,
+    component_dummy2,
+    component_dummy3,
+    component_dummy4,
+    component_dummy5;
+  int component_array_dim;
+  int duplicate_dtype = FALSE;
+  Dtype *dtype;
+  DtypeComponent *curr;
+  int h;
+  Lsymtab *symt;
+  int mapped_type;		/* type from map_type array */
+
+  READ_STR(" dtype",dtype_name);
+  READ_LONG(" type",dtype_type);
+  READ_STR(" module",type_module);
+  READ_LONG(" size",dtype_size);
+  fscanf(fd," flags %d %d %d %d %d %d %d %d",
+	 &dtype_public,
+	 &dtype_private,
+	 &dtype_private_components,
+	 &dtype_sequence,
+	 &dtype_dummy1,
+	 &dtype_dummy2,
+	 &dtype_dummy3,
+	 &dtype_dummy4);
+  NEXTLINE;
+
+  READ_NUM(" components",dtype_num_components);
+  NEXTLINE;
+
+  h = hash_lookup(dtype_name);
+
+#ifdef DEBUG_PROJECT
+  if(debug_latest) printf("Read dtype %s %ld %ld\n",dtype_name,dtype_type,dtype_size);
+#endif
+  if ((mapped_type = find_type_use_assoc(dtype_name, type_module)) != -1) {
+#ifdef DEBUG_PROJECT
+  if(debug_latest) {
+    printf("%s from %s is a duplicate of %s in dtype_table\n",
+           dtype_name, type_module, dtype_table[mapped_type]->name);
+  }
+#endif
+    duplicate_dtype = TRUE;
+
+
+			/* Create a symbol table entry for this type.
+			 * If duplicate of previously seen module
+			 * type, give it the existing type.  If new,
+			 * assign this type a new type id.
+			 */
+
+    symt = install_local(h,mapped_type,class_DTYPE);
+    symt->line_declared = proj_line_num; /* THIS IS WRONG */
+    symt->file_declared = inctable_index;
+    type_map[dtype_type] = mapped_type;	/* use the pre-existing number in this program */
+    dtype = dtype_table[mapped_type];
+  }
+  else {
+    symt = def_dtype(h,proj_line_num,NO_COL_NUM,
+                     /*access_spec=*/0,/*dtype_def=*/TRUE);
+    mapped_type = get_type(symt);	/* get number assigned by def_dtype */
+    type_map[dtype_type] = mapped_type;
+    dtype = dtype_table[mapped_type];
+#ifdef DEBUG_PROJECT
+  if(debug_latest) {
+    printf("%s from %s is a new type\n",dtype_name, type_module);
+    printf("type in module %ld mapped type %ld\n",(long)dtype_type,(long)mapped_type);
+  }
+#endif
+
+    /* fill dtype_table with info from module */
+    dtype->filename = new_global_string((char *)filename);
+    dtype->module_name = new_global_string((char *)type_module);
+    dtype->num_components = dtype_num_components;
+    dtype->public = dtype_public;
+    dtype->private = dtype_private;
+    dtype->private_components = dtype_private_components;
+    dtype->sequence = dtype_sequence;
+
+    if ( dtype_num_components > 0 && (dtype->components =
+          (DtypeComponent *)malloc(dtype_num_components*sizeof(DtypeComponent)))
+            == (DtypeComponent *)NULL) {
+      oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
+          "Cannot alloc space for derived type components");
+      return;
+    } /* else (empty defn) dtype->components remains NULL */
+  }
+
+    /* Copy type info to symbol table entry.  (Probably not used.) */
+  symt->size = dtype_size;
+  symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
+  symt->public = dtype->public;
+  symt->private = dtype->private;
+
+  /* read in the components */
+  for(i = 0; i < dtype_num_components; i++) {
+    READ_STR(" component",component_name);
+    READ_LONG(" type",component_type);
+    READ_LONG(" size",component_size);
+    fscanf(fd," flags %d %d %d %d %d %d %d %d",
+	   &component_array,
+	   &component_pointer,
+	   &component_private,
+	   &component_dummy1,
+	   &component_dummy2,
+	   &component_dummy3,
+	   &component_dummy4,
+	   &component_dummy5);
+    if( component_array ) {
+      NEXTLINE;
+      READ_NUM(" dims",component_array_dim);
+    }
+
+    NEXTLINE;
+
+    /* If new, store component info into dtype_table */
+    if (!duplicate_dtype) {
+      curr = dtype->components;
+      curr[i].name = new_global_string(component_name);
+      curr[i].type = map_type(component_type);
+      curr[i].array_dim = (component_array) ?
+	component_array_dim : 0;
+      curr[i].size = component_size;
+      curr[i].array = component_array;
+      curr[i].pointer = component_pointer;
+      curr[i].private = component_private;
+    }
+  } /* finished reading in components */
+}
+
+PRIVATE void
+initialize_typemap(VOID)
+{
+  int i;
+  for(i=0; i<MAX_DTYPES; i++) {
+    if( is_elementary_type(i) )
+      type_map[i] = i;			/* elem types map to self */
+    else
+      type_map[i] = type_UNDECL;	/* initially derived types are undefined */
+  }
+}
+
+/* Function to map from module's derived type numbering to user's.
+   Any elementary types are returned unchanged.
+ */
+PRIVATE int
+map_type(int t_in)
+{
+  if( t_in >= MAX_DTYPES ) {	/* bounds check */
+    oops_message(OOPS_NONFATAL,line_num,NO_COL_NUM,
+		 "derived type index out of bounds");
+    return type_UNDECL;
+  }
+  else {
+    /* To do this right, if map entry is undefined,
+       should create an undefined derived type to use. */
+    return type_map[t_in];
+  }
+}
+
+
 PRIVATE void
 mod_var_in(FILE *fd, const char *filename)
 {
   char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
+  int mapped_type;		/* type from map_type array */
   long id_size;
   int id_param,			/* flag bits */
     id_array_var,
@@ -944,13 +1224,19 @@ mod_var_in(FILE *fd, const char *filename)
 	 &id_target,
 	 &id_dummy1,
 	 &id_dummy2);
-#ifdef DEBUG_MODULES
-  if(debug_latest) printf("Read var %s %ld %ld\n",id_name,id_type,id_size);
+
+  mapped_type = map_type(id_type);
+
+#ifdef DEBUG_PROJECT
+  if(debug_latest) {
+	  printf("Read var %s %ld %ld\n",id_name,id_type,id_size);
+	  printf("mapped type %d\n",mapped_type);
+  }
 #endif
   {
     /* Install decl, masking any existing. */
     int h = hash_lookup(id_name);
-    Lsymtab *symt = install_local(h,datatype_of(id_type),class_VAR);
+    Lsymtab *symt = install_local(h,mapped_type,class_VAR);
     symt->size = id_size;
     symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
     symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
@@ -970,7 +1256,7 @@ mod_var_in(FILE *fd, const char *filename)
       symt->file_set = symt->file_declared;
       symt->info.param = new_param_info();
       symt->info.param->seq_num = ++parameter_count;
-      switch(datatype_of(id_type)) {
+      switch(mapped_type) {
       case type_INTEGER:
 	sscanf(id_param_text,"%ld",&(symt->info.param->value.integer));
 	break;
@@ -1000,7 +1286,7 @@ mod_var_in(FILE *fd, const char *filename)
 			/* Read arglist info */
 PRIVATE void
 #if HAVE_STDC
-arg_info_in(FILE *fd, char *filename, int is_defn)
+arg_info_in(FILE *fd, char *filename, int is_defn, int module)
                    		/* name of toplevel file */
 #else /* K&R style */
 arg_info_in(fd,filename,is_defn)
@@ -1012,6 +1298,7 @@ arg_info_in(fd,filename,is_defn)
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1],sentinel[6];
     char file_name[MAXNAME+1];
     char arg_name[MAXNAME+1];
+    int new_module=FALSE; 	/* module not seen before this module-file */
 
 #ifndef KEEP_ARG_NAMES
     static char var[]="var",	/* text strings to use for now */
@@ -1019,6 +1306,7 @@ arg_info_in(fd,filename,is_defn)
 #endif
     int id_class,id_type;
     long id_size;
+    int mapped_type;		/* type from map_type array */
     unsigned
 	      id_used_flag,
 	      id_set_flag,
@@ -1031,9 +1319,11 @@ arg_info_in(fd,filename,is_defn)
     Gsymtab *gsymt, *prog_unit;
     unsigned alist_class,alist_type,alist_is_defn,alist_is_call,
        alist_external_decl,alist_actual_arg;
+    int mapped_alist_type;
     unsigned alist_line, alist_topline;
     long alist_size;
     unsigned numargs,iarg,arg_num,arg_class,arg_type,arg_dims;
+    int mapped_arg_type;
     unsigned long arg_elts;
     long arg_size;
     char arg_common_block[MAXNAME+1];
@@ -1065,23 +1355,28 @@ arg_info_in(fd,filename,is_defn)
 	      &future1,&future2,&future3) != 8) READ_ERROR;
     NEXTLINE;
 
+    mapped_type = map_type(id_type);
+
 #ifdef DEBUG_PROJECT
- if(debug_latest) printf("read id name %s class %d type %d\n",
+if(debug_latest) {printf("read id name %s class %d type %d\n",
 id_name,id_class,id_type);
+  printf("mapped type=%d\n",mapped_type);
+}
 #endif
 
 				/* Create global symtab entry */
     h = hash_lookup(id_name);
     if( (gsymt = hashtab[h].glob_symtab) == NULL) {
-      gsymt = install_global((int)h,id_type,class_SUBPROGRAM);
+      gsymt = install_global((int)h,mapped_type,class_SUBPROGRAM);
       gsymt->size = id_size;
+      new_module = TRUE;
     }
     else if(is_defn)
       gsymt->size = id_size;
 
 		/* Set library_prog_unit flag if project file was created
 		   with -lib mode in effect, or is now taken in -lib mode */
-    if(is_defn && (library_mode || id_library_prog_unit)) {
+    if(!module && is_defn && (library_mode || id_library_prog_unit)) {
       gsymt->library_prog_unit = TRUE;
     }
     if(is_defn)
@@ -1097,7 +1392,7 @@ id_name,id_class,id_type);
 
    while(   fscanf(fd,"%5s",sentinel),
 #ifdef DEBUG_PROJECT
- if(debug_latest) printf("sentinel=[%s]\n",sentinel),
+	    (debug_latest? printf("sentinel=[%s]\n",sentinel):0),
 #endif
 	 strcmp(sentinel,(is_defn?"defn":"call")) == 0) {
       ArgListHeader *ahead;
@@ -1123,15 +1418,34 @@ id_name,id_class,id_type);
 		&alist_external_decl,
 		&alist_actual_arg) != 4) READ_ERROR;
       NEXTLINE;
+   mapped_alist_type = map_type(alist_type);
 #ifdef DEBUG_PROJECT
- if(debug_latest) printf("read alist class %d type %d line %d\n",
-alist_class,alist_type,alist_line);
+   if(debug_latest) {
+     printf("read alist class %d type %d line %d\n",
+	    alist_class,alist_type,alist_line);
+     printf("mapped type %d\n",mapped_alist_type);
+   }
 #endif
+
+    /* If this is a module, we need to create a local symbol table
+       entry defining the subprogram, to hold its type.
+     */
+    if(module) {
+      Lsymtab *symt = install_local(h,mapped_alist_type,class_SUBPROGRAM);
+      symt->size = alist_size;
+      symt->line_declared = alist_line;
+      symt->file_declared = inctable_index;	/* WRONG */
+    }
+
 		/* Find current program unit in symtab. If not there, make
 		   a global symtab entry for it. It will be filled
 		   in eventually when processing corresponding entry.
+		   If module is known already by having scanned the
+		   source earlier in this run, do not create a new
+		   defn arglist for it, which would trigger "multiply
+		   defined" warning.
 		 */
-
+   if( !module || new_module ) {
       h = hash_lookup(prog_unit_name);
       if( (prog_unit = hashtab[h].glob_symtab) == NULL) {
 	prog_unit = install_global((int)h,type_UNDECL,class_SUBPROGRAM);
@@ -1180,7 +1494,7 @@ alist_class,alist_type,alist_line);
 #endif
 	}
       }
-
+   } /* end if new module */
       if(alist_is_defn || alist_is_call) {
 	  READ_NUM(" args",numargs);
 	  NEXTLINE;
@@ -1196,6 +1510,7 @@ alist_class,alist_type,alist_line);
 **	gsymt->used_flag = TRUE;
 **      }
 */
+   if( !module || new_module ) {
 				/* Create arglist structure */
       if(((ahead=(ArgListHeader *) calloc(1, sizeof(ArgListHeader)))
 		 		 == (ArgListHeader *) NULL) ||
@@ -1207,7 +1522,7 @@ alist_class,alist_type,alist_line);
       }
 
 			/* Initialize arglist and link it to symtab */
-      ahead->type = type_pack(alist_class,alist_type);
+      ahead->type = type_pack(alist_class,mapped_alist_type);
       ahead->size = alist_size;
       ahead->numargs = (short)numargs;
       ahead->arg_array = (numargs==0? NULL: alist);
@@ -1231,6 +1546,7 @@ alist_class,alist_type,alist_line);
 	prev_n = prev_ahead->numargs;
 	prev_alist = prev_ahead->arg_array;
       }
+   } /* end if new module */
 
 			/* Fill arglist array from project file */
       for(iarg=0; iarg<numargs; iarg++) {
@@ -1254,6 +1570,10 @@ alist_class,alist_type,alist_line);
 		&arg_declared_external,
 		&arg_active_do_var) != 8) READ_ERROR;
 
+	mapped_arg_type = map_type(arg_type);
+
+   if( !module || new_module ) {
+
 #ifdef KEEP_ARG_NAMES
 			/* Economize storage by re-using previously allocated
 			   space for same name in prior call if any */
@@ -1268,7 +1588,7 @@ alist_class,alist_type,alist_line);
 	  alist[iarg].name = var;
 #endif
 	alist[iarg].info.array_dim = array_dim_info(arg_dims,arg_elts);
-	alist[iarg].type = type_pack(arg_class,arg_type);
+	alist[iarg].type = type_pack(arg_class,mapped_arg_type);
 	alist[iarg].size = arg_size;
 	if( strcmp(arg_common_block,"-") == 0 ) { /* indicator for "none" */
 	  alist[iarg].common_block = (Gsymtab *)NULL;
@@ -1295,11 +1615,12 @@ alist_class,alist_type,alist_line);
 	alist[iarg].array_element = arg_array_element;
 	alist[iarg].declared_external = arg_declared_external;
 	alist[iarg].active_do_var = arg_active_do_var;
+   } /* end if new module */
 	NEXTLINE;
 #ifdef DEBUG_PROJECT
  if(debug_latest) printf("read arg num %d name %s\n",arg_num,arg_name);
 #endif
-      }
+      }/* end for(iarg...*/
 
     }/* end while( sentinel == "defn"|"call") */
 
@@ -1309,12 +1630,13 @@ alist_class,alist_type,alist_line);
 
 
 PRIVATE void
-com_info_in(FILE *fd, const char *filename, int module)
+com_info_in(FILE *fd, const char *filename, const char *modulename)
 {
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1];
     char file_name[MAXNAME+1];
     char var_name[MAXNAME+1];
     unsigned id_class,id_type;
+    int mapped_type;		/* type from map_type array */
     unsigned			/* Flags in ComListHeader */
 		clist_any_used,
 		clist_any_set,
@@ -1340,6 +1662,7 @@ com_info_in(FILE *fd, const char *filename, int module)
 
       /* Items needed for module input */
     Token toklist;		/* header for list of common block elements */
+    int from_this_module;
 
     READ_STR(" block",id_name);
     READ_NUM(" class",id_class);
@@ -1349,6 +1672,8 @@ com_info_in(FILE *fd, const char *filename, int module)
 id_name,id_class,id_type);
 #endif
     NEXTLINE;
+
+    mapped_type = map_type(id_type);
 
     READ_STR(" unit",prog_unit_name);
     READ_STR(" file",file_name);
@@ -1372,10 +1697,17 @@ id_name,id_class,id_type);
 	clist_line);
 #endif
     NEXTLINE;
+
+    /* For module input, for local symbol table entry only take the
+     * defn from the module itself, in case module subprogs also
+     * declared the block. */
+    from_this_module = (modulename != NULL &&
+			strcmp(modulename,prog_unit_name) == 0);
+
 				/* Create global symtab entry */
     h = hash_lookup(id_name);
     if( (gsymt = hashtab[h].com_glob_symtab) == NULL)
-      gsymt = install_global(h,(int)id_type,(int)id_class);
+      gsymt = install_global(h,mapped_type,(int)id_class);
 
 
 				/* Create arglist structure */
@@ -1421,7 +1753,7 @@ id_name,id_class,id_type);
 	prev_clist = prev_chead->com_list_array;
       }
 
-      if(module) {
+      if( from_this_module ) {
 	toklist.next_token = NULL; /* initialize header */
       }
 			/* Fill comlist array from project file */
@@ -1445,8 +1777,8 @@ id_name,id_class,id_type);
 		&var_future_1) != 8) READ_ERROR;
       NEXTLINE;
 #ifdef DEBUG_PROJECT
- if(debug_latest) printf("read name %s class %d type %d dims %d size %d\n",
-var_name,var_class,var_type,var_dims,var_size);
+ if(debug_latest) printf("read name %s class %ld type %ld dims %ld size %ld\n",
+ var_name,(long)var_class,(long)var_type,(long)var_dims,(long)var_size);
 #endif
 			/* Economize storage by re-using previously allocated
 			   space for same name in prior decl if any */
@@ -1467,7 +1799,7 @@ var_name,var_class,var_type,var_dims,var_size);
 			   have local symbol table entries that need
 			   to be associated with the block.
 			 */
-      if( module ) {
+      if( from_this_module ) {
 	int h = hash_lookup(var_name);
 	Lsymtab *com_var;
 	Token t;
@@ -1488,21 +1820,22 @@ var_name,var_class,var_type,var_dims,var_size);
 	t.line_num = line_num;	/* line number of USE statement */
 	t.col_num = NO_COL_NUM;
 	
-	append_token(toklist.next_token,&t);
+	toklist.next_token = append_token(toklist.next_token,&t);
       }
-    }
+    } /* end for(ivar=0... */
+
 			/* If this is a module definition, need to
 			   create a local symbol table entry for the
 			   using program unit to record set/used
 			   status etc.  Make tokens as if this were a
 			   parsed COMMON declaration.
 			 */
-    if( module ) {
+    if( from_this_module ) {
       Token block_id;
       implied_id_token(&block_id,id_name);
       block_id.line_num = line_num;
       block_id.col_num = NO_COL_NUM;
-      def_com_block(&block_id,toklist.next_token);
+      def_com_block(&block_id,&toklist);
     }
 
 }/*com_info_in*/

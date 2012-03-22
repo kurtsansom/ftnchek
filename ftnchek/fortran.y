@@ -927,9 +927,11 @@ specif_stmt	:	dimension_stmt
 		 	}
 		|	end_derived_type_stmt
 		 	{
-			    process_dtype_components(get_curr_block_name());
+			    char *dtype_name = get_curr_block_name();
+			    process_dtype_components(dtype_name);
 			    pop_loc_scope();
 		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+
 		 	    curr_stmt_name = NULL;
 			    sequence_dtype = FALSE;
 			    private_dtype = FALSE;
@@ -2676,7 +2678,8 @@ derived_type_def_stmt   :   derived_type_handle dtype_name EOS
 
 dtype_name: symbolic_name
 		{
-		  def_dtype(&$1,current_access_spec,TRUE);
+		  def_dtype($1.value.integer,$1.line_num,$1.col_num,
+			  current_access_spec,TRUE);
 		  curr_stmt_name = hashtab[$1.value.integer].name;
 		}
 	;
@@ -2819,13 +2822,27 @@ access_generic_spec:	symbolic_name
 		;
 
 derived_type_decl_stmt:	derived_type_decl_prefix
-			    derived_type_decl_list EOS
+		{
+			Lsymtab *symt = hashtab[($1).value.integer].loc_symtab;
+      			int type = get_type(symt);
+      			if( is_derived_type(type) &&
+			  dtype_table[type]->line_declared == NO_LINE_NUM ) { /* fwd ref */
+      			  int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
+      			  if( !(in_dtype_def && current_pointer_attr) ) {
+      			    syntax_error(($1).line_num,($1).col_num,"Type");
+      			    msg_tail(dtype_table[type]->name);
+      			    msg_tail("not defined at this point");
+      			  }
+      			}
+		}
+			derived_type_decl_list EOS
 	     	;
 
 derived_type_decl_prefix:	derived_type_decl_handle	
 		|	derived_type_decl_handle tok_double_colon
 		|	derived_type_decl_handle ',' attr_list
 			    tok_double_colon 
+		;
 
 derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')' 
 			{
@@ -2849,14 +2866,9 @@ derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')'
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 
-			  /* I don't think this is right -- RKM */
-			  if (current_datatype == dtype_table_top &&
-			      block_stack[block_depth-1].sclass == tok_TYPE &&
-			      strcmp(block_stack[block_depth-1].name,
-			             (&($3))->src_text) != 0) {
-			    syntax_error($3.line_num,$3.col_num,
-			        "Derived type not defined");
-			  }
+			  /* needed for error handling of illegal forward
+			   * references */
+			  $$ = $3;
 			}
 		;
 

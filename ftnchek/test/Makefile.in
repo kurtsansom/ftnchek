@@ -80,7 +80,10 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   internalsub.f90 modulesub.f90 embedded-space-free.f90 nontype.f90\
   illegal-fwd-ref.f90 illegal-nameclash.f90 type-no-components.f90\
-  type-host-associate.f90
+  type-host-associate.f90 intent1.f90  intent2.f90
+
+# file set for testing mapping of derived types in module
+MODULETYPEMAP=typedef1-mod.f90 typedef2-mod.f90 typedef12-use.f90 
 
 # Files for checkproject and checkcalltree
 POLYGRAF=polygraf.f fungraf.f coregfx.f coreunix.f
@@ -229,7 +232,7 @@ checkall:	checksyntax checksettings checkother
 checksyntax:	checklistings checkexpert checkf90 checkexpr
 checksettings:	checkargs checkarray checkcommon checkintrinsic checkoutput checkusage
 checkother:	checkproject checkcalltree checkrc checkwildcard checkmakedcls \
-	checkmkhtml checkvcg checkdcl2inc checkftnpp
+	checkmkhtml checkvcg checkdcl2inc checkftnpp checkmoduletypemap
 
 #  User should make precheck before running checks.  It looks out for
 #  situations that will cause the check to fail: ftnchek not built,
@@ -416,6 +419,18 @@ checkdcl2inc:
 		do \
 			$(COMPARE) $$g ; \
 		done ; \
+	done
+	@-echo "done"
+
+checkmoduletypemap:
+	@-echo |$(AWK) '{printf("%s","checking module type mapping:");}'
+	@for chk in $(MODULETYPEMAP:.f90=.chk); \
+	do \
+	  $(MAKE) FTNCHEK='$(FTNCHEK)' DEFAULT_FLAGS='-list -symtab' $$chk ; \
+	done
+	@for m in type_t1_module.fkm  type_t2_module.fkm; \
+	do \
+	   $(COMPARE) $$m ; \
 	done
 	@-echo "done"
 

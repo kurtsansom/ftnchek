@@ -40,6 +40,7 @@ $ @CC advance config.h,ftnchek.h,symtab.h,tokdefs.h,forlex.h,advance.h
 $ @CC argcheck config.h,ftnchek.h,pgsymtab.h,symtab.h
 $ @CC calltree config.h,ftnchek.h,pgsymtab.h,symtab.h
 $ @CC comcheck config.h,ftnchek.h,pgsymtab.h,symtab.h
+$ @CC dtypes config.h,dtypes.h,ftnchek.h,symtab.h,symspace.h,tokdefs.h
 $ @CC exprtype config.h,ftnchek.h,symtab.h,tokdefs.h
 $ @CC forlex config.h,ftnchek.h,symtab.h,tokdefs.h,forlex.h,advance.h
 $ @CC fortran config.h,ftnchek.h,symtab.h,fortran.c
@@ -65,12 +66,12 @@ $ @CC symutils config.h,ftnchek.h,symtab.h,symutils.h
 $ @CC utils config.h,utils.h
 $ IF F$SEARCH("shell_mung.obj") .EQS. ""
 $ THEN
-$ @LINK ftnchek,advance,argcheck,calltree,comcheck,exprtype,forlex,fortran,include,-
+$ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
 intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils,-
 vaxc/opt
 $ ELSE
-$ @LINK ftnchek,advance,argcheck,calltree,comcheck,exprtype,forlex,fortran,include,-
+$ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
 intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils,-
 shell_mung,vaxc/opt

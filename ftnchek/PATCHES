@@ -1,26 +1,6 @@
-		 Ftnchek Version 3.3 Patch Level 1
-			    February, 2005
+		 Ftnchek Version 4.alpha patch 0
+			    March 22, 2012
 
 
-Changes made in Patch 1:
+No patches released yet.
 
-   1. Fixed bug in parsing a declaration of the form
-        DOUBLE PRECISION :: X
-
-   2. Fixed an inconsistency in checking for possible precision issues
-      when the -portability or -truncation option is turned on.
-      Previously, such warnings were reported for arithmetic
-      expressions but not for relational expressions (arithmetic
-      comparisons).  Now they are reported for both, using the same
-      criteria.  Thus, comparing two operands will generate the
-      warnings under the same conditions as adding them.  For example,
-      IF( D .gt. 0.3 ) where D is double precision, will generate a
-      warning that the single-precision constant 0.3 is being
-      promoted.
-
-   3. Increased the number of error messages suppressed by -nocheck to
-      cover invalid type combinations in expressions.  Normally these
-      error messages should not be suppressed, but when using ftnchek
-      to generate a call graph or other summary results on code
-      containing unsupported syntax extensions, it may be reasonable
-      to suppress them.

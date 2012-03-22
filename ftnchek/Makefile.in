@@ -754,7 +754,7 @@ dosokay:
 # This target assumes GNU tar for the --exclude option.  If you don't
 # have it, remove unwanted files manually and use ``make tar TAR_EXCLUDE=''
 
-TAR_EXCLUDE	= --exclude $$dirname/$(TESTDIR)/Makefile --exclude \*/CVS
+TAR_EXCLUDE	= --exclude $$dirname/$(TESTDIR)/Makefile --exclude \*/CVS --exclude \*/.svn
 
 tar:
 	dirname=`$(PWD_PROG)|$(SED) 's%.*/%%'` ; cd .. ; \

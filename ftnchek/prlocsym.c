@@ -315,12 +315,12 @@ print_loc_symbols(VOID)
 	     ++warning_count;
 	}
 
-	if(usage_var_unused || usage_arg_unused
-	   || usage_var_set_unused || usage_var_uninitialized) {
+	if( progunit_type != type_MODULE && /* modules are immune to these */
+	   (usage_var_unused || usage_arg_unused
+	    || usage_var_set_unused || usage_var_uninitialized) ) {
 	  if(do_symtab || do_list)
 	    (void)fprintf(list_fd,"\n");
-	  if(progunit_type != type_MODULE &&
-	     (usage_var_unused || usage_arg_unused)) {
+	  if((usage_var_unused || usage_arg_unused)) {
 	    check_flags(sym_list,n,0,0,0,
 		      "Variables declared but never used or set:",progunit_name);
 	  }

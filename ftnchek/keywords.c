@@ -467,6 +467,8 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 		    src_text_buf[src_text_len] = '\0';
 		    token->value.integer = h = hash_lookup(src_text_buf);
 		    token->src_text = hashtab[h].name;
+		    make_true(ID_EXPR,token->TOK_flags);
+
 				/* If it is an array give it a special token
 				   class, so that arrays can be distinguished
 				   from functions in the grammar.  However,

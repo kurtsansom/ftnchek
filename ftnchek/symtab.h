@@ -906,7 +906,7 @@ typedef struct PSpace {
 #define is_true(flag,x) ((x) & (flag))			/* x.flag == true?   */
 #define copy_flag(flag,x,y)  ((x) |= ((y)&((unsigned)flag))) /* x.flag <-- y.flag */
 
-#define ID_EXPR			0x1	/* a variable */
+#define ID_EXPR			0x1	/* a variable, value.integer is hashtab index */
 #define LVALUE_EXPR		0x2	/* assignable */
 #define CONST_EXPR		0x4	/* compile-time constant per std 6.7*/
 #define LIT_CONST		0x8	/* a number or string literal */
@@ -931,7 +931,7 @@ typedef struct PSpace {
 #define SYNTAX_ERROR_FLAG	0x200000/* concentrator for syntax errors */
 #define POINTER_EXPR		0x400000 /* has POINTER attribute */
 #define TARGET_EXPR		0x800000 /* has TARGET attribute */
-
+#define DTYPE_COMPONENT		0x1000000 /* is a component ref, e.g. A%B */
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
 SYM_SHARED
 Lsymtab	*loc_symtab

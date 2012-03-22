@@ -1,12 +1,12 @@
-		 README file for ftnchek version 3.3
+		 README file for ftnchek version 4 alpha 0
 
 Author: Robert Moniot
 	Fordham University
 	New York, NY  10023  USA
-	Telephone: (212) 636-6311
+	Telephone: (212) 636-6334
 	URL: http://www.dsm.fordham.edu/~moniot
 
-Date:	November 3, 2004
+Date:	March 22, 2012
 
 Ftnchek (short for Fortran checker) is designed to detect certain
 errors in a Fortran program that a compiler usually does not.  Ftnchek
@@ -35,56 +35,39 @@ ftnchek on your system.
 		   NEW FEATURES
 		   ------------
 
-Here are the new features in version 3.3:
+WARNING WARNING WARNING - this is very much ALPHA
 
-  1.  Front-end has been rewritten for unlimited lookahead,
-      eliminating the longstanding bug that caused incorrect
-      interpretation of statements whose ambiguity was not resolved
-      in the first line.
+Ftnchek now supports major Fortran 95 features: especially modules,
+internal subprograms, and derived types.  Many things are still
+missing.  Here is a partial list of some of the more important things
+ftnchek does not yet do:
 
-  2.  The -mkhtml option is now available in the MS-DOS version.
+  -- Array and structure initializers are not accepted; they generate
+     syntax errors.  PARAMETERs may not be array-valued.
+  -- Intrinsic functions introduced with F90 are not recognized.
+  -- KIND parameters of data types are ignored.  KIND parameters on
+     constants are not recognized.
+  -- ONLY lists in USE statements are ignored: all module entities are
+     imported.
+  -- PRIVATE type components in module-declared types are treated as
+     PUBLIC.
+  -- NAMELISTs and DATA statements in modules do not get exported.
+  -- INTERFACE blocks are not recognized; they generate syntax errors.
+  -- Set/used status of variables defined in modules is not correctly
+     tracked in the using program unit: usage in module subroutines is
+     not taken into account.
 
-  3.  Added support for Fortran 90 pointer related syntax: ALLOCATE,
-      DEALLOCATE, and NULLIFY statements; the ALLOCATABLE, POINTER and
-      TARGET attributes in type declarations; the pointer assigment
-      operator => and intrinsic functions ALLOCATED and ASSOCIATED;
-      and deferred-shape array declarations.  At present these new
-      syntax features are accepted but not properly checked.  This
-      feature was added by Robert Landrito.
+The behavior of ftnchek on source code adhering to the Fortran 77
+standard is unchanged from the previous version, 3.3.1, apart from
+some minor wording changes on messages.
 
-  4.  The -f77 and -f90 pointer option controlling warnings about
-      ''Cray pointers'' has been renamed to cray-pointer.  The
-      -f77=pointer option now instead controls warnings for code
-      containing Fortran 90 pointer-related syntax.
+Project files will probably not work right for code containing
+modules.  They continue to work as before for Fortran 77 code.
+For Fortran 95 code, modules should be used instead.  Programs that
+use modules can be checked separately from the modules themselves.
 
-  5.  Re-implemented -mkhtml processing so it is now much faster on
-      source files containing many routines.
+The documentation is largely still for the previous version, 3.3.1.
 
-  6.  Changed the arrangement of the test directory so there is no
-      longer any need to modify the distribution in order to run the
-      test suite (check.bat) under MS-DOS.
-
-  7.  Fixed bug in reading numeric settings on command line when
-      setting name abbreviated to 3 characters.
-
-  8.  Fixed bug causing spurious warning for a GOTO referring to a
-      labeled END statement when the statement before END was a
-      FORMAT.
-
-  9.  New flag -f77=character to control warnings about extensions to
-      the Fortran 77 character data type.  Accompanying this new flag
-      is support for Fortran 90 rules for character variable
-      declarations that evaluate to zero or negative length, allowing
-      them and treating negative length values as zero.
-
-  10. Fixed minor bug in printing of comments and blank lines
-      following last END statement in -list mode.
 
 See the file PATCHES for further changes made after the initial
 release of this version.
-
-NOTE: For VMS, it is recommendend to obtain the file shell_mung.c.
-This file is not necessary to build ftnchek, but without it wildcards
-in file names on the command line will not be expanded.  This file is
-no longer bundled with ftnchek, but is obtainable at the ftnchek home
-site and elsewhere.

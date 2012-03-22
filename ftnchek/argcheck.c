@@ -576,8 +576,10 @@ PRIVATE void
 report_dtype_line_declared(int line_declared)
 {
 	char msg[] = "declared on line 000000";
-	sprintf(msg,"declared on line %-6d",line_declared);
-	msg_tail(msg);
+	if( line_declared != NO_LINE_NUM ) {
+	  sprintf(msg,"declared on line %-6d",line_declared);
+	  msg_tail(msg);
+	}
 }
 
 void

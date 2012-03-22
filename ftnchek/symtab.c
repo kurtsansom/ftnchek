@@ -2204,7 +2204,7 @@ Recompile me with LARGE_MACHINE option\n"
 
 		      /* Set symtab info fields */
 	    symt->type = type_pack(storage_class,datatype);
-	    symt->size = (datatype >= MIN_DTYPE_ID)?
+	    symt->size = is_derived_type(datatype)?
 	      size_DEFAULT:		/* derived types are default size */
 	      type_size[datatype];
 	    symt->src.text = NULL;

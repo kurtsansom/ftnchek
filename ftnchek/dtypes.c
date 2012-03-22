@@ -32,7 +32,7 @@ int find_dtype(Token *t, int in_dtype_def){
   /* If type not seen before, then this is a forward reference.  This
      may be an error but for now we give it a type. */
   if( (symt = hashtab[h].loc_symtab) == NULL ) {
-    symt = def_dtype(t,/*access_spec=*/0,/*dtype_def=*/FALSE);
+    symt = def_dtype(h,t->line_num,t->col_num,/*access_spec=*/0,/*dtype_def=*/FALSE);
 
     /* If forward ref occurred inside type definition, it needs
        to move outside scope of type.
@@ -69,11 +69,10 @@ int find_dtype(Token *t, int in_dtype_def){
    creating a new type.  If this is a type defn statement, there may be
    an PRIVATE or PUBLIC access_spec; otherwise access_spec=0.
  */
-Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def)
+Lsymtab * def_dtype(int h, int tok_line_num, int tok_col_num, int access_spec, int dtype_def)
 {
   int type_id;
   Dtype *dtype;
-  int h = id->value.integer;
   Lsymtab *symt = hashtab[h].loc_symtab;
 
   if ( symt != NULL && in_curr_scope(symt) ) {
@@ -82,13 +81,13 @@ Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def)
      * Too much trouble to enforce.  */
 
     if(dtype_def && symt->line_declared != NO_LINE_NUM) { /* not a forward reference */
-      syntax_error(id->line_num,id->col_num,"Type name is in use");
+      syntax_error(tok_line_num,tok_col_num,"Type name is in use");
     }
   }
   else { /* install name in loc symtab, masking if in outer scope */
 
 #ifdef DEBUG_DTYPE
-  if(debug_latest) {
+if(debug_latest) {
     if (dtype_def) {
       fprintf(list_fd,"\nInstalling new derived type definition %s",
               hashtab[h].name); 
@@ -98,7 +97,7 @@ Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def)
               hashtab[h].name); 
 
     }
-  }
+}
 #endif 
 
 
@@ -120,10 +119,21 @@ Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def)
     type_id = dtype_table_top++; /* take next available index */
     symt = install_local(h,type_id,class_DTYPE);
     /* If this is a definition, record where.  If forward ref, leave undefined */
-    symt->line_declared = dtype->line_declared = (dtype_def?id->line_num:NO_LINE_NUM);
+    symt->line_declared = dtype->line_declared = (dtype_def?tok_line_num:NO_LINE_NUM);
     dtype->filename = current_filename;
+    dtype->name = new_global_string(hashtab[h].name);
 
-    dtype->name = new_global_string(id->src_text);
+      /* Look up enclosing program unit.  If it is a module, record
+	 its name in dtype table to support USE association.  Otherwise
+	 module name is NULL.
+       */
+    dtype->module_name = NULL;
+    if( dtype_def ) {
+      Gsymtab *curr_prog_unit =	hashtab[current_prog_unit_hash].glob_symtab;
+      if( curr_prog_unit != NULL && /* need: see type-first-stmt.f90 */
+	  curr_prog_unit->type == type_pack(class_SUBPROGRAM,type_MODULE) )
+	dtype->module_name = curr_prog_unit->name;
+    }
     dtype->num_components = 0;		/* no components defined yet */
     dtype->components = NULL;
     /* Zero out flags that will be set later */
@@ -315,6 +325,8 @@ PRIVATE int duplicate_dtype( int type_id )
 
   /* check each derived type definition */
   for (i = MIN_DTYPE_ID; i < dtype_table_top; i++) {
+
+
     if( i == type_id || dtype_table[i] == (Dtype *)NULL )	/* skip self, holes */
       continue;
 
@@ -430,8 +442,9 @@ PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d
      * usage is imputed to the variable itself (as with arrays vs
      * array elements).
      */
-    make_true(LVALUE_EXPR,result->TOK_flags);
-    make_false(ID_EXPR,result->TOK_flags);
+    make_true(LVALUE_EXPR,result->TOK_flags); /* result is assignable */
+    make_true(ID_EXPR,result->TOK_flags); /* value.integer is hashtable index */
+    make_true(DTYPE_COMPONENT,result->TOK_flags); /* is component of derived type var */
     if (lvalue) {
       base->line_set = result->line_num;
       base->set_flag = TRUE;
@@ -558,4 +571,37 @@ PRIVATE void replace_type(int dup, int prev)
       }
     }
   }
+}
+
+/* Routine to return the last component in a reference to a datatype
+   variable component.  It is OK for the token not to be for such a
+   variable, in which case it simply returns the same token.  NOTE:
+   this is intended only to get to line number, column number, and
+   name for reporting purposes.  It does *not* check validity of
+   components but just follows out the token list to the end.
+ */
+const Token *ultimate_component(const Token *t)
+{
+  if(is_true(DTYPE_COMPONENT,t->TOK_flags)) { /* linked list is component train */
+    while(t->next_token)		      /* run out to last component */
+      t = t->next_token;
+  }
+  return t;
+}
+
+/* Routine checks if dtype_table has an entry with the same name and
+ * module_name for a derived type.  Returns the found index.  Returns -1 if
+ * not found */
+int find_type_use_assoc(const char *name, const char *module_name)
+{
+  int i;
+
+  for (i = MIN_DTYPE_ID; i < dtype_table_top; i++) {
+    if (strcmp(name, dtype_table[i]->name) == 0 &&
+        strcmp(module_name, dtype_table[i]->module_name) == 0) {
+      return i;
+    }
+  }
+
+  return -1;  /* not duplicate name */
 }

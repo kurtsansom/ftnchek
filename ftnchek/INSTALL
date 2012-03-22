@@ -3,6 +3,11 @@
 To build and install ftnchek, follow the instructions below for your
 operating system.
 
+==================================================================
+NOTE: ftnchek version 4.alpha.0 is only supported on linux
+systems.  For other systems it may work but you are on your own.
+==================================================================
+
 
 (1) UNIX and UNIX-like systems
 

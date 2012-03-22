@@ -22,7 +22,7 @@ int dtype_table_top 	/* starting index in Dtype_table */
 ;
 
 typedef struct DerivedTypeComponent {
-  char *name;			/* useless for derived types */
+  char *name;			/* component name (not in symtab) */
   type_t type;			
   unsigned long array_dim;	/* array size and no. of dims */
   long size;			/* Size of object in bytes */
@@ -36,6 +36,7 @@ typedef struct DerivedTypeComponent {
 typedef struct DtypeTableEntry {
   /* fields for root node of derived type */
   char *name;			/* name of derived type */
+  char *module_name;		/* name of module declaring it, NULL if none */
   int num_components;
   DtypeComponent *components;
   /* end of fields for root node */
@@ -52,11 +53,14 @@ DTYPE_SHARED
 Dtype *dtype_table[MAX_DTYPES];	/* stores derived type defs */
 
 int find_dtype(Token *t, int in_dtype_def);
-Lsymtab * def_dtype(Token *id, int access_spec, int dtype_def);  /* store derived type definition name in local
+Lsymtab * def_dtype(int h, int tok_line_num, int tok_col_num, int access_spec, int dtype_def);  /* store derived type definition name in local
     symbol table */
 void print_dtypes(Lsymtab *sym_list[], int n);  /* print names of derived type definitions from 
     dtype_table */
 void privatize_components(const char *name);
 void process_dtype_components(const char *name);
 void ref_component(Token *comp, Token *result, int lvalue);
+const Token *ultimate_component(const Token *t);
+int find_type_use_assoc(const char *name, const char *module_name);
+
 #endif
