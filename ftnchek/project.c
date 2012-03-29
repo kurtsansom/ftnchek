@@ -89,7 +89,7 @@ PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
 PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
-PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn, int module ));
+PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn, int module, Token *item_list, int only_list_mode));
 PROTO(PRIVATE int find_types, (Lsymtab *sym_list[]));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
 PROTO(PRIVATE void mod_type_out,(Lsymtab *symt,FILE *fd));
@@ -100,12 +100,14 @@ PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
 PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns ));
 PROTO(PRIVATE void comblocks_out, (FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns));
 PROTO(PRIVATE void clist_out,( Gsymtab *gsymt, ComListHeader *c, FILE *fd ));
-PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, const char *modulename ));
-PROTO(PRIVATE void mod_type_in,(FILE *fd, const char *module_name, const char *filename));
-PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename));
+PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, const char *modulename, Token *item_list, int only_list_mode ));
+PROTO(PRIVATE void mod_type_in,(FILE *fd, const char *module_name, const char *filename, Token * item_list, int only_list_mode));
+PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename, Token *item_list, int only_list_mode));
 PROTO(PRIVATE ComListHeader *comblock_used_by,(ComListHeader *clist, Gsymtab *module));
 PROTO(PRIVATE void initialize_typemap, (VOID));
 PROTO(PRIVATE int map_type, (int t_in));
+PROTO(int name_in_only_list, (const char *name, const Token *tlist, char **local_name));
+PROTO(void print_token_list, (const Token *tlist));
 
 
 PRIVATE int
@@ -846,7 +848,7 @@ proj_file_in(fd)
 #endif
 				/* Read defn arglists */
   for(ientry=0; ientry<numentries; ientry++) {
-    arg_info_in(fd,topfilename,TRUE,FALSE);
+    arg_info_in(fd,topfilename,TRUE,FALSE,(Token *)NULL,FALSE);
   }
   NEXTLINE;
 
@@ -858,7 +860,7 @@ proj_file_in(fd)
 
 				/* Read invocation & ext def arglists */
   for(iext=0; iext<numexts; iext++) {
-    arg_info_in(fd,topfilename,FALSE,FALSE);
+    arg_info_in(fd,topfilename,FALSE,FALSE,(Token *)NULL,FALSE);
   }
   NEXTLINE;
 
@@ -872,7 +874,7 @@ proj_file_in(fd)
    NEXTLINE;
 
    for(iblock=0; iblock<numblocks; iblock++) {
-     com_info_in(fd,topfilename,(const char *)NULL);
+     com_info_in(fd,topfilename,(const char *)NULL,(Token *)NULL,FALSE);
    }
    NEXTLINE;
 
@@ -885,12 +887,70 @@ proj_file_in(fd)
  } while(retval != EOF);
 }
 
+/* Print items of only token list */
+void print_token_list(const Token *tlist)
+{
+  if (tlist == NULL) return;
+
+  /* skip the first token which is a duplicate */
+  Token *t = tlist->next_token;
+
+  printf("\nRENAME ONLY list contains : ");
+
+  while (t != NULL ) {
+    if (t->left_token != NULL) {	/* RENAME token */
+      printf("%s => %s , ", t->left_token->src_text, t->src_text);
+      t = t->next_token;
+      continue;
+    }
+    printf("%s , ", t->src_text);
+    t = t->next_token;
+  }
+  printf("\n");
+
+  return;
+}
+
+/* Routine checks if a name appears in a token list, which is either
+   an only-list or a rename-list.  If the name has a rename token,
+   local_name is set to point to it.  (This will point to the
+   hashtable name entry; if it is needed for the longer term it should
+   be copied to global string space.)
+ */
+int name_in_only_list(const char *name, const Token *tlist, char **local_name)
+{
+  if (tlist == NULL) return FALSE;
+
+  Token *t = tlist->next_token;
+  while (t != NULL) {
+    if( strcmp(name, t->src_text) == 0 ) {
+      if( t->left_token != NULL) {	/* is a rename token */
+	(*local_name) = hashtab[t->left_token->value.integer].name;
+#ifdef DEBUG_PROJECT
+if (debug_latest) {
+  printf("%s found as RENAME item, rename to %s\n", name, *local_name);
+}
+#endif
+      }
+#ifdef DEBUG_PROJECT
+      else {
+if (debug_latest) {
+  printf("%s found as ONLY item\n", name);
+}
+      }
+#endif
+      return TRUE;
+    }
+    t = t->next_token;
+  }
+
+  return FALSE;
+}
 
 /* Routine to read in a module file.
  */
 
-/**** NOTE: 'ONLY' NOT IMPLEMENTED YET: NEED TO BUILD TOKEN LIST IN PARSER ****/
-void read_module_file(int h, Token *only)
+void read_module_file(int h, Token *item_list, int only_list_mode)
 {
   FILE *fd;
   char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
@@ -921,6 +981,7 @@ void read_module_file(int h, Token *only)
     (void)fprintf(list_fd,"\n\nReading module file %s\n",module_filename);
   }
 
+
 		/* read module name (should be same as upcased file stem) */
    READ_STR("module",buf);
    modulename = new_global_string(buf);
@@ -934,6 +995,7 @@ void read_module_file(int h, Token *only)
    NEXTLINE;
 #ifdef DEBUG_PROJECT
    if(debug_latest) printf("\nModule is %s from file %s\n",modulename,topfilename);
+   print_token_list(item_list);
 #endif
 			/* Read derived type definitions */
    {
@@ -943,7 +1005,7 @@ void read_module_file(int h, Token *only)
      READ_NUM(" types",numtypes);
      NEXTLINE;
      for(i=0; i<numtypes; i++) {
-       mod_type_in(fd,modulename,topfilename);
+       mod_type_in(fd,modulename,topfilename,item_list,only_list_mode);
      }
      fscanf(fd,"%5s",sentinel);
 #ifdef DEBUG_PROJECT
@@ -964,7 +1026,7 @@ void read_module_file(int h, Token *only)
 #endif
 				/* Read local variables */
      for(ivar=0; ivar<numvars; ivar++) {
-       mod_var_in(fd,topfilename);
+       mod_var_in(fd,topfilename,item_list,only_list_mode);
      }
      fscanf(fd,"%5s",sentinel);
 #ifdef DEBUG_PROJECT
@@ -975,18 +1037,23 @@ void read_module_file(int h, Token *only)
    }
 
 				/* Read subprogram info */
+
    {
      int numentries,ientry;
 
      READ_NUM(" entries",numentries); /* Get no. of entry points */
      NEXTLINE;
 #ifdef DEBUG_PROJECT
- if(debug_latest) printf("read entries %d\n",numentries);
+ if (debug_latest) {
+   printf("read entries %d\n",numentries);
+ }
 #endif
+
 				/* Read interface defn arglists */
      for(ientry=0; ientry<numentries; ientry++) {
-       arg_info_in(fd,topfilename,TRUE,TRUE);
+       arg_info_in(fd,topfilename,TRUE,TRUE,item_list,only_list_mode);
      }
+
      /* sentinel "end" is checked in arg_info_in */
      NEXTLINE;
    }
@@ -1002,7 +1069,7 @@ void read_module_file(int h, Token *only)
 #endif
 
      for(iblock=0; iblock<numblocks; iblock++) {
-       com_info_in(fd,topfilename,modulename);
+       com_info_in(fd,topfilename,modulename,item_list,only_list_mode);
      }
      /* no sentinel "end" after com blocks */
      NEXTLINE;
@@ -1014,7 +1081,7 @@ static char *prev_file_name="";/* used to reduce number of callocs */
 
 
 PRIVATE void
-mod_type_in(FILE *fd, const char *module_name, const char *filename)
+mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item_list, int only_list_mode)
 {
   char dtype_name[MAXNAME+1], 
        type_module[MAXNAME+1],
@@ -1045,6 +1112,8 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename)
   int h;
   Lsymtab *symt;
   int mapped_type;		/* type from map_type array */
+  int use_this_item, in_list;
+  char *local_name;
 
   READ_STR(" dtype",dtype_name);
   READ_LONG(" type",dtype_type);
@@ -1064,11 +1133,27 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename)
   READ_NUM(" components",dtype_num_components);
   NEXTLINE;
 
-  h = hash_lookup(dtype_name);
+  local_name = dtype_name; /* if no rename, name is same as in module */
+
+  if (item_list == NULL) {/* no RENAME ONLY list : use everything */
+    use_this_item = TRUE;
+  }
+  else {	/* use only if in RENAME ONLY list */
+    in_list = name_in_only_list(dtype_name, item_list, &local_name);
+
+    if (only_list_mode)
+      use_this_item = in_list;
+    else	/* RENAME list : use everything */
+      use_this_item = TRUE;
+  }
+
+  h = hash_lookup(local_name);
 
 #ifdef DEBUG_PROJECT
   if(debug_latest) printf("Read dtype %s %ld %ld\n",dtype_name,dtype_type,dtype_size);
 #endif
+
+if (use_this_item) {
   if ((mapped_type = find_type_use_assoc(dtype_name, type_module)) != -1) {
 #ifdef DEBUG_PROJECT
   if(debug_latest) {
@@ -1105,6 +1190,8 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename)
 #endif
 
     /* fill dtype_table with info from module */
+    if (dtype_name != local_name)
+      dtype->name = new_global_string(dtype_name);	/* if renamed, put module-defined name in table */
     dtype->filename = new_global_string((char *)filename);
     dtype->module_name = new_global_string((char *)type_module);
     dtype->num_components = dtype_num_components;
@@ -1127,6 +1214,8 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename)
   symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
   symt->public = dtype->public;
   symt->private = dtype->private;
+  symt->defined_in_module = TRUE; /* for honoring private components */
+}
 
   /* read in the components */
   for(i = 0; i < dtype_num_components; i++) {
@@ -1150,7 +1239,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename)
     NEXTLINE;
 
     /* If new, store component info into dtype_table */
-    if (!duplicate_dtype) {
+    if (!duplicate_dtype && use_this_item) {
       curr = dtype->components;
       curr[i].name = new_global_string(component_name);
       curr[i].type = map_type(component_type);
@@ -1196,7 +1285,7 @@ map_type(int t_in)
 
 
 PRIVATE void
-mod_var_in(FILE *fd, const char *filename)
+mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 {
   char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
@@ -1211,6 +1300,8 @@ mod_var_in(FILE *fd, const char *filename)
     id_dummy1,
     id_dummy2;
   unsigned long id_array_dim;
+  int use_this_item, in_list;
+  char *local_name;
 
   READ_STR(" var",id_name);
   READ_LONG(" type",id_type);
@@ -1225,6 +1316,19 @@ mod_var_in(FILE *fd, const char *filename)
 	 &id_dummy1,
 	 &id_dummy2);
 
+  local_name = id_name;
+  if (item_list == NULL) {/* no RENAME ONLY list : use everything */
+    use_this_item = TRUE;
+  }
+  else {	/* use only if in RENAME ONLY list */
+    in_list = name_in_only_list(id_name, item_list, &local_name);
+
+    if (only_list_mode)
+      use_this_item = in_list;
+    else	/* RENAME list : use everything */
+      use_this_item = TRUE;
+  }
+
   mapped_type = map_type(id_type);
 
 #ifdef DEBUG_PROJECT
@@ -1233,51 +1337,61 @@ mod_var_in(FILE *fd, const char *filename)
 	  printf("mapped type %d\n",mapped_type);
   }
 #endif
-  {
+ {
+  Lsymtab *symt;
+  if (use_this_item) {
     /* Install decl, masking any existing. */
-    int h = hash_lookup(id_name);
-    Lsymtab *symt = install_local(h,mapped_type,class_VAR);
+    int h = hash_lookup(local_name);
+    symt = install_local(h,mapped_type,class_VAR);
     symt->size = id_size;
     symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
     symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
+  }
 
     if( id_array_var ) {
       NEXTLINE;
       READ_LONG(" dims",id_array_dim);
-      symt->array_var = TRUE;
-      symt->info.array_dim = id_array_dim;
+      if (use_this_item) {
+        symt->array_var = TRUE;
+        symt->info.array_dim = id_array_dim;
+      }
     }
     else if( id_param ) {
       NEXTLINE;
       READ_STR(" value",id_param_text);
-      symt->set_flag = TRUE;
-      symt->parameter = TRUE;
-      symt->line_set = symt->line_declared;
-      symt->file_set = symt->file_declared;
-      symt->info.param = new_param_info();
-      symt->info.param->seq_num = ++parameter_count;
-      switch(mapped_type) {
-      case type_INTEGER:
-	sscanf(id_param_text,"%ld",&(symt->info.param->value.integer));
-	break;
-      case type_STRING:
-	id_param_text[strlen(id_param_text)] = '\0'; /* remove trailing quote */
-	symt->info.param->value.string = new_global_string(id_param_text+1); /* skip leading quote */
-	break;
-      case type_REAL:
-      case type_DP:
-	sscanf(id_param_text,"%lf",&(symt->info.param->value.dbl));
-	break;
-      default:
-	symt->info.param->value.integer = 0;
-	break;
+      if (use_this_item) {
+        symt->set_flag = TRUE;
+        symt->parameter = TRUE;
+        symt->line_set = symt->line_declared;
+        symt->file_set = symt->file_declared;
+        symt->info.param = new_param_info();
+        symt->info.param->seq_num = ++parameter_count;
+        switch(mapped_type) {
+        case type_INTEGER:
+          sscanf(id_param_text,"%ld",&(symt->info.param->value.integer));
+          break;
+        case type_STRING:
+          id_param_text[strlen(id_param_text)] = '\0'; /* remove trailing quote */
+          symt->info.param->value.string = new_global_string(id_param_text+1); /* skip leading quote */
+          break;
+        case type_REAL:
+        case type_DP:
+          sscanf(id_param_text,"%lf",&(symt->info.param->value.dbl));
+          break;
+        default:
+          symt->info.param->value.integer = 0;
+          break;
+        }
       }
     }
-    symt->common_var = id_common_var;
-    symt->allocatable = id_allocatable;
-    symt->pointer = id_pointer;
-    symt->target = id_target;
-  }
+
+    if (use_this_item) {
+      symt->common_var = id_common_var;
+      symt->allocatable = id_allocatable;
+      symt->pointer = id_pointer;
+      symt->target = id_target;
+    }
+ }
 
   NEXTLINE;
 }
@@ -1286,19 +1400,21 @@ mod_var_in(FILE *fd, const char *filename)
 			/* Read arglist info */
 PRIVATE void
 #if HAVE_STDC
-arg_info_in(FILE *fd, char *filename, int is_defn, int module)
+arg_info_in(FILE *fd, char *filename, int is_defn, int module, Token *item_list, int only_list_mode)
                    		/* name of toplevel file */
 #else /* K&R style */
-arg_info_in(fd,filename,is_defn)
+arg_info_in(fd,filename,is_defn,item_list)
     FILE *fd;
     char *filename;		/* name of toplevel file */
     int is_defn;
+    Token *item_list;
 #endif /* HAVE_STDC */
 {
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1],sentinel[6];
     char file_name[MAXNAME+1];
     char arg_name[MAXNAME+1];
     int new_module=FALSE; 	/* module not seen before this module-file */
+    int use_this_item;		/* entity in only_list */
 
 #ifndef KEEP_ARG_NAMES
     static char var[]="var",	/* text strings to use for now */
@@ -1338,6 +1454,8 @@ arg_info_in(fd,filename,is_defn)
 		arg_array_element,
 		arg_declared_external,
 		arg_active_do_var;
+    char *local_name;
+    int in_list;
 
     if(is_defn)
 	READ_STR(" entry",id_name); /* Entry point name */
@@ -1355,6 +1473,25 @@ arg_info_in(fd,filename,is_defn)
 	      &future1,&future2,&future3) != 8) READ_ERROR;
     NEXTLINE;
 
+    local_name = id_name;
+    if (module) {
+      if (item_list == NULL) {/* no RENAME ONLY list : use everything */
+        use_this_item = TRUE;
+      }
+      else {	/* use only if in RENAME ONLY list */
+        in_list = ( id_type == type_MODULE ||
+                    name_in_only_list(id_name, item_list, &local_name));
+
+        if (only_list_mode)
+          use_this_item = in_list;
+        else	/* RENAME list : use everything */
+          use_this_item = TRUE;
+      }
+    }
+    else { /* project file */
+      use_this_item = TRUE;
+    }
+
     mapped_type = map_type(id_type);
 
 #ifdef DEBUG_PROJECT
@@ -1364,8 +1501,10 @@ id_name,id_class,id_type);
 }
 #endif
 
+  if ( !module || use_this_item ) {
+
 				/* Create global symtab entry */
-    h = hash_lookup(id_name);
+    h = hash_lookup(local_name);
     if( (gsymt = hashtab[h].glob_symtab) == NULL) {
       gsymt = install_global((int)h,mapped_type,class_SUBPROGRAM);
       gsymt->size = id_size;
@@ -1389,6 +1528,8 @@ id_name,id_class,id_type);
       gsymt->invoked_as_func = TRUE;
     if(id_declared)
       gsymt->declared_external = TRUE;
+
+  }
 
    while(   fscanf(fd,"%5s",sentinel),
 #ifdef DEBUG_PROJECT
@@ -1430,7 +1571,7 @@ id_name,id_class,id_type);
     /* If this is a module, we need to create a local symbol table
        entry defining the subprogram, to hold its type.
      */
-    if(module) {
+    if(module && use_this_item) {
       Lsymtab *symt = install_local(h,mapped_alist_type,class_SUBPROGRAM);
       symt->size = alist_size;
       symt->line_declared = alist_line;
@@ -1445,8 +1586,11 @@ id_name,id_class,id_type);
 		   defn arglist for it, which would trigger "multiply
 		   defined" warning.
 		 */
-   if( !module || new_module ) {
-      h = hash_lookup(prog_unit_name);
+   if(( !module || (new_module && use_this_item))) {
+      if (strcmp(local_name, id_name) == 0)
+        h = hash_lookup(prog_unit_name);
+      else
+        h = hash_lookup(local_name);
       if( (prog_unit = hashtab[h].glob_symtab) == NULL) {
 	prog_unit = install_global((int)h,type_UNDECL,class_SUBPROGRAM);
       }
@@ -1510,7 +1654,7 @@ id_name,id_class,id_type);
 **	gsymt->used_flag = TRUE;
 **      }
 */
-   if( !module || new_module ) {
+   if(( !module || (new_module && use_this_item))) {
 				/* Create arglist structure */
       if(((ahead=(ArgListHeader *) calloc(1, sizeof(ArgListHeader)))
 		 		 == (ArgListHeader *) NULL) ||
@@ -1572,7 +1716,7 @@ id_name,id_class,id_type);
 
 	mapped_arg_type = map_type(arg_type);
 
-   if( !module || new_module ) {
+   if(( !module || (new_module && use_this_item))) {
 
 #ifdef KEEP_ARG_NAMES
 			/* Economize storage by re-using previously allocated
@@ -1630,7 +1774,7 @@ id_name,id_class,id_type);
 
 
 PRIVATE void
-com_info_in(FILE *fd, const char *filename, const char *modulename)
+com_info_in(FILE *fd, const char *filename, const char *modulename, Token *item_list, int only_list_mode)
 {
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1];
     char file_name[MAXNAME+1];
@@ -1663,6 +1807,8 @@ com_info_in(FILE *fd, const char *filename, const char *modulename)
       /* Items needed for module input */
     Token toklist;		/* header for list of common block elements */
     int from_this_module;
+    int use_this_item, in_list;
+    char *local_name;
 
     READ_STR(" block",id_name);
     READ_NUM(" class",id_class);
@@ -1672,6 +1818,24 @@ com_info_in(FILE *fd, const char *filename, const char *modulename)
 id_name,id_class,id_type);
 #endif
     NEXTLINE;
+
+    local_name = id_name;
+    if (modulename != (const char *)NULL) {
+      if (item_list == NULL) {/* no RENAME ONLY list : use everything */
+        use_this_item = TRUE;
+      }
+      else {	/* use only if in RENAME ONLY list */
+        in_list = name_in_only_list(id_name, item_list, &local_name);
+
+        if (only_list_mode)
+          use_this_item = in_list;
+        else	/* RENAME list : use everything */
+          use_this_item = TRUE;
+      }
+    }
+    else {
+      use_this_item = TRUE;
+    }
 
     mapped_type = map_type(id_type);
 
@@ -1704,8 +1868,9 @@ id_name,id_class,id_type);
     from_this_module = (modulename != NULL &&
 			strcmp(modulename,prog_unit_name) == 0);
 
+ if (use_this_item) {
 				/* Create global symtab entry */
-    h = hash_lookup(id_name);
+    h = hash_lookup(local_name);
     if( (gsymt = hashtab[h].com_glob_symtab) == NULL)
       gsymt = install_global(h,mapped_type,(int)id_class);
 
@@ -1756,6 +1921,8 @@ id_name,id_class,id_type);
       if( from_this_module ) {
 	toklist.next_token = NULL; /* initialize header */
       }
+ } /*...  if (use_this_item) */
+
 			/* Fill comlist array from project file */
     for(ivar=0; ivar<numvars; ivar++) {
       READ_NUM(" var",var_num); if(var_num != ivar+1) READ_ERROR;
@@ -1782,6 +1949,7 @@ id_name,id_class,id_type);
 #endif
 			/* Economize storage by re-using previously allocated
 			   space for same name in prior decl if any */
+  if (use_this_item) {
       clist[ivar].name = (prev_chead != NULL && ivar < prev_n &&
 			  strcmp(var_name,prev_clist[ivar].name) == 0) ?
 			    prev_clist[ivar].name:
@@ -1794,12 +1962,12 @@ id_name,id_class,id_type);
       clist[ivar].set = var_set;
       clist[ivar].used_before_set = var_used_before_set;
       clist[ivar].assigned = var_assigned;
-
+  }
 			/* If reading a module, the common variables
 			   have local symbol table entries that need
 			   to be associated with the block.
 			 */
-      if( from_this_module ) {
+      if( from_this_module && use_this_item ) {
 	int h = hash_lookup(var_name);
 	Lsymtab *com_var;
 	Token t;
@@ -1830,7 +1998,7 @@ id_name,id_class,id_type);
 			   status etc.  Make tokens as if this were a
 			   parsed COMMON declaration.
 			 */
-    if( from_this_module ) {
+    if( from_this_module && use_this_item) {
       Token block_id;
       implied_id_token(&block_id,id_name);
       block_id.line_num = line_num;

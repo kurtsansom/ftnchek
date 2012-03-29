@@ -662,6 +662,7 @@ typedef struct lSymtEntry{
 	     intent_out: 1,	/* has OUT attribute */
 	     invoked_as_func: 1, /* usage as f(x) was seen */
 	     defined_in_include: 1, /* to suppress some warnings if unused */
+	     defined_in_module: 1, /* imported via USE */
 	     declared_external: 1, /* explicitly declared external */
 	     declared_intrinsic: 1; /* explicitly declared intrinsic */
 	     unsigned size_is_adjustable : 1; /* CHARACTER*(*) declaration */
@@ -1051,7 +1052,7 @@ PROTO(void make_declarations,( Lsymtab *sym_list[], char *mod_name ));
 
 			/* in project.c */
 PROTO(void write_module_file, (int h));
-PROTO(void read_module_file, (int h, Token *only));
+PROTO(void read_module_file, (int h, Token *only, int only_list_mode));
 
 			/* in symtab.c */
 PROTO(void apply_attr,( Token *id, int attr ));

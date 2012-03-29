@@ -111,7 +111,17 @@ troff: Can't open /usr/lib/font/devpost/C.out; line 818, file <standard input>
    be welcome.
 
 
-(2) VMS
+(2) Macintosh, OS X and later
+
+    Since OS X is basically Unix, the above commands should all work,
+    provided you have set up a programming environment.  There is one
+    change in procedure needed, namely to provide a flag to the
+    configure script:
+            $ ./configure --disable-submodel
+
+    Thanks to Caleb Carlin of Iowa State University for this information.
+
+(3) VMS
 
    Unpacking ftnchek: If the file you received is a VMS_SHAR.COM file,
    unpack it in an empty directory by executing it as a DCL command
@@ -131,7 +141,7 @@ troff: Can't open /usr/lib/font/devpost/C.out; line 818, file <standard input>
    Rename the file "CONFIG-GENERIC.H" to "CONFIG.H".  Next, follow the
    build instructions for Alpha or VAX.
 
-(2a) VMS on Alpha
+(3a) VMS on Alpha
 
    Give the command
 
@@ -170,16 +180,16 @@ troff: Can't open /usr/lib/font/devpost/C.out; line 818, file <standard input>
    subdirectory [.TEST] and report on any discrepancies.  Note: thanks
    to Bob Wells for yeoman service in providing CHECK.COM.
 
-(2b) VMS on DEC VAX
+(3b) VMS on DEC VAX
 
-   Same as (2a) except use BUILD-VAX.COM instead.  It has been found
+   Same as (3a) except use BUILD-VAX.COM instead.  It has been found
    that some compilers require the /VAXC qualifier in order to compile
    this code properly.  If this is the case with your compiler, edit
    CC.COM, changing cc to cc/vaxc at line 44.
 
 
 
-(3a) MS-DOS/Win with Borland BCC32
+(3c) MS-DOS/Win with Borland BCC32
 
    Edit CLIB in makefile.bcc32 (line 13) to reflect the location where
    the BCC32 library is installed on your machine.  Rename the file
@@ -190,14 +200,14 @@ troff: Can't open /usr/lib/font/devpost/C.out; line 818, file <standard input>
 
    See Remark at (3c).
 
-(3b) MS-DOS/Win with Microsoft Visual C/C++
+(3d) MS-DOS/Win with Microsoft Visual C/C++
 
    Open the workspace file ftnchek.dsw.  Rename the file
    "config-win32.h" to "config.h".  Build ftnchek.exe.
 
    See Remark at (3c).
 
-(3c) Other MS-DOS/Win
+(3e) Other MS-DOS/Win
 
    See the instructions at (6) below.  You should define the macro
    MSDOS manually, if your compiler does not automatically define one

@@ -2091,6 +2091,7 @@ arith_type_name	:	sizeable_type_name {
 				/* Treat all KINDs as default */
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
+			  in_attrbased_typedecl = initial_flag = TRUE;
 			}
 
 				/* Other type disallow *len modifier */
@@ -2522,15 +2523,15 @@ module_nature   :   tok_INTRINSIC
 
 use_spec:	module_name
 		{
-		  read_module_file($1.value.integer,(Token *)NULL);
+		  read_module_file($1.value.integer,(Token *)NULL,FALSE);
 		}
 		| module_name_comma use_only
 		{
-		  read_module_file($1.value.integer,&($2));
+		  read_module_file($1.value.integer,&($2),TRUE);
 		}
 		| module_name_comma rename_list
 		{
-		  read_module_file($1.value.integer,&($2));
+		  read_module_file($1.value.integer,&($2),FALSE);
 		}
 	;
 
@@ -2559,8 +2560,8 @@ rename_list :   rename
 
 rename  :   symbolic_name tok_rightarrow symbolic_name
 	    {
-	         def_arg_name(&($1));
-	         primary_id_expr(&($1),&($$));
+		 $3.left_token = append_token((Token *)NULL,&($1));
+		 $$ = $3;
 	    }
         |   tok_OPERATOR '(' operator ')'
             tok_rightarrow tok_OPERATOR '(' operator ')'
@@ -2568,11 +2569,11 @@ rename  :   symbolic_name tok_rightarrow symbolic_name
 
 use_only    :   only_keywd ':' EOS
 	    {
-	        $$.next_token = (Token *)NULL;
+	        $$.next_token = (Token *)NULL; /* no list */
 	    }
         |   only_keywd ':' only_list EOS
 	    {
-	        $$ = $3;
+	        $$ = $3; /* synthesize the only token list */
 	    }
         ;
 
@@ -2598,8 +2599,8 @@ only_item   :   generic_spec
 
 generic_spec    :   symbolic_name
 		{
-		     def_arg_name(&($1));
-		     primary_id_expr(&($1),&($$));
+		     /* def_arg_name(&($1)); */
+		     /* primary_id_expr(&($1),&($$)); */
 		}
         |   tok_OPERATOR '(' operator ')'
         |   tok_ASSIGNMENT '(' '=' ')'
@@ -4672,8 +4673,12 @@ parameter_expr	:	/* arith, char, or logical */ expr
 /* 76 following the text of the standard, not the diagrams */
 expr		:	log_expr
 			{
-				/* Fix it up in case it is used in expr list */
-			  $$.next_token = (Token *) NULL;
+				/* Fix it up in case it is used in
+				 * expr list.  However for dtype
+				 * components the link is genuine.
+				 */
+			    if( !is_true(DTYPE_COMPONENT,$1.TOK_flags) )
+				$$.next_token = (Token *) NULL;
 #ifdef DEBUG_PARSER
 			    if(debug_parser) {
 				(void)fprintf(list_fd,

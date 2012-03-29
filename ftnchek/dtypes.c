@@ -14,7 +14,7 @@ PRIVATE int duplicate_dtype( int type_id );  /* check if derived type definition
     exists in dtype_table */
 PRIVATE int is_same_components(int s_id,int t_id,
        const DtypeComponent *source, const DtypeComponent *target, int num_components);
-PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d, int s, int lvalue);
+PRIVATE  DtypeComponent *last_component(int d, Token *comp_token);
 
 PRIVATE void make_error_dtype_token( Token *result );
 PRIVATE DtypeComponent *find_component(int d, const char *s);
@@ -408,89 +408,72 @@ DtypeComponent *find_component(int d, const char *s)
 {
   int i;
   int n = dtype_table[d]->num_components;
-  DtypeComponent *comp = dtype_table[d]->components;
+  DtypeComponent *comp_dtype = dtype_table[d]->components;
 
   for (i = 0; i < n; i++ ) {
-    if ( strcmp(s, comp->name) == 0 )
-      return comp; /* found component of same name */
-    comp++;
+    if ( strcmp(s, comp_dtype->name) == 0 ) {
+      /* ignore private components if this is a module-defined type */
+      if(comp_dtype->private) {
+	/* find the type entry in local symbol table */
+	int h = hash_lookup(dtype_table[d]->name);
+	Lsymtab *symt = hashtab[h].loc_symtab;
+	if( symt->defined_in_module )
+	  return NULL;
+      }
+      return comp_dtype; /* found component of same name */
+    }
+    comp_dtype++;
   }
 
   return NULL;
 }
 
-/* Takes an arranged list of components and recursively checks if a
- * component which is an elementary type exists in previous component
- * which was a derived type. Upon reaching the last component, its
- * type is transferred to the 'result' argument.
+/* Returns pointer to the data type defn of the ultimate component
+ * of a derived type object reference such as A%B...
  *
- * Note : Argument 'd' is type number of previous component.
- * If comp != NULL, d must be a derived type.
+ * Arguments: d = data type of the derived type object (must be derived type)
+ *         comp = token for the next component (must be non NULL)
+ *
+ * Operates recursively, checking as it goes to make sure that the
+ * data object of which a component is sought is of a derived type.
  */
-PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d, int size, int lvalue)
+PRIVATE DtypeComponent *last_component(int d, Token *comp_token)
 {
   DtypeComponent *comp_dtype;
 
+  char *component_name = hashtab[comp_token->value.integer].name;
 
-  if(comp == NULL) {			/* end of list */
-    result->TOK_type = type_pack(class_VAR, d);
-    result->size = size;
-
-    /* Set appropriate usage flags both in base variable symtab and in
-     * token, for use if item is a subroutine argument.
-     * NOTE: usage of components of a variable is not tracked: all
-     * usage is imputed to the variable itself (as with arrays vs
-     * array elements).
-     */
-    make_true(LVALUE_EXPR,result->TOK_flags); /* result is assignable */
-    make_true(ID_EXPR,result->TOK_flags); /* value.integer is hashtable index */
-    make_true(DTYPE_COMPONENT,result->TOK_flags); /* is component of derived type var */
-    if (lvalue) {
-      base->line_set = result->line_num;
-      base->set_flag = TRUE;
-      base->assigned_flag = TRUE;
-      make_true(SET_FLAG,result->TOK_flags);
-      make_true(ASSIGNED_FLAG,result->TOK_flags);
-    }
-    else {
-      if(!base->set_flag) {
-	base->used_before_set = TRUE;
-        make_true(USED_BEFORE_SET,result->TOK_flags);
-      }
-      base->line_used = result->line_num;
-      base->used_flag = TRUE;
-    }
-
+    /* Look up the component in the derived type table entry */
+  if ((comp_dtype=find_component(d, component_name)) == NULL) {
+    syntax_error(comp_token->line_num,comp_token->col_num,"Type");
+    msg_tail(type_name(d));
+    msg_tail("has no component named");
+    msg_tail(component_name);
+    return NULL;
   }
-  else {			   /* recursively do next component */
-    char *component_name = hashtab[comp->value.integer].name;
-
-    /* Look up the component in the derived type */
-    if ((comp_dtype=find_component(d, component_name)) == NULL) {
-      make_error_dtype_token( result );
-      syntax_error(comp->line_num,comp->col_num,component_name);
-      msg_tail("is not a component of type");
-      msg_tail(type_name(d));
+  else {
+    if( comp_token->next_token == NULL ) { /* if this is the last, return it */
+      /* Also need to store type and size information on the token which is
+       * in the list in order to allow correct future references to the
+       * tokens in the list
+       */
+      comp_token->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
+      comp_token->size = comp_dtype->size;
+      return comp_dtype;
     }
     else {
       /* If there is a next component, make sure this component is derived type */
-      if (!is_derived_type(comp_dtype->type) && comp->next_token != NULL) {
-	make_error_dtype_token( result );
-	syntax_error(comp->line_num,comp->col_num,component_name);
-	msg_tail("is not a derived type");
-	return;
+      d = datatype_of(comp_dtype->type);
+      if ( !is_derived_type(d) ) {
+	syntax_error(comp_token->line_num,comp_token->col_num,component_name);
+	msg_tail("is not a structure object");
+	return NULL;
       }
-    
-      /* Set POINTER attribute in result to match component.  Last component
-       * wins. */
-      if(comp_dtype->pointer)
-	make_true(POINTER_EXPR,result->TOK_flags);
-      else
-	make_false(POINTER_EXPR,result->TOK_flags);
-
-      make_false(TARGET_EXPR,result->TOK_flags);	/* components cannot be targets */
-
-      ref_component_list(comp->next_token, result, base, comp_dtype->type, comp_dtype->size, lvalue);
+      else {
+	comp_token->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
+	comp_token->size = comp_dtype->size;
+	return last_component(d, comp_token->next_token);
+      }
     }
   }
 }
@@ -499,13 +482,14 @@ PRIVATE void ref_component_list(Token *comp, Token *result, Lsymtab *base, int d
    to determine its type.  The result is updated to be suitable
    for use as a primary in an expression.
 */
-void ref_component(Token *comp, Token *result, int lvalue)
+void ref_component(Token *comp_token, Token *result, int lvalue)
 {
-  int h, d, s;
+  int h, d;
   Token *curr;
   Lsymtab *symt;
+  DtypeComponent *comp_dtype;
 
-  curr = reverse_tokenlist(comp->next_token); /* Put list into left-right order */
+  curr = reverse_tokenlist(comp_token->next_token); /* Put list into left-right order */
 
 #ifdef DEBUG_DTYPE
   if(debug_latest) {
@@ -520,7 +504,6 @@ void ref_component(Token *comp, Token *result, int lvalue)
   symt = hashtab[h].loc_symtab;
 
   d = get_type(symt);
-  s = symt->size;
 
   if( storage_class_of(symt->type) != class_VAR ) { /* base is not a variable?? */
     make_error_dtype_token( result );
@@ -532,13 +515,61 @@ void ref_component(Token *comp, Token *result, int lvalue)
   if (!is_derived_type(d)) {		/* base not a derived type?? */
     make_error_dtype_token( result );
     syntax_error(curr->line_num,curr->col_num,symt->name);
-    msg_tail("is not a derived type");
+    msg_tail("is not a structure object");
     return;
   }
 
   /*  Here next_token is always non-NULL since ref_component is called
    *  only for base%component[%component...] references. */
-  ref_component_list(curr->next_token, result, symt, d, s, lvalue);
+  comp_dtype = last_component(d, curr->next_token);
+
+  if(comp_dtype == NULL) {			/* not found */
+    make_error_dtype_token( result );
+    /* error message was given by last_component */
+  }
+  else {
+    result->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
+    result->size = comp_dtype->size;
+#ifdef DEBUG_DTYPE
+  if(debug_latest) {
+    fprintf(list_fd,"\nResult has type %d",datatype_of(result->TOK_type));
+    fprintf(list_fd,"\n");
+  }
+#endif
+
+    /* Set appropriate usage flags both in base variable symtab and in
+     * token, for use if item is a subroutine argument.
+     * NOTE: usage of components of a variable is not tracked: all
+     * usage is imputed to the variable itself (as with arrays vs
+     * array elements).
+     */
+    make_true(LVALUE_EXPR,result->TOK_flags); /* result is assignable */
+    make_true(ID_EXPR,result->TOK_flags); /* value.integer is hashtable index */
+    make_true(DTYPE_COMPONENT,result->TOK_flags); /* is component of derived type var */
+    if (lvalue) {
+      symt->line_set = result->line_num;
+      symt->set_flag = TRUE;
+      symt->assigned_flag = TRUE;
+      make_true(SET_FLAG,result->TOK_flags);
+      make_true(ASSIGNED_FLAG,result->TOK_flags);
+    }
+    else {
+      if(!symt->set_flag) {
+	symt->used_before_set = TRUE;
+        make_true(USED_BEFORE_SET,result->TOK_flags);
+      }
+      symt->line_used = result->line_num;
+      symt->used_flag = TRUE;
+    }
+      /* Set POINTER attribute in result to match component. */
+    if(comp_dtype->pointer)
+      make_true(POINTER_EXPR,result->TOK_flags);
+    else
+      make_false(POINTER_EXPR,result->TOK_flags);
+
+    make_false(TARGET_EXPR,result->TOK_flags);	/* components cannot be targets */
+
+  }
 }
 
 PRIVATE
