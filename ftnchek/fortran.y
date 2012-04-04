@@ -899,7 +899,6 @@ specif_stmt	:	dimension_stmt
                 |       target_stmt
                 |       allocatable_stmt
 		|	access_stmt
-		|	derived_type_decl_stmt
 		|	intent_stmt
 		|	interface_stmt
 		 	{
@@ -1454,7 +1453,7 @@ function_keyword:	tok_FUNCTION
 type_name	:	arith_type_name
 		|	plain_char_type_name
 		|	char_type_name
-		|	derived_type_decl_handle
+		|	derived_type_name
 		;
 
 /* 11 not present: see 9 */
@@ -1966,6 +1965,7 @@ type_stmt	:	arith_type_name arith_type_decl_list EOS
 		|	plain_char_type_name char_type_decl_list EOS
 		|	char_type_name char_type_decl_list EOS
 		|	char_type_name ',' char_type_decl_list EOS
+		|	derived_type_name derived_type_decl_list EOS
 		;
 
 				/* Attribute-based type declarations */
@@ -1985,6 +1985,8 @@ attrbased_type_stmt:	arith_attrbased_type_handle
 			    msg_tail(": attribute-based variable declaration");
 			  }
 			}
+		|	derived_attrbased_type_handle
+			    tok_double_colon derived_type_decl_list EOS
 		;
 
 arith_attrbased_type_handle: arith_type_name
@@ -1997,6 +1999,9 @@ char_attrbased_type_handle: plain_char_type_name
 		|	char_type_name ',' attr_list
 		;
 
+derived_attrbased_type_handle:	derived_type_name	
+		|	derived_type_name ',' attr_list
+		;
 
 attr_list	:	type_attr
 		|	attr_list ',' type_attr
@@ -2297,7 +2302,7 @@ arith_type_decl_item: scalar_type_decl_entity
 				   it will be lexed as an assignment statement.
 				 */
 		|	scalar_type_decl_entity {integer_context=FALSE;complex_const_allowed = TRUE;}
-				'=' parameter_expr
+				assignment_op parameter_expr
 			{
 			    if(current_parameter_attr)
 				def_parameter(&($1),&($4),FALSE);
@@ -2822,30 +2827,7 @@ access_generic_spec:	symbolic_name
         	|	tok_ASSIGNMENT '(' '=' ')'
 		;
 
-derived_type_decl_stmt:	derived_type_decl_prefix
-		{
-			Lsymtab *symt = hashtab[($1).value.integer].loc_symtab;
-      			int type = get_type(symt);
-      			if( is_derived_type(type) &&
-			  dtype_table[type]->line_declared == NO_LINE_NUM ) { /* fwd ref */
-      			  int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
-      			  if( !(in_dtype_def && current_pointer_attr) ) {
-      			    syntax_error(($1).line_num,($1).col_num,"Type");
-      			    msg_tail(dtype_table[type]->name);
-      			    msg_tail("not defined at this point");
-      			  }
-      			}
-		}
-			derived_type_decl_list EOS
-	     	;
-
-derived_type_decl_prefix:	derived_type_decl_handle	
-		|	derived_type_decl_handle tok_double_colon
-		|	derived_type_decl_handle ',' attr_list
-			    tok_double_colon 
-		;
-
-derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')' 
+derived_type_name:	tok_TYPE '(' symbolic_name ')' 
 			{
 			  int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
 			  /* Give hint to lexer to continue taking
@@ -2867,9 +2849,17 @@ derived_type_decl_handle:	tok_TYPE '(' symbolic_name ')'
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 
-			  /* needed for error handling of illegal forward
-			   * references */
-			  $$ = $3;
+			  Lsymtab *symt = hashtab[($3).value.integer].loc_symtab;
+      			  int type = get_type(symt);
+      			  if( is_derived_type(type) &&
+			    dtype_table[type]->line_declared == NO_LINE_NUM ) { /* fwd ref */
+      			    int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
+      			    if( !(in_dtype_def && current_pointer_attr) ) {
+      			      syntax_error(($3).line_num,($3).col_num,"Type");
+      			      msg_tail(dtype_table[type]->name);
+      			      msg_tail("not defined at this point");
+      			    }
+      			  }
 			}
 		;
 
@@ -2877,7 +2867,11 @@ derived_type_decl_list:	derived_type_decl_item
 		|	derived_type_decl_list ',' derived_type_decl_item
 		;
 
-derived_type_decl_item:	symbolic_name
+derived_type_decl_item: derived_type_decl_entity
+		|	derived_type_decl_entity assignment_op expr
+		;
+
+derived_type_decl_entity: symbolic_name
 			{
 			     declare_type(&($1),
 					  current_datatype,
@@ -3322,18 +3316,29 @@ deallocate_item_list:   allocate_item
                 |       deallocate_item_list ',' allocate_stat_item
                 ;
 
-nullify_stmt    :       tok_NULLIFY '(' variable_name_list ')' EOS
+nullify_stmt    :       tok_NULLIFY '(' nullify_item_list ')' EOS
 			{
 			     if( f77_pointers ) {
 				  nonstandard($1.line_num,$1.col_num,0,0);
 				  msg_tail(": NULLIFY statement");
 			     }
+			     do_nullify(&($3));
 			}
                 ;
 
-variable_name_list:     variable_name
-                |       variable_name_list ',' variable_name
-                ;
+nullify_item_list:	nullify_item
+			{
+			    $$.next_token = append_token((Token *)NULL,&($1));
+			}
+		|	nullify_item_list ',' nullify_item
+			{
+			    $$.next_token = append_token($1.next_token,&($3));
+			}
+		;
+
+nullify_item	:	variable_name
+		|	component
+		;
 
 /* 26 */
 save_stmt	:	tok_SAVE EOS

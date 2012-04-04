@@ -42,6 +42,7 @@ typedef struct DtypeTableEntry {
   /* end of fields for root node */
   LINENO_t line_declared;
   char *filename;
+  Lsymtab *symt;		/* current symbol table entry */
   unsigned
   	public: 1,		/* is PUBLIC type */
   	private: 1,		/* is PRIVATE type */
@@ -60,6 +61,7 @@ void print_dtypes(Lsymtab *sym_list[], int n);  /* print names of derived type d
 void privatize_components(const char *name);
 void process_dtype_components(const char *name);
 void ref_component(Token *comp, Token *result, int lvalue);
+void ref_component_tree(Token *comp, Token *result, int lvalue);
 const Token *ultimate_component(const Token *t);
 int find_type_use_assoc(const char *name, const char *module_name);
 

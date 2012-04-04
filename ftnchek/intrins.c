@@ -63,6 +63,20 @@ as the "MIT License."
 	   important and the table size adjusts automatically.
 	*/
 
+				/* Intrinsic function handlers */
+
+PROTO(PRIVATE int ii_abs,( Token *args ));
+PROTO(PRIVATE int ii_dim,( Token *args ));
+PROTO(PRIVATE int ii_ichar,( Token *args ));
+PROTO(PRIVATE int ii_index,( Token *args ));
+PROTO(PRIVATE int ii_len,( Token *args ));
+PROTO(PRIVATE int ii_max,( Token *args ));
+PROTO(PRIVATE int ii_min,( Token *args ));
+PROTO(PRIVATE int ii_mod,( Token *args ));
+PROTO(PRIVATE int ii_sign,( Token *args ));
+
+
+
 PRIVATE IntrinsInfo intrinsic[]={
 
 
@@ -88,120 +102,120 @@ PRIVATE IntrinsInfo intrinsic[]={
 
 #define I_NONSTD (I_NONF77|I_NONF90)
 
-{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG},
-{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NOTARG},
-{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NOTARG},
-{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R},
-{"FLOAT",	1,	I,	type_REAL,	I_F77|I_NOTARG},
-{"SNGL",	1,	D,	type_REAL,	I_F77|I_NOTARG},
-{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG},
-{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG},
-{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_NOTARG|I_ICHAR},
-{"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR},
-{"AINT",	1,	R|D,	type_GENERIC,	I_F77},
-{"DINT",	1,	D,	type_DP,	I_F77},
-{"ANINT",	1,	R|D,	type_GENERIC,	I_F77},
-{"DNINT",	1,	D,	type_DP,	I_F77},
-{"NINT",	1,	R|D,	type_INTEGER,	I_F77},
-{"IDNINT",	1,	D,	type_INTEGER,	I_F77},
-{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R|I_ABS},
-{"IABS",	1,	I,	type_INTEGER,	I_F77|I_ABS},
-{"DABS",	1,	D,	type_DP,	I_F77},
-{"CABS",	1,	C,	type_REAL,	I_F77},
-{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77|I_MOD},
-{"AMOD",	2,	R,	type_REAL,	I_F77},
-{"DMOD",	2,	D,	type_DP,	I_F77},
-{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77|I_SIGN},
-{"ISIGN",	2,	I,	type_INTEGER,	I_F77|I_SIGN},
-{"DSIGN",	2,	D,	type_DP,	I_F77},
-{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77|I_DIM},
-{"IDIM",	2,	I,	type_INTEGER,	I_F77|I_DIM},
-{"DDIM",	2,	D,	type_DP,	I_F77},
-{"DPROD",	2,	R,	type_DP,	I_F77},
-{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_MAX},
-{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG|I_MAX},
-{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG},
-{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG},
-{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG},
-{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG},
-{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_MIN},
-{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG|I_MIN},
-{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG},
-{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG},
-{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG},
-{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG},
-{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_INQ},
-{"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_INDEX},
-{"AIMAG",	1,	C,	type_REAL,	I_F77},
-{"CONJG",	1,	C,	type_COMPLEX,	I_F77},
-{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77},
-{"DSQRT",	1,	D,	type_DP,	I_F77},
-{"CSQRT",	1,	C,	type_COMPLEX,	I_F77},
-{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77},
-{"DEXP",	1,	D,	type_DP,	I_F77},
-{"CEXP",	1,	C,	type_COMPLEX,	I_F77},
-{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_NOTARG},
-{"ALOG",	1,	R,	type_REAL,	I_F77},
-{"DLOG",	1,	D,	type_DP,	I_F77},
-{"CLOG",	1,	C,	type_COMPLEX,	I_F77},
-{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_NOTARG},
-{"ALOG10",	1,	R,	type_REAL,	I_F77},
-{"DLOG10",	1,	D,	type_DP,	I_F77},
-{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77},
-{"DSIN",	1,	D,	type_DP,	I_F77},
-{"CSIN",	1,	C,	type_COMPLEX,	I_F77},
-{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77},
-{"DCOS",	1,	D,	type_DP,	I_F77},
-{"CCOS",	1,	C,	type_COMPLEX,	I_F77},
-{"TAN", 	1,	R|D,	type_GENERIC,	I_F77},
-{"DTAN",	1,	D,	type_DP,	I_F77},
-{"ASIN",	1,	R|D,	type_GENERIC,	I_F77},
-{"DASIN",	1,	D,	type_DP,	I_F77},
-{"ACOS",	1,	R|D,	type_GENERIC,	I_F77},
-{"DACOS",	1,	D,	type_DP,	I_F77},
-{"ATAN",	1,	R|D,	type_GENERIC,	I_F77},
-{"DATAN",	1,	D,	type_DP,	I_F77},
-{"ATAN2",	2,	R|D,	type_GENERIC,	I_F77},
-{"DATAN2",	2,	D,	type_DP,	I_F77},
-{"SINH",	1,	R|D,	type_GENERIC,	I_F77},
-{"DSINH",	1,	D,	type_DP,	I_F77},
-{"COSH",	1,	R|D,	type_GENERIC,	I_F77},
-{"DCOSH",	1,	D,	type_DP,	I_F77},
-{"TANH",	1,	R|D,	type_GENERIC,	I_F77},
-{"DTANH",	1,	D,	type_DP,	I_F77},
-{"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG},
-{"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG},
-{"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG},
-{"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG},
+{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
+{"FLOAT",	1,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"SNGL",	1,	D,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG,NULL},
+{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG,NULL},
+{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_NOTARG|I_ICHAR,ii_ichar},
+{"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR,NULL},
+{"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DINT",	1,	D,	type_DP,	I_F77,NULL},
+{"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DNINT",	1,	D,	type_DP,	I_F77,NULL},
+{"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
+{"IDNINT",	1,	D,	type_INTEGER,	I_F77,NULL},
+{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R|I_ABS,ii_abs},
+{"IABS",	1,	I,	type_INTEGER,	I_F77|I_ABS,ii_abs},
+{"DABS",	1,	D,	type_DP,	I_F77,NULL},
+{"CABS",	1,	C,	type_REAL,	I_F77,NULL},
+{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77|I_MOD,ii_mod},
+{"AMOD",	2,	R,	type_REAL,	I_F77,NULL},
+{"DMOD",	2,	D,	type_DP,	I_F77,NULL},
+{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77|I_SIGN,ii_sign},
+{"ISIGN",	2,	I,	type_INTEGER,	I_F77|I_SIGN,ii_sign},
+{"DSIGN",	2,	D,	type_DP,	I_F77,NULL},
+{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77|I_DIM,ii_dim},
+{"IDIM",	2,	I,	type_INTEGER,	I_F77|I_DIM,ii_dim},
+{"DDIM",	2,	D,	type_DP,	I_F77,NULL},
+{"DPROD",	2,	R,	type_DP,	I_F77,NULL},
+{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_MAX,ii_max},
+{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG|I_MAX,ii_max},
+{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
+{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_MIN,ii_min},
+{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG|I_MIN,ii_min},
+{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
+{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_INQ,ii_len},
+{"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_INDEX,ii_index},
+{"AIMAG",	1,	C,	type_REAL,	I_F77,NULL},
+{"CONJG",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"DSQRT",	1,	D,	type_DP,	I_F77,NULL},
+{"CSQRT",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"DEXP",	1,	D,	type_DP,	I_F77,NULL},
+{"CEXP",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_NOTARG,NULL},
+{"ALOG",	1,	R,	type_REAL,	I_F77,NULL},
+{"DLOG",	1,	D,	type_DP,	I_F77,NULL},
+{"CLOG",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_NOTARG,NULL},
+{"ALOG10",	1,	R,	type_REAL,	I_F77,NULL},
+{"DLOG10",	1,	D,	type_DP,	I_F77,NULL},
+{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"DSIN",	1,	D,	type_DP,	I_F77,NULL},
+{"CSIN",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"DCOS",	1,	D,	type_DP,	I_F77,NULL},
+{"CCOS",	1,	C,	type_COMPLEX,	I_F77,NULL},
+{"TAN", 	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DTAN",	1,	D,	type_DP,	I_F77,NULL},
+{"ASIN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DASIN",	1,	D,	type_DP,	I_F77,NULL},
+{"ACOS",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DACOS",	1,	D,	type_DP,	I_F77,NULL},
+{"ATAN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DATAN",	1,	D,	type_DP,	I_F77,NULL},
+{"ATAN2",	2,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DATAN2",	2,	D,	type_DP,	I_F77,NULL},
+{"SINH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DSINH",	1,	D,	type_DP,	I_F77,NULL},
+{"COSH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DCOSH",	1,	D,	type_DP,	I_F77,NULL},
+{"TANH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"DTANH",	1,	D,	type_DP,	I_F77,NULL},
+{"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
+{"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
+{"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
+{"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
                 /* associated intrinsic statement to check association of
                  * pointers
                  */
-{"ASSOCIATED",  I_1or2, I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ},
+{"ASSOCIATED",  I_1or2, I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ,NULL},
                 /* allocated intrinsic statement to check allocation of
                  * pointers
                  */
-{"ALLOCATED",   1,      I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ},
+{"ALLOCATED",   1,      I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ,NULL},
 		/* DOUBLE COMPLEX intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.
 		 */
-{"DCMPLX",	I_1or2,	I|R|D|C|Z,type_DCOMPLEX,I_NONSTD|I_NOTARG},
-{"DCONJG",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"DIMAG",	1,	Z,	type_DP,	I_NONSTD},
-{"IMAG",	1,	C|Z,	type_GENERIC,	I_NONSTD|I_NOTARG|I_C_TO_R},
-{"DREAL",	1,	Z,	type_DP,	I_NONSTD},
-{"CDABS",	1,	Z,	type_DP,	I_NONSTD},
-{"ZABS",	1,	Z,	type_DP,	I_NONSTD},
-{"CDSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"ZSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"CDEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"ZEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"CDLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"ZLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"CDSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"ZSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"CDCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
-{"ZCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD},
+{"DCMPLX",	I_1or2,	I|R|D|C|Z,type_DCOMPLEX,I_NONSTD|I_NOTARG,NULL},
+{"DCONJG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"DIMAG",	1,	Z,	type_DP,	I_NONSTD,NULL},
+{"IMAG",	1,	C|Z,	type_GENERIC,	I_NONSTD|I_NOTARG|I_C_TO_R,NULL},
+{"DREAL",	1,	Z,	type_DP,	I_NONSTD,NULL},
+{"CDABS",	1,	Z,	type_DP,	I_NONSTD,NULL},
+{"ZABS",	1,	Z,	type_DP,	I_NONSTD,NULL},
+{"CDSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"ZSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"CDEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"ZEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"CDLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"ZLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"CDSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"ZSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"CDCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"ZCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
 
 		/* DFLOAT has been available in almost all Fortran
                    implementations for decades, but curiously, was
@@ -213,53 +227,53 @@ PRIVATE IntrinsInfo intrinsic[]={
                    will incorrectly type it as REAL instead of DOUBLE
                    PRECISION. -- NHFB */
 
-{"DFLOAT",	1,	I,	type_DP,	I_NONSTD},
+{"DFLOAT",	1,	I,	type_DP,	I_NONSTD,NULL},
 
 		/* Quad precision intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.  (Actually most of
 		   them are better handled by generics.)
 		 */
-{"IQINT",	1,	R,	type_INTEGER,	I_NONSTD|I_NOTARG|I_QARG},
-{"SNGLQ",	1,	R,	type_REAL,	I_NONSTD|I_NOTARG|I_QARG},
-{"QREAL",	1,	C,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD},
-{"DBLEQ",	1,	R,	type_DP,	I_NONSTD|I_NOTARG|I_QARG},
-{"QFLOAT",	1,	I,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD},
-{"QEXTD",	1,	D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD},
-{"QEXT",	1,	I|R|D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD},
-{"QCMPLX",	I_1or2,	I|R|D|C|Z,type_CQUAD,	I_NONSTD|I_NOTARG|I_QUAD},
-{"QINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QNINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"IQNINT",	1,	R,	type_INTEGER,	I_NONSTD|I_QARG},
-{"QABS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQABS",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QMOD",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QSIGN",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QDIM",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QPROD",	2,	D,	type_QUAD,	I_NONSTD|I_QUAD},
-{"QMAX1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD},
-{"QMIN1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD},
-{"QIMAG",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QCONJG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QSQRT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQSQRT",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QEXP",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQEXP",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QLOG",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQLOG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QLOG10",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQSIN",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"CQCOS",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QTAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QARSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QARCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QATAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QATAN2",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QSINH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QCOSH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
-{"QTANH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD},
+{"IQINT",	1,	R,	type_INTEGER,	I_NONSTD|I_NOTARG|I_QARG,NULL},
+{"SNGLQ",	1,	R,	type_REAL,	I_NONSTD|I_NOTARG|I_QARG,NULL},
+{"QREAL",	1,	C,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"DBLEQ",	1,	R,	type_DP,	I_NONSTD|I_NOTARG|I_QARG,NULL},
+{"QFLOAT",	1,	I,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
+{"QEXTD",	1,	D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
+{"QEXT",	1,	I|R|D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
+{"QCMPLX",	I_1or2,	I|R|D|C|Z,type_CQUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
+{"QINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QNINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"IQNINT",	1,	R,	type_INTEGER,	I_NONSTD|I_QARG,NULL},
+{"QABS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQABS",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QMOD",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QSIGN",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QDIM",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QPROD",	2,	D,	type_QUAD,	I_NONSTD|I_QUAD,NULL},
+{"QMAX1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"QMIN1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"QIMAG",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QCONJG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QSQRT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQSQRT",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QEXP",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQEXP",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QLOG",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQLOG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QLOG10",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQSIN",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"CQCOS",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QTAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QARSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QARCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QATAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QATAN2",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QSINH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QCOSH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"QTANH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
 
 #ifdef EXTRA_INTRINSICS
 
@@ -274,74 +288,74 @@ PRIVATE IntrinsInfo intrinsic[]={
 
 
 		/* Bit test & Shift operations: these follow Mil. Std. 1753 */
-{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_EXTRA},
-{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
-{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_EXTRA},
-{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_EXTRA},
+{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_EXTRA,NULL},
+{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
+{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_EXTRA,NULL},
+{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
 
 		/* Address-of function */
-{"LOC",		1,I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_EXTRA},
+{"LOC",		1,I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_EXTRA,NULL},
 
 		/* Utility routines */
-{"EXIT",       I_0or1,	I,	type_SUBROUTINE,I_NONSTD|I_EXTRA},
+{"EXIT",       I_0or1,	I,	type_SUBROUTINE,I_NONSTD|I_EXTRA,NULL},
 #endif
 
 		/* Unix only.  These are a selected subset of the F77
 		   library routines listed in the USENIX manual section 3F.
 		 */
 #ifdef UNIX_INTRINSICS
-{"ABORT",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_UNIX},
-{"AND",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"ABORT",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_UNIX,NULL},
+{"AND",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 		/* I, then STR not enforced in GETARG. */
-{"GETARG",	2,	I|STR,	type_SUBROUTINE,I_MIXED_ARGS|I_NONSTD|I_UNIX},
-{"GETENV",	2,	STR,	type_SUBROUTINE,I_NONSTD|I_UNIX},
-{"GMTIME",	2,	I,	type_SUBROUTINE,I_NONSTD|I_UNIX},/*2nd arg array(9)*/
+{"GETARG",	2,	I|STR,	type_SUBROUTINE,I_MIXED_ARGS|I_NONSTD|I_UNIX,NULL},
+{"GETENV",	2,	STR,	type_SUBROUTINE,I_NONSTD|I_UNIX,NULL},
+{"GMTIME",	2,	I,	type_SUBROUTINE,I_NONSTD|I_UNIX,NULL},/*2nd arg array(9)*/
 #ifdef IARGC_NO_ARG
-{"IARGC",	0,	0,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"IARGC",	0,	0,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 #else
 #ifdef IARGC_ONE_ARG
-{"IARGC",	1,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"IARGC",	1,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 #else  /* default is to allow 0 or 1 */
-{"IARGC",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"IARGC",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 #endif
 #endif
-{"LSHIFT",	2,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
-{"LTIME",	2,	I,	type_SUBROUTINE,I_NONSTD|I_UNIX},/*2nd arg array(9)*/
-{"OR",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"LSHIFT",	2,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
+{"LTIME",	2,	I,	type_SUBROUTINE,I_NONSTD|I_UNIX,NULL},/*2nd arg array(9)*/
+{"OR",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 #ifdef RAND_NO_ARG	/*RAND() form*/
-{"IRAND",	0,	0,	type_INTEGER,	I_NONSTD|I_UNIX},
-{"RAND",	0,	0,	type_REAL,	I_NONSTD|I_UNIX},
+{"IRAND",	0,	0,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
+{"RAND",	0,	0,	type_REAL,	I_NONSTD|I_UNIX,NULL},
 #else
 #ifdef RAND_ONE_ARG	/*RAND(ISEED) form*/
-{"IRAND",	1,	I,	type_INTEGER,	I_NONSTD|I_UNIX|I_NONPURE},
-{"RAND",	1,	I,	type_REAL,	I_NONSTD|I_UNIX|I_NONPURE},
+{"IRAND",	1,	I,	type_INTEGER,	I_NONSTD|I_UNIX|I_NONPURE,NULL},
+{"RAND",	1,	I,	type_REAL,	I_NONSTD|I_UNIX|I_NONPURE,NULL},
 #else				/* Allow either form */
-{"IRAND",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX|I_NONPURE},
-{"RAND",	I_0or1,	I,	type_REAL,	I_NONSTD|I_UNIX|I_NONPURE},
+{"IRAND",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX|I_NONPURE,NULL},
+{"RAND",	I_0or1,	I,	type_REAL,	I_NONSTD|I_UNIX|I_NONPURE,NULL},
 #endif
 #endif
-{"RSHIFT",	2,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
-{"SRAND",	1,	I|R,	type_SUBROUTINE,I_NONSTD|I_UNIX},/*AIX has this*/
-{"SYSTEM",	1,	STR,	type_INTEGER,	I_NONSTD|I_UNIX},
-{"TIME",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
-{"XOR",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX},
+{"RSHIFT",	2,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
+{"SRAND",	1,	I|R,	type_SUBROUTINE,I_NONSTD|I_UNIX,NULL},/*AIX has this*/
+{"SYSTEM",	1,	STR,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
+{"TIME",	I_0or1,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
+{"XOR",		2,	I,	type_INTEGER,	I_NONSTD|I_UNIX,NULL},
 #endif
 
 #ifdef VMS_INTRINSICS		/* VMS only */
-{"DATE",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_VMS},
-{"ERRSNS",	5,	I,	type_SUBROUTINE,I_NONSTD|I_VMS},
-{"IDATE",	3,	I,	type_SUBROUTINE,I_NONSTD|I_VMS},
-{"RAN",		1,	I,	type_REAL,	I_NONSTD|I_VMS|I_NONPURE},
-{"SECNDS",	1,	R,	type_REAL,	I_NONSTD|I_VMS},
-{"SIZEOF",	1,	I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_VMS},
-{"TIME",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_VMS},
+{"DATE",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_VMS,NULL},
+{"ERRSNS",	5,	I,	type_SUBROUTINE,I_NONSTD|I_VMS,NULL},
+{"IDATE",	3,	I,	type_SUBROUTINE,I_NONSTD|I_VMS,NULL},
+{"RAN",		1,	I,	type_REAL,	I_NONSTD|I_VMS|I_NONPURE,NULL},
+{"SECNDS",	1,	R,	type_REAL,	I_NONSTD|I_VMS,NULL},
+{"SIZEOF",	1,	I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_VMS,NULL},
+{"TIME",	1,	STR,	type_SUBROUTINE,I_NONSTD|I_VMS,NULL},
 #endif
 
 #undef I
@@ -542,4 +556,244 @@ kwd_hash(s)
 	sum ^= wd;}
     return sum;
 }
+
+
+
+PRIVATE int
+#if HAVE_STDC
+ii_abs(Token *args)
+#else /* K&R style */
+ii_abs(args)
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t;
+  int val, result=0;
+  t = args->next_token;
+  if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elsewhere */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    val = int_expr_value(t);
+    result = (val >= 0? val: -val);
+  }
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_sign(Token *args)			/* SIGN(value,sign) */
+#else /* K&R style */
+ii_sign(args)			/* SIGN(value,sign) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t1,*t2;
+  int val1,val2, result=0;
+  t1 = args->next_token;
+  t2 = t1->next_token;
+  if(t2 == NULL || t1->TOK_type != type_INTEGER
+     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    val1 = int_expr_value(t1);
+    if(val1 < 0) val1 = -val1;
+    val2 = int_expr_value(t2);
+    result = (val2 >= 0? val1: -val1);
+  }
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_dim(Token *args)			/* DIM(int,int) */
+#else /* K&R style */
+ii_dim(args)			/* DIM(int,int) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t1,*t2;
+  int val, result=0;
+  t1 = args->next_token;
+  t2 = t1->next_token;
+  if(t2 == NULL || t1->TOK_type != type_INTEGER
+     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    val = int_expr_value(t1)-int_expr_value(t2);
+    result = (val >= 0? val: 0);
+  }
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_mod(Token *args)			/* MOD(int,int) */
+#else /* K&R style */
+ii_mod(args)			/* MOD(int,int) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t1,*t2;
+  int val1,val2,quotient, result=0;
+  t1 = args->next_token;
+  t2 = t1->next_token;
+  if(t2 == NULL || t1->TOK_type != type_INTEGER
+     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    val1 = int_expr_value(t1);
+    val2 = int_expr_value(t2);
+    if((val1 < 0) == (val2 < 0)) {
+      quotient = val1/val2;	/* Both positive or both negative*/
+    }
+    else {
+      quotient = -(-val1/val2);	/* Unlike signs */
+    }
+    result = val1 - quotient*val2;
+  }
+  return result;
+}
+
+
+PRIVATE int
+#if HAVE_STDC
+ii_max(Token *args)			/* MAX(int,int,...) */
+#else /* K&R style */
+ii_max(args)			/* MAX(int,int,...) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t=args;
+  int val,result=0,n=0;
+#ifdef DEBUG_EXPRTYPE
+if(debug_latest)
+(void)fprintf(list_fd,"\nEvaluating MAX(");
+#endif
+  while( (t=t->next_token) != NULL) {
+
+      if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+	make_false(EVALUATED_EXPR,args->TOK_flags);
+	break;
+      }
+      else {
+	val = int_expr_value(t);
+	if(n++ == 0 || val > result)
+	  result = val;
+#ifdef DEBUG_EXPRTYPE
+if(debug_latest)
+(void)fprintf(list_fd,"%d ",val);
+#endif
+      }
+  }
+#ifdef DEBUG_EXPRTYPE
+if(debug_latest)
+(void)fprintf(list_fd,") = %d",result);
+#endif
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_min(Token *args)			/* MIN(int,int,...) */
+#else /* K&R style */
+ii_min(args)			/* MIN(int,int,...) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t=args;
+  int val,result=0,n=0;
+  while( (t=t->next_token) != NULL) {
+      if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+	make_false(EVALUATED_EXPR,args->TOK_flags);
+	break;
+      }
+      else {
+	val = int_expr_value(t);
+	if(n++ == 0 || val < result)
+	  result = val;
+      }
+  }
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_ichar(Token *args)		/* ICHAR(string) */
+#else /* K&R style */
+ii_ichar(args)		/* ICHAR(string) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t=args->next_token;
+
+  if(t->TOK_type != type_STRING || !is_true(LIT_CONST,t->TOK_flags)) {
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    return t->value.string[0];	/* Processor collating sequence is used */
+  }
+  return 0;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_len(Token *args)		/* LEN(string) */
+#else /* K&R style */
+ii_len(args)		/* LEN(string) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t=args->next_token;
+  int val,result=0;
+
+		/* Set the PARAMETER_EXPR flag since LEN of string does
+		   not require contents to be known */
+  if( t->TOK_type == type_STRING && (val = t->size) > 0 ) {
+    make_true(PARAMETER_EXPR,args->TOK_flags);
+    make_true(EVALUATED_EXPR,args->TOK_flags);
+    result = val;
+  }
+  else {			/* nonstring or adjustable or unknown */
+    make_false(PARAMETER_EXPR,args->TOK_flags);
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+
+  return result;
+}
+
+PRIVATE int
+#if HAVE_STDC
+ii_index(Token *args)		/* INDEX(str1,str2) */
+#else /* K&R style */
+ii_index(args)		/* INDEX(str1,str2) */
+     Token *args;
+#endif /* HAVE_STDC */
+{
+  Token *t1,*t2;
+  t1=args->next_token;
+  t2=t1->next_token;
+
+  if(t2 == NULL || t1->TOK_type != type_STRING
+     || t2->TOK_type != type_STRING
+     || !is_true(LIT_CONST,t1->TOK_flags) || !is_true(LIT_CONST,t2->TOK_flags)) {
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    int i;
+    char *s1=t1->value.string;
+    char *s2=t2->value.string;
+    int n1=strlen(s1), n2=strlen(s2);
+
+    for(i=1; n1 > 0 && n1 >= n2; i++,s1++,n1--) {
+      if(strncmp(s1,s2,n2) == 0)
+	return i;
+    }
+  }
+  return 0;
+}
+
 

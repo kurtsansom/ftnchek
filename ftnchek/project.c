@@ -1175,6 +1175,7 @@ if (use_this_item) {
     symt->file_declared = inctable_index;
     type_map[dtype_type] = mapped_type;	/* use the pre-existing number in this program */
     dtype = dtype_table[mapped_type];
+    dtype->symt = symt;
   }
   else {
     symt = def_dtype(h,proj_line_num,NO_COL_NUM,

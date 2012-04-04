@@ -586,6 +586,7 @@ typedef struct IInfo{
 	      result_type;
 	intrins_flags_t
 	      intrins_flags;	/* nonstandard,  mixed arg types */
+	int (*ii_handler)( Token *args ); /* evaluation handler  */
 } IntrinsInfo;
 
 			/* Structure for parameter info */
@@ -629,7 +630,7 @@ typedef struct lSymtEntry{
 		/* Object can be referenced in an include file. Next fields
 		   are line numbers within file where object is referred
 		   to, then come indexes into include-file list.  */
-	LINENO_t line_declared, line_set, line_used, line_allocd;
+	LINENO_t line_declared, line_set, line_used, line_assocd, line_allocd;
 	short file_declared, file_set, file_used, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
 			/* Flags */
@@ -651,6 +652,8 @@ typedef struct lSymtEntry{
 	     saved: 1,		/* named in SAVE statement */
 	     allocatable: 1,	/* has ALLOCATABLE attribute */
 	     pointer: 1,	/* has POINTER attribute */
+	     associated_flag: 1,	/* pointer is associated */
+	     used_before_associated: 1, /* pointer used when NULL */
              allocated_flag:1,    /* pointer/allocatable variable is allocated */
              used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
@@ -1129,6 +1132,7 @@ PROTO(void use_pointer,( Token *id ));
 PROTO(void use_pointer_lvalue,( Token *id ));
 PROTO(void do_allocate,( Token *id ));
 PROTO(void do_deallocate,( Token *id ));
+PROTO(void do_nullify,( Token *id ));
 PROTO(char* typespec, ( int t, int has_size, long size,
 			int has_len, long len));
 				/* The following size is conservative,

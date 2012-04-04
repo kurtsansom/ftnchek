@@ -107,6 +107,7 @@ this Software without prior written authorization from the author.
 #include "symutils.h"
 #include "intrins.h"
 #include "tokdefs.h"
+#include "dtypes.h"
 
 #ifdef DEVELOPMENT		/* for maintaining the program */
 #define DEBUG_SIZES
@@ -2216,6 +2217,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    symt->line_declared = symt->line_set = symt->line_used = NO_LINE_NUM;
 				/* initialize indices in incfile table */
 	    symt->file_declared = symt->file_set = symt->file_used = -1;
+	    symt->file_allocd = -1;
 	    ++loc_symtab_top;
 	}
 	return symt;
@@ -2499,8 +2501,9 @@ ref_variable(id)	/* Variable reference: install in symtab */
 	    symt->file_declared = inctable_index;
 	}
 	/* transfer pointer/target attributes to token */
-      if(symt->pointer)
+      if(symt->pointer) {
 	make_true(POINTER_EXPR,id->TOK_flags);
+      }
       if(symt->target)
 	make_true(TARGET_EXPR,id->TOK_flags);
 }/*ref_variable*/
@@ -2814,8 +2817,9 @@ use_lvalue(id)	/* handles scalar lvalue */
 	   if (!symt->allocated_flag){
 		symt->line_allocd = id->line_num;
 	        symt->file_allocd = inctable_index;
+		symt->used_before_allocation = TRUE;
 	   }
-	   symt->allocated_flag = TRUE;
+	   /* symt->allocated_flag = TRUE; */
 	}
 
     {		/* set flags for all equivalenced vars */
@@ -2953,8 +2957,10 @@ use_pointer(id)                /* Set the use-flag of variable. */
 	    symt->file_declared = inctable_index;
 	  }
 
-	  if(!(symt->allocated_flag || symt->target)) 
+	  if(!(symt->associated_flag || symt->allocated_flag || symt->target)) {
+	    symt->used_before_associated = TRUE;
 	    symt->used_before_allocation = TRUE;
+	  }
 	  symt->line_used = id->line_num;
 	  symt->file_used = inctable_index;
 
@@ -2982,6 +2988,7 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 #endif /* HAVE_STDC */
 {
 	
+      id = (Token *)ultimate_component(id);
       if( is_true(ID_EXPR,id->TOK_flags) ) {	/* is this a variable? */
 	int h=id->value.integer;
 	Lsymtab *symt;
@@ -3003,18 +3010,19 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 		      "active DO index is modified");
 	  }
 	}
-        if(!symt->pointer){
+        if(!is_true(POINTER_EXPR, id->TOK_flags)){
           syntax_error(id->line_num, id->col_num,
                         "pointer attribute expected on:");
 	  msg_tail(symt->name);
         }
         else {
-          symt->allocated_flag = TRUE;
+	  symt->associated_flag = TRUE;
         }
 
 	if(! symt->set_flag) { /* record first line where set */
 	    symt->line_set = id->line_num;
 	    symt->file_set = inctable_index;
+	    symt->line_assocd = id->line_num;
 	  symt->set_flag = TRUE;
 	}
       }
@@ -3041,7 +3049,7 @@ while (next_id != NULL){
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(!symt->info.array_dim || !(symt->allocatable || symt->pointer)) {
+	   if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an allocatable/pointer array: ");
 	      msg_tail(symt->name);
@@ -3080,7 +3088,7 @@ do_deallocate(id)		/* Process ALLOCATE statement */
         Token *next_id = id;
 	Lsymtab *symt;
 
-while (next_id != NULL){
+  while (next_id != NULL){
          h = next_id->value.integer;
 	if( (symt=hashtab[h].loc_symtab) == NULL) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
@@ -3088,7 +3096,7 @@ while (next_id != NULL){
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(!symt->info.array_dim || !(symt->allocatable || symt->pointer)) {
+	   if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an allocatable/pointer array: ");
 	      msg_tail(symt->name);
@@ -3105,11 +3113,42 @@ while (next_id != NULL){
 	   }
 
 	}
-next_id = next_id->next_token;
-}
+  next_id = next_id->next_token;
+  }
 }/*do_deallocate*/
 
+void
+#if HAVE_STDC
+do_nullify(Token *id)		/* Process NULLIFY statement */
+#else /* K&R style */
+do_nullify(id)		/* Process NULLIFY statement */
+	Token *id;
+#endif /* HAVE_STDC */
+{
+	int h;
+	Lsymtab *symt;
+        Token *next_id = id->next_token; /* skip first duplicate token */
 
+  while (next_id != NULL){
+         h = next_id->value.integer;
+	if( (symt=hashtab[h].loc_symtab) == NULL) {
+	   symt = install_local(h,type_UNDECL,class_VAR);
+	   symt->line_declared = next_id->line_num;
+	   symt->file_declared = inctable_index;
+	}
+	else {
+	   if(!symt->pointer) {
+	      syntax_error(next_id->line_num,next_id->col_num,
+		"Variable must be an pointer: ");
+	      msg_tail(symt->name);
+	   }
+           else{
+	        symt->associated_flag = FALSE;
+	   }
+	}
+  next_id = next_id->next_token;
+  }
+}/*do_nullify*/
 
 	/* Routine to provide a string with type followed by one of: "",
 	   "*n" where n is the declared size of an item, "(l)" where
@@ -3338,17 +3377,20 @@ if (debug_latest) {
     }
 }
 
-/* Bubbles the top entry in the local symbol table to bottom of
+/* Bubbles the given entry in the local symbol table to bottom of
    current scope, and adjusts bottom so the entry is now in the
    enclosing scope.  This is used when an entry gets created inside a
-   scope but belongs in the enclosing scope.  So far there are two
+   scope but belongs in the enclosing scope.  So far this happens for these
    cases: (1) a statement implying pushing of local scope (e.g. a TYPE
    statement) occurs as first statement of a program, i.e. an implied
    PROGRAM statement, which gets put into the local symbol table after
    the said statement has been processed.  (2) a forward reference to
    a derived type occurs inside a derived type definition, which will
    eventually become a defined derived type but initially gets put
-   into the scope of the TYPE definition.
+   into the scope of the TYPE definition.  (3) an erroneous reference
+   to an undeclared variable or function inside a TYPE definition
+   (e.g. as an initializer or an array dimension), which becomes a
+   local symtab entry that would be taken as one of the components.
 
    This routine must not be called if any of swapped entries
    is a common block.  This cannot occur if it is used only in the
@@ -3366,7 +3408,7 @@ void move_outside_scope(Lsymtab *symt)
     Lsymtab temp;		/* holder for swap */
     int i,top;
     top = symt - loc_symtab;	/* index of entry to move out of scope */
-    temp = loc_symtab[loc_symtab_top-1];
+    temp = loc_symtab[top];
     for(i=top; i>curr_scope_bottom; i--) {
       loc_symtab[i] = loc_symtab[i-1];
     }
@@ -3382,7 +3424,7 @@ void move_outside_scope(Lsymtab *symt)
     }
 
     /* Fix the curr_scope_bottom to correct value,
-     to account for removing the top entry from local scope. */
+     to account for moving the entry from local to enclosing scope. */
     curr_scope_bottom++;
 
   }

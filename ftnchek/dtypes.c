@@ -19,6 +19,7 @@ PRIVATE  DtypeComponent *last_component(int d, Token *comp_token);
 PRIVATE void make_error_dtype_token( Token *result );
 PRIVATE DtypeComponent *find_component(int d, const char *s);
 PRIVATE void replace_type(int dup, int prev);
+PRIVATE void set_defn_context(Lsymtab *symt, Dtype *dtype, int tok_line_num);
 
 /* Looks for a derived type with matching name and returns its index from
  * Dtype_table.  If not found, it is a forward reference so a new type
@@ -40,6 +41,8 @@ int find_dtype(Token *t, int in_dtype_def){
     if( in_dtype_def ) {
       move_outside_scope(symt);
       symt = hashtab[h].loc_symtab; /* get changed value */
+      /* update pointer in dtype_table */
+      dtype_table[datatype_of(symt->type)]->symt = symt;
     }
   }
 
@@ -80,8 +83,17 @@ Lsymtab * def_dtype(int h, int tok_line_num, int tok_col_num, int access_spec, i
      * enforce.  The new defn will overwrite the old one: so be it.
      * Too much trouble to enforce.  */
 
-    if(dtype_def && symt->line_declared != NO_LINE_NUM) { /* not a forward reference */
+    if( !is_derived_type(datatype_of(symt->type)) ||
+       (dtype_def && symt->line_declared != NO_LINE_NUM)) { /* not a forward reference */
       syntax_error(tok_line_num,tok_col_num,"Type name is in use");
+    }
+    else if(dtype_def) {
+	    /* If this is a type defn for a type defined
+	       initially thru a forward reference, fill in info now to
+	       say it was defined, and where.
+	     */
+      dtype = dtype_table[datatype_of(symt->type)];
+      set_defn_context(symt, dtype, tok_line_num);
     }
   }
   else { /* install name in loc symtab, masking if in outer scope */
@@ -117,22 +129,22 @@ if(debug_latest) {
    * type definition */
 
     type_id = dtype_table_top++; /* take next available index */
-    symt = install_local(h,type_id,class_DTYPE);
+    dtype->symt = symt = install_local(h,type_id,class_DTYPE);
     /* If this is a definition, record where.  If forward ref, leave undefined */
-    symt->line_declared = dtype->line_declared = (dtype_def?tok_line_num:NO_LINE_NUM);
     dtype->filename = current_filename;
     dtype->name = new_global_string(hashtab[h].name);
 
-      /* Look up enclosing program unit.  If it is a module, record
-	 its name in dtype table to support USE association.  Otherwise
-	 module name is NULL.
+      /* If this is a true definition, record line_declared and module
+       * association if any.  If it is a forward reference, set those
+       * to none, to be filled in (see above) when definition is
+       * encountered.
        */
-    dtype->module_name = NULL;
     if( dtype_def ) {
-      Gsymtab *curr_prog_unit =	hashtab[current_prog_unit_hash].glob_symtab;
-      if( curr_prog_unit != NULL && /* need: see type-first-stmt.f90 */
-	  curr_prog_unit->type == type_pack(class_SUBPROGRAM,type_MODULE) )
-	dtype->module_name = curr_prog_unit->name;
+      set_defn_context(symt, dtype, tok_line_num);
+    }
+    else {
+      dtype->module_name = NULL;
+      symt->line_declared = dtype->line_declared = NO_LINE_NUM;
     }
     dtype->num_components = 0;		/* no components defined yet */
     dtype->components = NULL;
@@ -207,6 +219,13 @@ void process_dtype_components(const char *name)
 	(storage_class_of(symt->type) != class_DTYPE) ){
       /* error was reported earlier as "type name is in use" */
       return;  /* not found => do not process */
+    }
+  }
+
+  /* first pass through local symbol table to weed out non-components */
+  for (i=curr_scope_bottom; i<loc_symtab_top; i++) {
+    if (datatype_of(loc_symtab[i].type) == type_UNDECL) {
+      move_outside_scope(&loc_symtab[i]);
     }
   }
 
@@ -289,7 +308,8 @@ void process_dtype_components(const char *name)
 }
 
 /* Routine to return the standard type name of elementary types or
-   the name of derived types.
+   the name of derived types.  Since derived types obtained via a module
+   may be renamed, use name in symbol table, not dtype table.
  */
 char *type_name(type_t t)
 {
@@ -297,7 +317,7 @@ char *type_name(type_t t)
       return elementary_type_name[t];
    }
    else {
-      return dtype_table[t]->name;	/* derived type */
+      return dtype_table[t]->symt->name;	/* derived type */
    }
 }
 
@@ -459,6 +479,8 @@ PRIVATE DtypeComponent *last_component(int d, Token *comp_token)
        */
       comp_token->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
       comp_token->size = comp_dtype->size;
+      if (comp_dtype->pointer)
+	make_true(POINTER_EXPR,comp_token->TOK_flags);
       return comp_dtype;
     }
     else {
@@ -472,6 +494,8 @@ PRIVATE DtypeComponent *last_component(int d, Token *comp_token)
       else {
 	comp_token->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
 	comp_token->size = comp_dtype->size;
+	if (comp_dtype->pointer)
+	  make_true(POINTER_EXPR,comp_token->TOK_flags);
 	return last_component(d, comp_token->next_token);
       }
     }
@@ -562,10 +586,12 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
       symt->used_flag = TRUE;
     }
       /* Set POINTER attribute in result to match component. */
-    if(comp_dtype->pointer)
+    if(comp_dtype->pointer) {
       make_true(POINTER_EXPR,result->TOK_flags);
-    else
+    }
+    else {
       make_false(POINTER_EXPR,result->TOK_flags);
+    }
 
     make_false(TARGET_EXPR,result->TOK_flags);	/* components cannot be targets */
 
@@ -635,4 +661,46 @@ int find_type_use_assoc(const char *name, const char *module_name)
   }
 
   return -1;  /* not duplicate name */
+}
+
+/* Routine to perform some actions that need to be done in two
+ * situations: (mainly) when defining a new type in a TYPE definition
+ * or via a module; and (occasionally) when reaching the TYPE
+ * definition of a forward-referenced type.  It sets line_declared so
+ * we can tell the type was in fact defined, and if the definition is
+ * in a module subprogram, it associates the module name with the type
+ * for USE association.
+ */
+
+void set_defn_context(Lsymtab *symt, Dtype *dtype, int tok_line_num)
+{
+  Gsymtab *curr_prog_unit = hashtab[current_prog_unit_hash].glob_symtab;
+
+  if( curr_prog_unit != NULL && /* need: see type-first-stmt.f90 */
+      curr_prog_unit->type == type_pack(class_SUBPROGRAM,type_MODULE) )
+    dtype->module_name = curr_prog_unit->name;
+
+  symt->line_declared = dtype->line_declared = tok_line_num;
+}
+
+void ref_component_tree(Token *comp_token, Token *result, int lvalue)
+{
+  int h, d;
+  Lsymtab *symt;
+  DtypeComponent *comp_dtype;
+
+  if (comp_token == NULL) return;
+
+  ref_component_tree(comp_token->left_token, result, lvalue);
+
+  h = comp_token->value.integer;
+  symt = hashtab[h].loc_symtab;
+
+  d = get_type(symt);
+
+  if (comp_token->tclass != '%')
+    printf("\nComponent name: %s\n", comp_token->src_text);
+
+  ref_component_tree(comp_token->next_token, result, lvalue);
+  return;
 }

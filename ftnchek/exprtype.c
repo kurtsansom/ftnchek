@@ -1021,6 +1021,22 @@ if(debug_latest) {
 	if( is_true(ID_EXPR,t->TOK_flags) )
 	  msg_tail(hashtab[t->value.integer].name);
       }
+
+      /* propagate pointer association status to lvalue */
+      if( is_true(POINTER_EXPR,term1->TOK_flags)
+	  && (is_true(POINTER_EXPR,term2->TOK_flags) || is_true(TARGET_EXPR,term2->TOK_flags)) ) {
+        int h1=term1->value.integer;
+        int h2=term2->value.integer;
+        Lsymtab *symt1 = hashtab[h1].loc_symtab;
+        Lsymtab *symt2 = hashtab[h2].loc_symtab;
+      
+	symt1->associated_flag = symt2->associated_flag;
+	symt1->allocated_flag = symt2->allocated_flag;
+	/* line_assocd is set in use_pointer_lvalue */
+	if(symt2->allocated_flag && ! symt1->set_flag) {
+	  symt2->line_allocd = term1->line_num;
+	}
+      }
     }
     else {
 /**** handling for non-pointer assignment ***/
@@ -1482,36 +1498,6 @@ int_power(x,n)
 	else return 1;
 }
 
-				/* Intrinsic function handlers */
-
-PROTO(PRIVATE int ii_abs,( Token *args ));
-PROTO(PRIVATE int ii_dim,( Token *args ));
-PROTO(PRIVATE int ii_ichar,( Token *args ));
-PROTO(PRIVATE int ii_index,( Token *args ));
-PROTO(PRIVATE int ii_len,( Token *args ));
-PROTO(PRIVATE int ii_max,( Token *args ));
-PROTO(PRIVATE int ii_min,( Token *args ));
-PROTO(PRIVATE int ii_mod,( Token *args ));
-PROTO(PRIVATE int ii_sign,( Token *args ));
-
-
-/* Array of pointers to functions for evaluating integer-valued intrinsic
-   functions.  The order matches definitions of I_ABS thru I_INDEX in
-   symtab.h */
-
-PROTO(PRIVATE int (*ii_fun[]),( Token *args ))
-={
-  NULL,
-  ii_abs,
-  ii_sign,
-  ii_dim,
-  ii_mod,
-  ii_max,
-  ii_min,
-  ii_ichar,
-  ii_len,
-  ii_index,
-};
 
 PRIVATE int
 #if HAVE_STDC
@@ -1523,12 +1509,14 @@ eval_intrins(defn,args)
 #endif /* HAVE_STDC */
 {
     intrins_flags_t fun_num;
+    int (*handler)( Token *args );
     fun_num = (defn->intrins_flags & I_EVALUATED);
-
-			/* Args must be evaluated, except for inquiry */
+    handler = defn->ii_handler;
+			/* To run handler, args must be evaluated,
+			   except for inquiry */
     if( (is_true(EVALUATED_EXPR,args->TOK_flags) || fun_num==I_INQ) &&
-       fun_num > 0 && fun_num < (sizeof(ii_fun)/sizeof(ii_fun[0])) ) {
-      return (*ii_fun[fun_num])(args);
+	handler != NULL ) {
+      return (*handler)(args);
     }
     else {
 #ifdef DEBUG_EXPRTYPE
@@ -1539,246 +1527,6 @@ eval_intrins(defn,args)
       return 0;
     }
 }
-
-
-PRIVATE int
-#if HAVE_STDC
-ii_abs(Token *args)
-#else /* K&R style */
-ii_abs(args)
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t;
-  int val, result=0;
-  t = args->next_token;
-  if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elsewhere */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val = int_expr_value(t);
-    result = (val >= 0? val: -val);
-  }
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_sign(Token *args)			/* SIGN(value,sign) */
-#else /* K&R style */
-ii_sign(args)			/* SIGN(value,sign) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val1,val2, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val1 = int_expr_value(t1);
-    if(val1 < 0) val1 = -val1;
-    val2 = int_expr_value(t2);
-    result = (val2 >= 0? val1: -val1);
-  }
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_dim(Token *args)			/* DIM(int,int) */
-#else /* K&R style */
-ii_dim(args)			/* DIM(int,int) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val = int_expr_value(t1)-int_expr_value(t2);
-    result = (val >= 0? val: 0);
-  }
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_mod(Token *args)			/* MOD(int,int) */
-#else /* K&R style */
-ii_mod(args)			/* MOD(int,int) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val1,val2,quotient, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val1 = int_expr_value(t1);
-    val2 = int_expr_value(t2);
-    if((val1 < 0) == (val2 < 0)) {
-      quotient = val1/val2;	/* Both positive or both negative*/
-    }
-    else {
-      quotient = -(-val1/val2);	/* Unlike signs */
-    }
-    result = val1 - quotient*val2;
-  }
-  return result;
-}
-
-
-PRIVATE int
-#if HAVE_STDC
-ii_max(Token *args)			/* MAX(int,int,...) */
-#else /* K&R style */
-ii_max(args)			/* MAX(int,int,...) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t=args;
-  int val,result=0,n=0;
-#ifdef DEBUG_EXPRTYPE
-if(debug_latest)
-(void)fprintf(list_fd,"\nEvaluating MAX(");
-#endif
-  while( (t=t->next_token) != NULL) {
-
-      if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-	make_false(EVALUATED_EXPR,args->TOK_flags);
-	break;
-      }
-      else {
-	val = int_expr_value(t);
-	if(n++ == 0 || val > result)
-	  result = val;
-#ifdef DEBUG_EXPRTYPE
-if(debug_latest)
-(void)fprintf(list_fd,"%d ",val);
-#endif
-      }
-  }
-#ifdef DEBUG_EXPRTYPE
-if(debug_latest)
-(void)fprintf(list_fd,") = %d",result);
-#endif
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_min(Token *args)			/* MIN(int,int,...) */
-#else /* K&R style */
-ii_min(args)			/* MIN(int,int,...) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t=args;
-  int val,result=0,n=0;
-  while( (t=t->next_token) != NULL) {
-      if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-	make_false(EVALUATED_EXPR,args->TOK_flags);
-	break;
-      }
-      else {
-	val = int_expr_value(t);
-	if(n++ == 0 || val < result)
-	  result = val;
-      }
-  }
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_ichar(Token *args)		/* ICHAR(string) */
-#else /* K&R style */
-ii_ichar(args)		/* ICHAR(string) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t=args->next_token;
-
-  if(t->TOK_type != type_STRING || !is_true(LIT_CONST,t->TOK_flags)) {
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    return t->value.string[0];	/* Processor collating sequence is used */
-  }
-  return 0;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_len(Token *args)		/* LEN(string) */
-#else /* K&R style */
-ii_len(args)		/* LEN(string) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t=args->next_token;
-  int val,result=0;
-
-		/* Set the PARAMETER_EXPR flag since LEN of string does
-		   not require contents to be known */
-  if( t->TOK_type == type_STRING && (val = t->size) > 0 ) {
-    make_true(PARAMETER_EXPR,args->TOK_flags);
-    make_true(EVALUATED_EXPR,args->TOK_flags);
-    result = val;
-  }
-  else {			/* nonstring or adjustable or unknown */
-    make_false(PARAMETER_EXPR,args->TOK_flags);
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_index(Token *args)		/* INDEX(str1,str2) */
-#else /* K&R style */
-ii_index(args)		/* INDEX(str1,str2) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  t1=args->next_token;
-  t2=t1->next_token;
-
-  if(t2 == NULL || t1->TOK_type != type_STRING
-     || t2->TOK_type != type_STRING
-     || !is_true(LIT_CONST,t1->TOK_flags) || !is_true(LIT_CONST,t2->TOK_flags)) {
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    int i;
-    char *s1=t1->value.string;
-    char *s2=t2->value.string;
-    int n1=strlen(s1), n2=strlen(s2);
-
-    for(i=1; n1 > 0 && n1 >= n2; i++,s1++,n1--) {
-      if(strncmp(s1,s2,n2) == 0)
-	return i;
-    }
-  }
-  return 0;
-}
-
-
 
 
 				/* Undefine special macros */
