@@ -1004,22 +1004,20 @@ if(debug_latest) {
         use_pointer(term2);
       }
       else if( !is_true(TARGET_EXPR,term2->TOK_flags) ) {
-	const Token *t = ultimate_component(term2); /* if dtype component, go to last */
-	syntax_error(t->line_num,t->col_num,
+	syntax_error(term2->line_num,term2->col_num,
 		     "pointer/target attribute expected on RHS quantity");
-	if( is_true(ID_EXPR,t->TOK_flags) )
-	  msg_tail(hashtab[t->value.integer].name);
+	if( is_true(ID_EXPR,term2->TOK_flags) )
+	  msg_expr_tree(term2);
       }
 
       if( is_true(POINTER_EXPR,term1->TOK_flags) ) {
 	use_pointer_lvalue(term1);
       }
       else {
-	const Token *t = ultimate_component(term1); /* if dtype component, go to last */
-	syntax_error(t->line_num,t->col_num,
+	syntax_error(term1->line_num,term1->col_num,
 		     "pointer attribute expected on lvalue");
-	if( is_true(ID_EXPR,t->TOK_flags) )
-	  msg_tail(hashtab[t->value.integer].name);
+	if( is_true(ID_EXPR,term1->TOK_flags) )
+	  msg_expr_tree(term1);
       }
 
       /* propagate pointer association status to lvalue */
@@ -1408,7 +1406,6 @@ report_type(t)
      Token *t;
 #endif /* HAVE_STDC */
 {
-  t = ultimate_component(t);		/* get component if derived type  */
   msg_tail(sized_typename((int)datatype_of(t->TOK_type),t->size));
   if(is_true(ID_EXPR,t->TOK_flags))
     msg_tail(hashtab[t->value.integer].name);

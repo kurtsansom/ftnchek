@@ -1985,8 +1985,23 @@ attrbased_type_stmt:	arith_attrbased_type_handle
 			    msg_tail(": attribute-based variable declaration");
 			  }
 			}
-		|	derived_attrbased_type_handle
-			    tok_double_colon derived_type_decl_list EOS
+		|	derived_attrbased_type_handle  tok_double_colon
+			{
+				/* make sure this is not an illegal forward ref */
+			  Lsymtab *symt = hashtab[($1).value.integer].loc_symtab;
+      			  int type = get_type(symt);
+      			  if( is_derived_type(type) &&
+			    dtype_table[type]->line_declared == NO_LINE_NUM ) { /* fwd ref */
+			      int in_dtype_def = (get_curr_block_class() == tok_TYPE);
+      			      if( !(in_dtype_def && current_pointer_attr) ) {
+      			        syntax_error(($1).line_num,($1).col_num,"Type");
+      			        msg_tail(dtype_table[type]->name);
+      			        msg_tail("not defined at this point");
+      			      }
+      			  }
+
+			}
+			 derived_type_decl_list EOS
 		;
 
 arith_attrbased_type_handle: arith_type_name
@@ -2848,18 +2863,7 @@ derived_type_name:	tok_TYPE '(' symbolic_name ')'
 			  current_datatype = find_dtype(&($3),in_dtype_def);
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
-
-			  Lsymtab *symt = hashtab[($3).value.integer].loc_symtab;
-      			  int type = get_type(symt);
-      			  if( is_derived_type(type) &&
-			    dtype_table[type]->line_declared == NO_LINE_NUM ) { /* fwd ref */
-      			    int in_dtype_def = (block_stack[block_depth-1].sclass == tok_TYPE);
-      			    if( !(in_dtype_def && current_pointer_attr) ) {
-      			      syntax_error(($3).line_num,($3).col_num,"Type");
-      			      msg_tail(dtype_table[type]->name);
-      			      msg_tail("not defined at this point");
-      			    }
-      			  }
+			  $$ = $3;	/* pass the type name up */
 			}
 		;
 
@@ -3288,7 +3292,7 @@ allocate_item_list:     allocate_item
 allocate_item   :       variable_name
                 |       array_name '(' dim_bound_list ')'
 			{
-				def_array_dim(&($1),&($3));
+			    def_array_dim(&($1),&($3));
 			}
 		;
 
@@ -3338,6 +3342,9 @@ nullify_item_list:	nullify_item
 
 nullify_item	:	variable_name
 		|	component
+			{
+			    ref_component(&($1),&($$),TRUE);
+			}
 		;
 
 /* 26 */
@@ -5204,19 +5211,28 @@ array_name	:	tok_array_identifier
 component	:	variable_name '%' component_name
 			{
 			    /* Create initial linked list ->compname->varname */
+/*
 			    $3.next_token = append_token((Token*)NULL,&($1));
 			    $$.next_token = append_token($3.next_token,&($3));
+*/
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		|	array_element_name '%' component_name
 			{
 			    /* Create initial linked list ->compname->varname */
+/*
 			    $3.next_token = append_token((Token*)NULL,&($1));
 			    $$.next_token = append_token($3.next_token,&($3));
+*/
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		|	component '%' component_name
 			{
 			    /* Link new component onto front of list */
+/*
 			    $$.next_token = append_token($1.next_token,&($3));
+*/
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		;
 

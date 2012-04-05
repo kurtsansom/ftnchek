@@ -2988,7 +2988,6 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 #endif /* HAVE_STDC */
 {
 	
-      id = (Token *)ultimate_component(id);
       if( is_true(ID_EXPR,id->TOK_flags) ) {	/* is this a variable? */
 	int h=id->value.integer;
 	Lsymtab *symt;
@@ -3049,7 +3048,14 @@ while (next_id != NULL){
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
+	   if(next_id->left_token != NULL) {
+	       if(!is_true(POINTER_EXPR, next_id->TOK_flags)) {
+		   syntax_error(next_id->line_num,next_id->col_num,
+			   "Variable must be an allocatable/pointer array: ");
+		   msg_expr_tree(next_id);
+	       }
+	   }
+	   else if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an allocatable/pointer array: ");
 	      msg_tail(symt->name);
@@ -3096,7 +3102,14 @@ do_deallocate(id)		/* Process ALLOCATE statement */
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
+	   if(next_id->left_token != NULL) {
+	       if(!is_true(POINTER_EXPR, next_id->TOK_flags)) {
+		   syntax_error(next_id->line_num,next_id->col_num,
+			   "Variable must be an allocatable/pointer array: ");
+		   msg_expr_tree(next_id);
+	       }
+	   }
+	   else if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an allocatable/pointer array: ");
 	      msg_tail(symt->name);
@@ -3137,7 +3150,14 @@ do_nullify(id)		/* Process NULLIFY statement */
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(!symt->pointer) {
+	   if(next_id->left_token != NULL) {
+	       if(!is_true(POINTER_EXPR, next_id->TOK_flags)) {
+		   syntax_error(next_id->line_num,next_id->col_num,
+			   "Variable must be an allocatable/pointer array: ");
+		   msg_expr_tree(next_id);
+	       }
+	   }
+	   else if(!symt->pointer) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an pointer: ");
 	      msg_tail(symt->name);

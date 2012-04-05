@@ -516,10 +516,10 @@ make_arg_names(tlist, alhead, prev_alhead)
 	  }
 	  for(i=0, s=tlist; i<n; i++, s=s->next_token) {
 				/* Use symtab name for id's but note that
-				   array elements come thru with ID_EXPR
+				   array elements & dtype components come thru with ID_EXPR
 				   true but want to use expr tree for them.*/
 	    if(is_true(ID_EXPR,s->TOK_flags)
-		    && !is_true(ARRAY_ELEMENT_EXPR,s->TOK_flags)) {
+	       && !(is_true(ARRAY_ELEMENT_EXPR,s->TOK_flags)||is_true(DTYPE_COMPONENT,s->TOK_flags))) {
 #ifdef KEEP_ARG_NAMES
 	      h = s->value.integer;
 	      name = hashtab[h].loc_symtab->name;
