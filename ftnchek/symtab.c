@@ -288,6 +288,9 @@ call_func(id,arg)	/* Process function invocation */
 			/* First encounter with intrinsic fcn: store info */
 		symt->intrinsic = TRUE;
 		symt->info.intrins_info = defn;
+		if( INTRINS_ID(defn->intrins_flags) == I_NULL ) { /* NULL returns pointer */
+		  symt->pointer = TRUE;
+		}
 	}
 
 		/* Update set/used status of variables in arg list.  This
@@ -1298,6 +1301,9 @@ def_intrins_name(id)		/* Process intrinsic lists */
 			   pointer to definition info. */
 	     symt->intrinsic = TRUE;
 	     symt->info.intrins_info = defn;
+	     if( INTRINS_ID(defn->intrins_flags) == I_NULL ) {
+	       symt->pointer = TRUE;
+	     }
 	   }
 	}
 	symt->declared_external = TRUE;
@@ -2907,8 +2913,8 @@ use_variable(id)		/* Set the use-flag of variable. */
     else if (symt->allocatable){
              if (!symt->allocated_flag){
                  symt->used_before_allocation = TRUE;
-		 symt->line_used = id->line_num;
-		 symt->file_used = inctable_index;
+		 symt->line_allocd = id->line_num;
+		 symt->file_allocd = inctable_index;
                }
              if(! symt->used_flag) { /* record first line where used */
                 symt->line_used = id->line_num;
@@ -2957,13 +2963,10 @@ use_pointer(id)                /* Set the use-flag of variable. */
 	    symt->file_declared = inctable_index;
 	  }
 
-	  if(!(symt->associated_flag || symt->allocated_flag || symt->target)) {
+	  if(!(symt->associated_flag || symt->allocated_flag)) {
 	    symt->used_before_associated = TRUE;
 	    symt->used_before_allocation = TRUE;
 	  }
-	  symt->line_used = id->line_num;
-	  symt->file_used = inctable_index;
-
 
 	  if(! symt->used_flag) { /* record first line where used */
             symt->line_used = id->line_num;
@@ -3022,7 +3025,8 @@ use_pointer_lvalue(id)	/* handles pointer occurence as lvalue */
 	    symt->line_set = id->line_num;
 	    symt->file_set = inctable_index;
 	    symt->line_assocd = id->line_num;
-	  symt->set_flag = TRUE;
+	    symt->set_flag = TRUE;
+	    symt->assigned_flag = TRUE;
 	}
       }
 
@@ -3040,7 +3044,7 @@ do_allocate(id)		/* Process ALLOCATE statement */
         Token *next_id = id;
 	Lsymtab *symt;
 
-while (next_id != NULL){
+  while (next_id != NULL){
          h = next_id->value.integer;
 	if( (symt=hashtab[h].loc_symtab) == NULL) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
@@ -3048,14 +3052,15 @@ while (next_id != NULL){
 	   symt->file_declared = inctable_index;
 	}
 	else {
-	   if(next_id->left_token != NULL) {
-	       if(!is_true(POINTER_EXPR, next_id->TOK_flags)) {
+	   if(next_id->left_token != NULL &&
+	      (!is_true(POINTER_EXPR, next_id->TOK_flags) && 
+	       !is_true(TARGET_EXPR, next_id->TOK_flags) )) {
 		   syntax_error(next_id->line_num,next_id->col_num,
 			   "Variable must be an allocatable/pointer array: ");
 		   msg_expr_tree(next_id);
-	       }
 	   }
-	   else if(!symt->info.array_dim && !symt->allocatable && !symt->pointer) {
+	   else if( !symt->info.array_dim && !symt->allocatable && 
+	           (!symt->pointer  && !symt->target) ) {
 	      syntax_error(next_id->line_num,next_id->col_num,
 		"Variable must be an allocatable/pointer array: ");
 	      msg_tail(symt->name);
@@ -3069,7 +3074,7 @@ while (next_id != NULL){
                 }
                 else{
                    syntax_error(next_id->line_num,next_id->col_num,
-                     "Reallocating an allocated Variable: ");
+                     "Reallocating an allocated variable: ");
                     msg_tail(symt->name);
                 }
 	   }
@@ -3078,8 +3083,8 @@ while (next_id != NULL){
 			   "Cannot assign label to active DO index");
 	   }
 	}
-next_id = next_id->next_token;
-}
+  next_id = next_id->next_token;
+  }
 }/*do_allocate*/
 
 void
@@ -3119,8 +3124,8 @@ do_deallocate(id)		/* Process ALLOCATE statement */
 	           symt->allocated_flag = FALSE;
                 }
                 else{
-                   syntax_error(next_id->line_num,next_id->col_num,
-                     "Deallocating an unallocated Variable: ");
+                   warning(next_id->line_num,next_id->col_num,
+                     "Deallocating an unallocated variable: ");
                     msg_tail(symt->name);
                 }
 	   }

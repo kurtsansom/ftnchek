@@ -795,10 +795,31 @@ assignment_stmt_type(term1,equals,term2)
 	type2 = datatype_of(term2->TOK_type),
 	result_type;
 
+    /* When called from check_initializer_type, the "equals" operator
+       may be '/' for bastard initializers like INTEGER A(3) / 1, 2, 3
+       /.  In that case we want the caret in warnings to come under
+       the assigned value.  For '=' and '=>' of F90 initializers and
+       true assignment statements the caret should come under the
+       assignment operator.
+     */
+    LINENO_t equals_line_num;
+    COLNO_t equals_col_num;
+    if( equals->tclass == '/' ) {
+      equals_line_num = term2->line_num;
+      equals_col_num = term2->col_num;
+    }
+    else {
+      equals_line_num = equals->line_num;
+      equals_col_num = equals->col_num;
+    }
+
+    if(type2 == type_GENERIC)	/* takes type from assignee */
+      type2 = type1;
+
     if( is_derived_type(type1) || is_derived_type(type2) ) {
       if( (is_derived_type(type1) != is_derived_type(type2)) ||
 	  ( type1 != type2 ) ) {
-	syntax_error(equals->line_num,equals->col_num,
+	syntax_error(equals_line_num,equals_col_num,
 		     "type mismatch:");
 	report_type(term2);
 	msg_tail("assigned to");
@@ -828,7 +849,7 @@ assignment_stmt_type(term1,equals,term2)
 	if( (type1 != E && type2 != E) ) {
 	    if( result_type == E) {
 	      if( misc_warn ) {
-		syntax_error(equals->line_num,equals->col_num,
+		syntax_error(equals_line_num,equals_col_num,
 			"type mismatch:");
 		report_type(term2);
 		msg_tail("assigned to");
@@ -838,7 +859,7 @@ assignment_stmt_type(term1,equals,term2)
 	    else {
 	      if(result_type >= W) {		/* W result */
 		if(f77_mixed_expr || f90_mixed_expr) {
-		  nonstandard(equals->line_num,equals->col_num,f90_mixed_expr,0);
+		  nonstandard(equals_line_num,equals_col_num,f90_mixed_expr,0);
 		  msg_tail(": incompatible type combination:");
 		  report_type(term2);
 		  msg_tail("assigned to");
@@ -857,6 +878,9 @@ assignment_stmt_type(term1,equals,term2)
 		    mixed_size=FALSE,
 		    promotion=FALSE,
 		    trunc_warn,mixed_warn;
+
+		if( datatype_of(term2->TOK_type) == type_GENERIC )
+		  size2 = size1;
 
 		if(size1 == size_DEFAULT && size2 == size_DEFAULT) {
 		  type_trunc = ( is_numeric_type(type1) &&
@@ -955,7 +979,7 @@ if(debug_latest) {
 		mixed_warn = ((port_mixed_size || local_wordsize==0) &&
 				mixed_size);
 		if( trunc_warn ) {
-		  warning(equals->line_num,equals->col_num,"");
+		  warning(equals_line_num,equals_col_num,"");
 		  report_type(term2);
 		  if(trunc_warn && !type_trunc && mixed_size
 		       && local_wordsize == 0)
@@ -969,7 +993,7 @@ if(debug_latest) {
 		    msg_tail(": may not give desired precision");
 		}
 		else if(mixed_warn) {
-		  nonportable(equals->line_num,equals->col_num,
+		  nonportable(equals_line_num,equals_col_num,
 		    "mixed default and explicit");
 		  msg_tail((is_numeric_type(type1)&&is_numeric_type(type2))?
 			 "precision":"size");
@@ -992,7 +1016,7 @@ if(debug_latest) {
 	int r=result_type;
 
 	if( r == type_REAL || r == type_DP || r == type_COMPLEX) {
-	    warning(equals->line_num,equals->col_num,
+	    warning(equals_line_num,equals_col_num,
 			"integer quotient expr");
 	    msg_expr_tree(term2);
 	    msg_tail(" converted to real");
@@ -1000,14 +1024,16 @@ if(debug_latest) {
       }
 /**** handling for pointer assignment ***/
     if (equals->tclass == tok_rightarrow){
-      if( is_true(POINTER_EXPR,term2->TOK_flags) ) {	/* rhs may be TARGET */
+      if( is_true(POINTER_EXPR,term2->TOK_flags) ) {
         use_pointer(term2);
       }
-      else if( !is_true(TARGET_EXPR,term2->TOK_flags) ) {
+      else if( is_true(TARGET_EXPR,term2->TOK_flags) ) {
+	use_variable(term2);
+      }
+      else  {
 	syntax_error(term2->line_num,term2->col_num,
 		     "pointer/target attribute expected on RHS quantity");
-	if( is_true(ID_EXPR,term2->TOK_flags) )
-	  msg_expr_tree(term2);
+	msg_expr_tree(term2);
       }
 
       if( is_true(POINTER_EXPR,term1->TOK_flags) ) {
@@ -1016,23 +1042,22 @@ if(debug_latest) {
       else {
 	syntax_error(term1->line_num,term1->col_num,
 		     "pointer attribute expected on lvalue");
-	if( is_true(ID_EXPR,term1->TOK_flags) )
-	  msg_expr_tree(term1);
+	msg_expr_tree(term1);
       }
 
       /* propagate pointer association status to lvalue */
       if( is_true(POINTER_EXPR,term1->TOK_flags)
 	  && (is_true(POINTER_EXPR,term2->TOK_flags) || is_true(TARGET_EXPR,term2->TOK_flags)) ) {
         int h1=term1->value.integer;
-        int h2=term2->value.integer;
         Lsymtab *symt1 = hashtab[h1].loc_symtab;
-        Lsymtab *symt2 = hashtab[h2].loc_symtab;
-      
-	symt1->associated_flag = symt2->associated_flag;
-	symt1->allocated_flag = symt2->allocated_flag;
+	if( !is_true(ID_EXPR,term1->TOK_flags) ) /* make sure symt1 valid */
+	  oops_message(OOPS_FATAL,term1->line_num,term1->col_num,
+		       "lvalue is not an ID_EXPR");
+	symt1->associated_flag = is_true(ASSOCIATED_EXPR,term2->TOK_flags)&&1;
+	symt1->allocated_flag =  is_true(ALLOCATED_EXPR,term2->TOK_flags)&&1;
 	/* line_assocd is set in use_pointer_lvalue */
-	if(symt2->allocated_flag && ! symt1->set_flag) {
-	  symt2->line_allocd = term1->line_num;
+	if(is_true(ALLOCATED_EXPR,term2->TOK_flags) && ! symt1->set_flag) {
+	  symt1->line_allocd = term1->line_num;
 	}
       }
     }
@@ -1063,7 +1088,7 @@ check_initializer_type(Token *assignee_list, Token *equals, Token *expr_list)
 				   variable
 				 */
     while( t!=NULL ) {
-	assignment_stmt_type(assignee_list,t,t);
+	assignment_stmt_type(assignee_list,equals,t);
 	t = t->next_token;
     }
 }
@@ -1096,7 +1121,13 @@ func_ref_expr(id,args,result)
 		/* Generic Intrinsic functions: use propagated arg type */
 	    if(rettype == type_GENERIC) {
 		if(args->next_token == NULL) {
-		  rettype = type_UNDECL;
+		  if( INTRINS_ID(defn->intrins_flags) == I_NULL ) {
+		    /* NULL with no arg takes type of assignee */
+		    rettype = type_GENERIC;
+		  }
+		  else {
+		    rettype = type_UNDECL;
+		  }
 		  retsize = size_DEFAULT;
 		}
 		else {
@@ -1164,7 +1195,6 @@ func_ref_expr(id,args,result)
 	make_false(TARGET_EXPR,result->TOK_flags);
 
 
-
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {
 (void)fprintf(list_fd,"\n%sFunction %s() = %s",
@@ -1178,16 +1208,19 @@ symt->name,sized_typename(rettype,retsize));
 	if( symt->intrinsic ) {
 				/* Evaluate intrinsic if result is
 				   integer, the args are const (except for
-				   LEN), and a handler is defined.
+				   inquiry functions), and a handler is defined.
 				 */
-	    if(rettype == type_INTEGER &&
-	           (defn->intrins_flags&I_EVALUATED) )
+	  if( (rettype == type_INTEGER && INTRINS_ID(defn->intrins_flags) != 0) || \
+	      INTRINS_ID(defn->intrins_flags) == I_NULL )
 	    {
 		     result->value.integer = eval_intrins(defn,args);
 				/* Evaluation routines can affect the flags */
 		     copy_flag(EVALUATED_EXPR,result->TOK_flags,args->TOK_flags);
 	    }
 	    copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
+
+
+
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {
 (void)fprintf(list_fd,"\n%s(...) ",defn->name);
@@ -1282,6 +1315,10 @@ intrins_arg_cmp(defn,t)
   int defn_types=defn->arg_type;
   int a_type = datatype_of(t->TOK_type);
   int type_OK;
+
+  if( is_derived_type(a_type) ) { /* merge all derived types into one */
+    a_type = MIN_DTYPE_ID;
+  }
 				/* Check for argument type mismatch.
 				 */
 	    type_OK = ( (1<<a_type) & defn_types );
@@ -1505,13 +1542,11 @@ eval_intrins(defn,args)
      Token *args;
 #endif /* HAVE_STDC */
 {
-    intrins_flags_t fun_num;
     int (*handler)( Token *args );
-    fun_num = (defn->intrins_flags & I_EVALUATED);
     handler = defn->ii_handler;
 			/* To run handler, args must be evaluated,
 			   except for inquiry */
-    if( (is_true(EVALUATED_EXPR,args->TOK_flags) || fun_num==I_INQ) &&
+    if( (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ) &&
 	handler != NULL ) {
       return (*handler)(args);
     }

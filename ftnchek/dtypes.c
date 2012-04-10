@@ -663,6 +663,8 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
     make_true(LVALUE_EXPR,result->TOK_flags); /* result is assignable */
     make_true(ID_EXPR,result->TOK_flags); /* value.integer is hashtable index */
     make_true(DTYPE_COMPONENT,result->TOK_flags); /* is component of derived type var */
+
+#if 0					  /* all this is done elsewhere? */
     if (lvalue) {
       symt->line_set = result->line_num;
       symt->set_flag = TRUE;
@@ -675,9 +677,14 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
 	symt->used_before_set = TRUE;
         make_true(USED_BEFORE_SET,result->TOK_flags);
       }
-      symt->line_used = result->line_num;
+      if(!symt->used_flag) {
+        symt->line_used = result->line_num;
+	symt->file_used = inctable_index;
+      }
       symt->used_flag = TRUE;
     }
+#endif
+
       /* Set POINTER attribute in result to match component. */
     if(comp_dtype->pointer) {
       make_true(POINTER_EXPR,result->TOK_flags);

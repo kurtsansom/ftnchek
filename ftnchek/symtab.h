@@ -126,19 +126,26 @@ this Software without prior written authorization from the author.
 #define type_CQUAD type_COMPLEX
 #define size_CQUAD (8*type_size[type_REAL])
 
+				/* tests for elementary vs derived type */
+#define is_elementary_type(t) ((unsigned)(t) < MIN_DTYPE_ID)
+#define is_derived_type(t) ((unsigned)(t) >= MIN_DTYPE_ID)
 				/* test for types usable in exprs */
 #define is_computational_type(t) ((unsigned)(t) <= (unsigned)type_HOLLERITH)
 				/* test for numeric types */
 #define is_numeric_type(t) ((unsigned)(t) <= (unsigned)type_DCOMPLEX)
-				/* test for arith, char, or logical type */
-#define is_const_type(t) (((unsigned)(t)>(unsigned)0) && ((unsigned)(t)<=(unsigned)type_STRING))
+				/* test for int, char, or logical (case-expr) */
+#define is_case_type(t)  ((unsigned)(t) == (unsigned)type_INTEGER || \
+			  (unsigned)(t) == (unsigned)type_LOGICAL || \
+			  (unsigned)(t) == (unsigned)type_STRING)
+				/* test for type allowed as parameter */
+#define is_param_type(t) (((unsigned)(t)>(unsigned)0) && \
+		  ((unsigned)(t)<=(unsigned)type_STRING || \
+		   is_derived_type(t) || \
+		   (unsigned)(t) == (unsigned)type_GENERIC))
 				/* test for numeric or logical type */
 #define is_num_log_type(t) ((unsigned)(t) <= type_LOGICAL)
 				/* test for real/d.p./complex/d.complx type */
 #define is_float_type(t) ((unsigned)(t)>=type_REAL && (unsigned)(t)<=type_DCOMPLEX)
-				/* tests for elementary vs derived type */
-#define is_elementary_type(t) ((unsigned)(t) < MIN_DTYPE_ID)
-#define is_derived_type(t) ((unsigned)(t) >= MIN_DTYPE_ID)
 
 	/* Type categories equate DoubleP to Real, Double Complex
 	   to Complex, and Hollerith to Int to simplify expression
@@ -546,9 +553,11 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_MAX		0x5
 #define I_MIN		0x6
 #define I_ICHAR		0x7
-#define I_INQ		0x8
-#define I_INDEX		0x9
+#define I_INDEX		0x8
+#define I_NULL		0x9
 #define I_EVALUATED	0xf	/* any bit of digit set */
+				/* macro to identify evaluated functions */
+#define INTRINS_ID(flags) ((flags)&I_EVALUATED)
 
 		/* Various properties of intrinsics*/
 #define I_F77 		0x00	/* Standard intrinsic (no flag: placeholder) */
@@ -559,12 +568,13 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_NOTARG	0x100	/* Not allowed as actual argument */
 #define I_SP_R		0x200	/* special for REAL function */
 #define I_CHAR		0x400	/* special handling for CHAR function */
-#define I_QARG		0x800	/* Arg type is R*16 or X*32 */
-#define I_QUAD		0x1000	/* Result type is R*16 or X*32 */
-#define I_EXTRA		0x2000	/* commonly found extra intrinsics */
-#define I_VMS		0x4000	/* VMS systems only */
-#define I_UNIX		0x8000	/* Unix systems only */
-#define I_NONF90	0x10000	/* Not in F90 standard */
+#define I_INQ		0x800  	/* inquiry, ignores value of arg */
+#define I_QARG		0x1000 	/* Arg type is R*16 or X*32 */
+#define I_QUAD		0x2000 	/* Result type is R*16 or X*32 */
+#define I_EXTRA		0x4000 	/* commonly found extra intrinsics */
+#define I_VMS		0x8000 	/* VMS systems only */
+#define I_UNIX		0x10000	/* Unix systems only */
+#define I_NONF90	0x20000	/* Not in F90 standard */
 
 				/* Define flag type big enough for 17 bits */
 #if (SIZEOF_SHORT > 2)
@@ -580,10 +590,10 @@ typedef unsigned long intrins_flags_t;
 #endif
 
 typedef struct IInfo{
-	char *name;
-	short num_args,
-	      arg_type,
-	      result_type;
+	char *name;	   /* intrinsic name */
+	short num_args;	   /* number of args (<0 codes for varying) */
+	unsigned arg_type; /* bitwise OR of 1<<type for allowed types */
+	int result_type;   /* type code of result */
 	intrins_flags_t
 	      intrins_flags;	/* nonstandard,  mixed arg types */
 	int (*ii_handler)( Token *args ); /* evaluation handler  */
@@ -936,6 +946,9 @@ typedef struct PSpace {
 #define POINTER_EXPR		0x400000 /* has POINTER attribute */
 #define TARGET_EXPR		0x800000 /* has TARGET attribute */
 #define DTYPE_COMPONENT		0x1000000 /* is a component ref, e.g. A%B */
+#define ASSOCIATED_EXPR		0x2000000 /* pointer is associated */
+#define ALLOCATED_EXPR		0x4000000 /* object is allocated */
+
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
 SYM_SHARED
 Lsymtab	*loc_symtab

@@ -256,6 +256,7 @@ PROTO(PRIVATE void do_binexpr,( Token *l_expr, Token *op, Token *r_expr,
 			Token *result ));
 PROTO(PRIVATE type_t do_bounds_type,( Token *t1, Token *t2, Token *t3 ));
 PROTO(PRIVATE void do_unexpr,( Token *op, Token *expr, Token *result ));
+PROTO(PRIVATE void set_attr_flags,( Token *t, Token *result ));
 PROTO(PRIVATE Token * empty_token,( Token *t ));
 PROTO(PRIVATE void END_processing,( Token *t ));
 PROTO(PRIVATE void init_io_ctrl_list,( void ));
@@ -2308,8 +2309,9 @@ arith_type_decl_item: scalar_type_decl_entity
 					    f90_initializers,0);
 				msg_tail(": combined type declaration and data-style initializer");
 			    }
-			    primary_id_expr(&($1),&($1));
-			    check_initializer_type(&($1),&($2),&($4));
+			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
+			    check_initializer_type(&($$),&($2),&($4));
 			}
 				/* Handle F90 initializers here.  Note that
 				   this production will not be reached in
@@ -2321,15 +2323,15 @@ arith_type_decl_item: scalar_type_decl_entity
 			{
 			    if(current_parameter_attr)
 				def_parameter(&($1),&($4),FALSE);
-			    else
-				use_lvalue(&($1));
+
 			    if(f77_initializers) {
 				nonstandard($3.line_num,$3.col_num,
 					    0,0);
 				msg_tail(": F90-style initializer");
 			    }
-			    primary_id_expr(&($1),&($1));
-			    check_initializer_type(&($1),&($3),&($4));
+			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
+			    check_initializer_type(&($$),&($3),&($4));
 			    integer_context=TRUE;
 			    complex_const_allowed = FALSE;
 			}
@@ -2344,6 +2346,7 @@ arith_type_decl_item: scalar_type_decl_entity
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),(Token *)NULL);
+			     set_attr_flags(&($1),&($$));
 			}
 				/* Handle bastard initializers here.  Not checked
 				   for assignment compatibility.
@@ -2358,14 +2361,15 @@ arith_type_decl_item: scalar_type_decl_entity
 					 current_typesize,
 					 current_len_text);
 			    process_attrs(&($1),(Token *)NULL);
+			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
 			    if(f77_initializers || f90_initializers) {
 				nonstandard($2.line_num,$2.col_num,
 					    f90_initializers,0);
 				msg_tail(": combined type declaration and data-style initializer");
 			    }
-			    use_lvalue(&($1));
-			    primary_id_expr(&($1),&($1));
-			    check_initializer_type(&($1),&($2),&($4));
+
+			    check_initializer_type(&($$),&($2),&($4));
 			}
 		;
 
@@ -2376,6 +2380,7 @@ scalar_type_decl_entity:symbolic_name
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
+			     set_attr_flags(&($1),&($$));
 			}
 		;
 
@@ -2389,6 +2394,7 @@ char_type_decl_item: char_type_decl_entity
 				syntax_error($1.line_num,$1.col_num,
 					     "PARAMETER lacks initializer");
 			     }
+			     set_attr_flags(&($1),&($$));
 			}
 				/* Handle bastard initializers here */
 		|	 char_type_decl_entity '/'
@@ -2401,23 +2407,24 @@ char_type_decl_item: char_type_decl_entity
 					    f90_initializers,0);
 				msg_tail(": combined type declaration and data-style initializer");
 			    }
-			    primary_id_expr(&($1),&($1));
-			    check_initializer_type(&($1),&($2),&($4));
+			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
+			    check_initializer_type(&($$),&($2),&($4));
 			}
 				/* Handle F90 initializers here */
 		|	char_type_decl_entity '=' parameter_expr
 			{
 			    if(current_parameter_attr)
 				def_parameter(&($1),&($3),FALSE);
-			    else
-				use_lvalue(&($1));
-			    primary_id_expr(&($1),&($1));
+
+			    primary_id_expr(&($1),&($$));
 			    if(f77_initializers) {
 				nonstandard($2.line_num,$2.col_num,
 					    0,0);
 				msg_tail(": F90-style initializer");
 			    }
-			    check_initializer_type(&($1),&($2),&($3));
+			    set_attr_flags(&($1),&($$));
+			    check_initializer_type(&($$),&($2),&($3));
 			}
 		|	array_declarator
 			{
@@ -2428,6 +2435,7 @@ char_type_decl_item: char_type_decl_entity
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),(Token *)NULL);
+			     set_attr_flags(&($1),&($$));
 			}
 		|	array_declarator '*' len_specification
 			{
@@ -2441,6 +2449,7 @@ char_type_decl_item: char_type_decl_entity
 					     &($3): $3.left_token )
 					  );
 			     process_attrs(&($1),(Token *)NULL);
+			     set_attr_flags(&($1),&($$));
 			}
 		|	array_declarator '/'
 				{integer_context=FALSE;complex_const_allowed=TRUE;}
@@ -2454,6 +2463,7 @@ char_type_decl_item: char_type_decl_entity
 					 current_typesize,
 					 current_len_text);
 			    process_attrs(&($1),(Token *)NULL);
+			    set_attr_flags(&($1),&($$));
 			    if(f77_initializers || f90_initializers) {
 				nonstandard($2.line_num,$2.col_num,
 					    f90_initializers,0);
@@ -2476,6 +2486,7 @@ char_type_decl_item: char_type_decl_entity
 					     &($3): $3.left_token )
 				);
 			    process_attrs(&($1),(Token *)NULL);
+			    set_attr_flags(&($1),&($$));
 			    if(f77_initializers || f90_initializers) {
 				nonstandard($4.line_num,$4.col_num,
 					    f90_initializers,0);
@@ -2494,6 +2505,7 @@ char_type_decl_entity:symbolic_name
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
+			     set_attr_flags(&($1),&($$));
 			}
 		|	symbolic_name '*' len_specification
 			{
@@ -2507,6 +2519,7 @@ char_type_decl_entity:symbolic_name
 					     &($3): $3.left_token )
 					  );
 			     process_attrs(&($1),current_dim_bound_list);
+			     set_attr_flags(&($1),&($$));
 			}
 		;
 
@@ -2872,7 +2885,44 @@ derived_type_decl_list:	derived_type_decl_item
 		;
 
 derived_type_decl_item: derived_type_decl_entity
-		|	derived_type_decl_entity assignment_op expr
+			{
+			     if( current_parameter_attr) {
+				syntax_error($1.line_num,$1.col_num,
+					     "PARAMETER lacks initializer");
+			     }
+			}
+				/* Handle bastard initializers (combined type decl
+				   and data statement) here.
+				 */
+		|	derived_type_decl_entity '/' 
+				{integer_context=FALSE;complex_const_allowed=TRUE;}
+					data_value_list
+				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
+			{
+			    if(f77_initializers || f90_initializers) {
+				nonstandard($2.line_num,$2.col_num,
+					    f90_initializers,0);
+				msg_tail(": combined type declaration and data-style initializer");
+			    }
+			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
+			    check_initializer_type(&($$),&($2),&($3));
+			}
+				/* Handle F90 initializers here.  Note that
+				   this production will not be reached in
+				   non attribute-based type declarations since
+				   it will be lexed as an assignment statement.
+				 */
+		|	derived_type_decl_entity  {integer_context=FALSE;complex_const_allowed = TRUE;}
+				assignment_op parameter_expr
+			{
+			    if(current_parameter_attr)
+				def_parameter(&($1),&($4),FALSE);
+
+			    check_initializer_type(&($$),&($3),&($4));
+			    integer_context=TRUE;
+			    complex_const_allowed = FALSE;
+			}
 		;
 
 derived_type_decl_entity: symbolic_name
@@ -2882,6 +2932,12 @@ derived_type_decl_entity: symbolic_name
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
+			     primary_id_expr(&($1),&($$));
+			     set_attr_flags(&($1),&($$));
+
+			     /* type information needed for checking
+			     types in initializer */
+			     $$.TOK_type = current_datatype;
 			}
 		;
 
@@ -3133,8 +3189,9 @@ parameter_defn_item:	symbolic_name {complex_const_allowed = TRUE;}
 				'=' parameter_expr
 			{
 			     def_parameter(&($1),&($4),param_noparen);
-			     primary_id_expr(&($1),&($1));
-			     check_initializer_type(&($1),&($3),&($4));
+			     primary_id_expr(&($1),&($$));
+			     set_attr_flags(&($1),&($$));
+			     check_initializer_type(&($$),&($3),&($4));
 			     complex_const_allowed = FALSE;
 			}
 		;
@@ -3260,7 +3317,7 @@ pointee_name    :       symbolic_name
 		        }
 		;
 
-allocate_stmt   :       tok_ALLOCATE {allocatable_flag = TRUE;}'(' allocate_item_list ')' EOS
+allocate_stmt   :       tok_ALLOCATE {allocatable_flag = TRUE;} '(' allocate_item_list ')' EOS
 			{
 			     if( f77_pointers ) {
 				  nonstandard($1.line_num,$1.col_num,0,0);
@@ -3289,12 +3346,9 @@ allocate_item_list:     allocate_item
                 |       allocate_item_list ',' allocate_stat_item
                 ;
 
-allocate_item   :       variable_name
-                |       array_name '(' dim_bound_list ')'
-			{
-			    def_array_dim(&($1),&($3));
-			}
+allocate_item	:	data_object
 		;
+
 
 			/* productions for ALLOCATE( ..., STAT=variable) */
 allocate_stat_item:	symbolic_name '=' variable_name
@@ -3340,11 +3394,7 @@ nullify_item_list:	nullify_item
 			}
 		;
 
-nullify_item	:	variable_name
-		|	component
-			{
-			    ref_component(&($1),&($$),TRUE);
-			}
+nullify_item	:	data_object
 		;
 
 /* 26 */
@@ -3738,7 +3788,7 @@ select_case_stmt:	select_handle '(' {complex_const_allowed = TRUE;} expr ')' EOS
 			{
 			    int t = datatype_of ($4.TOK_type);
 			    if (t != type_ERROR) {
-			        if (!is_const_type(t) || is_float_type(t)) {
+			        if (!is_case_type(t)) {
 			            syntax_error($4.line_num,$4.col_num,
 			"integer, character, or logical expression required");
 			        }
@@ -3818,7 +3868,7 @@ case_value_primary:	expr
 			{
 			    int t = datatype_of($1.TOK_type);
 			    if (t != type_ERROR) {
-			        if (!is_const_type(t) || is_float_type(t)) {
+			        if (!is_case_type(t)) {
 			            syntax_error($1.line_num,$1.col_num,
 			"integer, character, or logical expression required");
 			        }
@@ -4653,17 +4703,18 @@ nonempty_fun_arg_list:	expr
 		;
 /* 74 not present: type checking not done at this level */
 
-/* 75 was constant_expr, but only used by PARAMETER */
+/* 75 was constant_expr, but only used by PARAMETER and initializers */
 parameter_expr	:	/* arith, char, or logical */ expr
 			{
 			  int t=datatype_of($1.TOK_type);
 			  if( t != type_ERROR){
-			    if( ! is_const_type(t) ) {
+			    if( !is_param_type(t) ) {
 			      syntax_error($1.line_num,$1.col_num,
-		      "arithmetic, char, or logical expression expected");
+		      "arithmetic, char, logical, or structured type expression expected");
 			    }
 			    else {
-			      if( !is_true(PARAMETER_EXPR,$1.TOK_flags) ) {
+			      if( !is_true(PARAMETER_EXPR,$1.TOK_flags) && 
+				  !is_derived_type(t)) {
 				syntax_error($1.line_num,$1.col_num,
 					   "constant expression expected");
 			      }
@@ -4811,7 +4862,12 @@ char_expr	:	primary
 			}
 		;
 
-primary		:	variable_name
+primary		:	data_object
+		|	compound_object
+		;
+
+/* items that can be allocated, nullified etc.  (Used in other productions) */
+data_object	:	variable_name
 			{
 			    make_true(DIM_BOUND_EXPR,$$.TOK_flags);
 			}
@@ -4821,8 +4877,10 @@ primary		:	variable_name
 			{
 			    ref_component(&($1),&($$),FALSE);
 			}
+		;
 
-		|	function_reference
+/* primaries that are not allocatable things */
+compound_object	:	function_reference
 
 		|	substring_name
 
@@ -5107,10 +5165,16 @@ substring_lvalue:	scalar_name substring_interval
 			    ref_variable(&($1));
 			    $$.TOK_flags = $1.TOK_flags;
 			    $$.size=substring_size(&($1),&($2));
+			    $$.left_token = add_tree_node(
+					       &save_token,&($1),&($2));
+			    $$.next_token = (Token *) NULL;
 			}
 		|	array_element_lvalue substring_interval
 			{
 			    $$.size=substring_size(&($1),&($2));
+			    $$.left_token = add_tree_node(
+					       &save_token,&($1),&($2));
+			    $$.next_token = (Token *) NULL;
 			}
 		;
 
@@ -5196,6 +5260,7 @@ scalar_name	:	tok_identifier
 			{
 			    ref_identifier(&($1));
 			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
 			}
 		;
 
@@ -5203,6 +5268,7 @@ array_name	:	tok_array_identifier
 			{
 			    ref_variable(&($1));
 			    primary_id_expr(&($1),&($$));
+			    set_attr_flags(&($1),&($$));
 			}
 		;
 
@@ -6266,6 +6332,40 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 /*---------------------------------------------------------------------*/
 
     ++block_depth;
+  }
+}
+
+/* Routine to set flags for attributes into result from symtab
+   entry for t.  Needed for nonterminals that are data objects,
+   i.e. array elements and derived type components.  For terminals,
+   the symbol table should be consulted instead of the token.
+ */
+PRIVATE void set_attr_flags( Token *t, Token *result )
+{
+  if( is_true(ID_EXPR,t->TOK_flags) ) {	/* value.integer is hashtable index */
+    Lsymtab *symt = hashtab[t->value.integer].loc_symtab;
+    if( symt ) {
+
+      if(symt->pointer)
+	make_true(POINTER_EXPR,result->TOK_flags);
+      else
+	make_false(POINTER_EXPR,result->TOK_flags);
+
+      if(symt->target)
+	make_true(TARGET_EXPR,result->TOK_flags);
+      else
+	make_false(TARGET_EXPR,result->TOK_flags);
+
+      if(symt->associated_flag)
+	make_true(ASSOCIATED_EXPR,result->TOK_flags);
+      else
+	make_false(ASSOCIATED_EXPR,result->TOK_flags);
+
+      if(symt->allocated_flag)
+	make_true(ALLOCATED_EXPR,result->TOK_flags);
+      else
+	make_false(ALLOCATED_EXPR,result->TOK_flags);
+    }
   }
 }
 

@@ -51,6 +51,8 @@ as the "MIT License."
 #define Z   (1 << type_DCOMPLEX)
 #define L   (1 << type_LOGICAL)
 #define STR (1 << type_STRING)
+#define DT  (1 << MIN_DTYPE_ID)	/* all derived types are merged to this */
+#define ANY (I|R|D|C|Z|L|STR|DT) /* for intrinsics that act on any type */
 
 	/* Table below contains information from Table 5, pp. 15-22
 	   to 15-25 of the standard.  Note: num_args == -1 means 1 or 2 args,
@@ -74,6 +76,7 @@ PROTO(PRIVATE int ii_max,( Token *args ));
 PROTO(PRIVATE int ii_min,( Token *args ));
 PROTO(PRIVATE int ii_mod,( Token *args ));
 PROTO(PRIVATE int ii_sign,( Token *args ));
+PROTO(PRIVATE int ii_null,( Token *args ));
 
 
 
@@ -187,14 +190,16 @@ PRIVATE IntrinsInfo intrinsic[]={
 {"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
+				/* NULL( [mold] ) for nullifying pointers */
+{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_INQ|I_NULL,ii_null},
                 /* associated intrinsic statement to check association of
                  * pointers
                  */
-{"ASSOCIATED",  I_1or2, I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ,NULL},
+{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
                 /* allocated intrinsic statement to check allocation of
                  * pointers
                  */
-{"ALLOCATED",   1,      I|R|D|C|Z|L|STR,type_LOGICAL, I_NONF77|I_INQ,NULL},
+{"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
 		/* DOUBLE COMPLEX intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.
@@ -365,7 +370,8 @@ PRIVATE IntrinsInfo intrinsic[]={
 #undef Z
 #undef L
 #undef STR
-
+#undef DT
+#undef ANY
 };
 
 #define NUM_INTRINSICS (sizeof(intrinsic)/sizeof(intrinsic[0]))
@@ -796,4 +802,19 @@ ii_index(args)		/* INDEX(str1,str2) */
   return 0;
 }
 
+PRIVATE int
+ii_null(Token *args)		/* NULL( [mold] ) */
+{
+  /* Type of result is handled by type_GENERIC.  Here we set
+     token flags to be copied to result.
+   */
+  make_true(PARAMETER_EXPR,args->TOK_flags);
 
+  /* ALLOCATED_EXPR & ASSOCIATED_EXPR do not need to be unset since
+   * all token flags are cleared by default.
+   */
+
+  /* Override default copying of EVALUATED_EXPR from args to result */
+  make_false(EVALUATED_EXPR,args->TOK_flags);
+  return 0;
+}
