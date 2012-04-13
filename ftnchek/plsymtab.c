@@ -383,7 +383,7 @@ void local_detail(int inc_index, LINENO_t lineno,
 	 */
 int
 #if HAVE_STDC
-print_variables(Lsymtab **sym_list, int n)
+print_variables(Lsymtab **sym_list, int n, int *need_key)
 #else /* K&R style */
 print_variables(sym_list,n)
      Lsymtab **sym_list;
@@ -416,6 +416,17 @@ print_variables(sym_list,n)
 	  /* Append ^ on pointers */
 	  if(sym_list[i]->pointer) {
 	    (void)fprintf(list_fd,"^");
+	    *need_key = 1;
+	  }
+	  /* Append < on targets */
+	  if(sym_list[i]->target) {
+	    (void)fprintf(list_fd,"<");
+	    *need_key = 1;
+	  }
+	  /* Append - on private variables */
+	  if(sym_list[i]->private) {
+	    (void)fprintf(list_fd,"-");
+	    *need_key = 1;
 	  }
 	  if(datatype_of(sym_list[i]->type) != type_UNDECL &&
 	     sym_list[i]->size == size_DEFAULT)

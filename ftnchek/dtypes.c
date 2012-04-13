@@ -268,6 +268,7 @@ void process_dtype_components(const char *name)
 
     curr->array = loc_symtab[i].array_var;
     curr->array_dim = loc_symtab[i].info.array_dim;
+    curr->allocatable = loc_symtab[i].allocatable;
     curr++;
   }
 			    /* see if it is a duplicate derived type */
@@ -641,10 +642,6 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
     /* error message was given by last_component */
   }
   else {
-    int h;
-    Lsymtab *symt;
-    h = comp_token->value.integer;	/* handle has base variable's hash index */
-    symt = hashtab[h].loc_symtab;
 
     result->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
     result->size = comp_dtype->size;
@@ -691,6 +688,14 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
     }
     else {
       make_false(POINTER_EXPR,result->TOK_flags);
+    }
+
+      /* Set ALLOCATABLE attribute in result to match component. */
+    if(comp_dtype->allocatable) {
+      make_true(ALLOCATABLE_EXPR,result->TOK_flags);
+    }
+    else {
+      make_false(ALLOCATABLE_EXPR,result->TOK_flags);
     }
 
     make_false(TARGET_EXPR,result->TOK_flags);	/* components cannot be targets */

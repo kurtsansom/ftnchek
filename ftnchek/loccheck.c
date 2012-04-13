@@ -231,6 +231,11 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	for(i=0;i<n;i++) {
 	    if( list[i]->common_var )	/* common vars are immune */
 	       continue;
+					/* targets & pointers set as
+					 * pointees are immune */
+	    if( list[i]->assigned_as_target )
+	      continue;
+
 				/* for args with intent IN only,
 				 *   skip because 'set' error is reported during
 				 *   parsing
@@ -476,6 +481,14 @@ check_pointer_flags(list,n,used,alloc,uba,msg,mod_name)
 			    local_detail(inc_index,lineno,(char *)NULL,detail);
 			}
 			/****************addition*********/
+			else if (list[i]->pointer) {
+			  if (list[i]->file_assocd) {
+			    msg_tail("; disassociated"); /* it was but ain't */
+			  }
+			  else {
+			    msg_tail("; not associated");
+			  }
+			}
 			else if (list[i]->file_allocd) {
 			    msg_tail("; deallocated");
 			}

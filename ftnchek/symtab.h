@@ -641,7 +641,7 @@ typedef struct lSymtEntry{
 		   are line numbers within file where object is referred
 		   to, then come indexes into include-file list.  */
 	LINENO_t line_declared, line_set, line_used, line_assocd, line_allocd;
-	short file_declared, file_set, file_used, file_allocd;
+	short file_declared, file_set, file_used, file_assocd, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
 			/* Flags */
 	unsigned
@@ -667,6 +667,7 @@ typedef struct lSymtEntry{
              allocated_flag:1,    /* pointer/allocatable variable is allocated */
              used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
+	     assigned_as_target: 1,	/* assigned to a pointer */
 	     public: 1,		/* has PUBLIC attribute / public type */
 	     private: 1,	/* has PRIVATE attribute / private type */
 	     private_components: 1,	/* PRIVATE decl inside type defn */
@@ -948,6 +949,7 @@ typedef struct PSpace {
 #define DTYPE_COMPONENT		0x1000000 /* is a component ref, e.g. A%B */
 #define ASSOCIATED_EXPR		0x2000000 /* pointer is associated */
 #define ALLOCATED_EXPR		0x4000000 /* object is allocated */
+#define ALLOCATABLE_EXPR	0x8000000 /* has ALLOCATABLE attribute */
 
 #ifdef DYNAMIC_TABLES		/* tables will be mallocked at runtime */
 SYM_SHARED
@@ -1142,7 +1144,8 @@ PROTO(void use_lvalue,( Token *id ));
 PROTO(void use_parameter,( Token *id ));
 PROTO(void use_variable,( Token *id ));
 PROTO(void use_pointer,( Token *id ));
-PROTO(void use_pointer_lvalue,( Token *id ));
+PROTO(void use_pointer_lvalue,( Token *id, Token *rhs ));
+PROTO(void use_target,(Token *id));
 PROTO(void do_allocate,( Token *id ));
 PROTO(void do_deallocate,( Token *id ));
 PROTO(void do_nullify,( Token *id ));

@@ -70,6 +70,7 @@ print_loc_symbols(VOID)
     char *progunit_name;		/* prog unit name */
     int
 	imps=0,			/* count of implicitly declared identifiers */
+	need_key=0,		/* flag for whether to print key explaining ^< */
 	numentries;		/* count of entry points of prog unit */
 
     if (dcl_fd == (FILE*)NULL)
@@ -275,7 +276,7 @@ print_loc_symbols(VOID)
 	  sort_lsymbols(sym_list,n);
 
 	  (void)fprintf(list_fd,"\nDerived types:\n ");
-	  print_dtypes(sym_list,n);
+	  print_dtypes(sym_list,n,&need_key);
        }
     }
 				/* Process the variables */
@@ -303,7 +304,7 @@ print_loc_symbols(VOID)
 
 	   if(do_symtab) {
 	      (void)fprintf(list_fd,"\nVariables:\n ");
-	      imps += print_variables(sym_list,n);
+	      imps += print_variables(sym_list,n,&need_key);
 	   }
 	}
 			/* Explain the asterisk on implicitly defined
@@ -313,6 +314,9 @@ print_loc_symbols(VOID)
 	     (void)fprintf(list_fd,"\n* Variable not declared.");
 	     (void)fprintf(list_fd," Type has been implicitly defined.");
 	     ++warning_count;
+	}
+	if(do_symtab && need_key) {
+	     (void)fprintf(list_fd,"\n  Key: pointer^ target< private-");
 	}
 
 	if( progunit_type != type_MODULE && /* modules are immune to these */
@@ -789,7 +793,7 @@ cmp_io_units( IO_Unit_Info *u1, IO_Unit_Info *u2 )
 }
 
 
-void print_dtypes(Lsymtab *sym_list[], int n)
+void print_dtypes(Lsymtab *sym_list[], int n, int *need_key)
 {
   int i;
 
@@ -842,10 +846,14 @@ if(debug_latest) {
 	  if( s != size_DEFAULT )
 	     (void)fprintf(list_fd,"%d",s);
 	  /* Append ^ on pointers and - on private components */
-	  if(components[j].pointer)
+	  if(components[j].pointer) {
 	     (void)fprintf(list_fd,"^");
-	  if(components[j].private)
+	     *need_key = 1;
+	  }
+	  if(components[j].private) {
 	     (void)fprintf(list_fd,"-");
+	     *need_key = 1;
+	  }
 	  /* fill in blanks for any appended items not printed */
 	  if( s == size_DEFAULT )
 	     (void)fprintf(list_fd," ");

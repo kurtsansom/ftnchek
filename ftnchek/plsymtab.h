@@ -53,7 +53,7 @@ PROTO(int print_lsyms,( Lsymtab **sym_list,
 PROTO(int print_lsyms_briefly,( Lsymtab **sym_list,
 					  int n, int do_types ));
 
-PROTO(int print_variables,( Lsymtab **sym_list, int n ));
+PROTO(int print_variables,( Lsymtab **sym_list, int n, int *need_key ));
 
 	
 PROTO(void sort_lsymbols,( Lsymtab **sp, int n ));

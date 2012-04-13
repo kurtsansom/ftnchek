@@ -1022,13 +1022,13 @@ if(debug_latest) {
 	    msg_tail(" converted to real");
 	}
       }
+
+
 /**** handling for pointer assignment ***/
     if (equals->tclass == tok_rightarrow){
-      if( is_true(POINTER_EXPR,term2->TOK_flags) ) {
-        use_pointer(term2);
-      }
-      else if( is_true(TARGET_EXPR,term2->TOK_flags) ) {
-	use_variable(term2);
+      if( is_true(POINTER_EXPR,term2->TOK_flags) || is_true(TARGET_EXPR,term2->TOK_flags) ) {
+	if( is_true(ID_EXPR,term2->TOK_flags ) )
+	  use_target(term2);	/* assignment to pointer is not use_variable */
       }
       else  {
 	syntax_error(term2->line_num,term2->col_num,
@@ -1037,28 +1037,12 @@ if(debug_latest) {
       }
 
       if( is_true(POINTER_EXPR,term1->TOK_flags) ) {
-	use_pointer_lvalue(term1);
+	use_pointer_lvalue(term1,term2);
       }
       else {
 	syntax_error(term1->line_num,term1->col_num,
 		     "pointer attribute expected on lvalue");
 	msg_expr_tree(term1);
-      }
-
-      /* propagate pointer association status to lvalue */
-      if( is_true(POINTER_EXPR,term1->TOK_flags)
-	  && (is_true(POINTER_EXPR,term2->TOK_flags) || is_true(TARGET_EXPR,term2->TOK_flags)) ) {
-        int h1=term1->value.integer;
-        Lsymtab *symt1 = hashtab[h1].loc_symtab;
-	if( !is_true(ID_EXPR,term1->TOK_flags) ) /* make sure symt1 valid */
-	  oops_message(OOPS_FATAL,term1->line_num,term1->col_num,
-		       "lvalue is not an ID_EXPR");
-	symt1->associated_flag = is_true(ASSOCIATED_EXPR,term2->TOK_flags)&&1;
-	symt1->allocated_flag =  is_true(ALLOCATED_EXPR,term2->TOK_flags)&&1;
-	/* line_assocd is set in use_pointer_lvalue */
-	if(is_true(ALLOCATED_EXPR,term2->TOK_flags) && ! symt1->set_flag) {
-	  symt1->line_allocd = term1->line_num;
-	}
       }
     }
     else {
@@ -1068,6 +1052,7 @@ if(debug_latest) {
 
       use_lvalue(term1);
     }
+
 }
 
 void

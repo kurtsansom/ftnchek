@@ -30,7 +30,8 @@ typedef struct DerivedTypeComponent {
   unsigned
 	array: 1,		/* is an array */
 	pointer: 1,		/* has POINTER attribute */
-  	private: 1;		/* has PRIVATE attribute */
+  	private: 1,		/* has PRIVATE attribute */
+	allocatable: 1;		/* has ALLOCATABLE attribute */
 } DtypeComponent;
 
 typedef struct DtypeTableEntry {
@@ -56,7 +57,7 @@ Dtype *dtype_table[MAX_DTYPES];	/* stores derived type defs */
 int find_dtype(Token *t, int in_dtype_def);
 Lsymtab * def_dtype(int h, int tok_line_num, int tok_col_num, int access_spec, int dtype_def);  /* store derived type definition name in local
     symbol table */
-void print_dtypes(Lsymtab *sym_list[], int n);  /* print names of derived type definitions from 
+void print_dtypes(Lsymtab *sym_list[], int n, int *need_key);  /* print names of derived type definitions from 
     dtype_table */
 void privatize_components(const char *name);
 void process_dtype_components(const char *name);

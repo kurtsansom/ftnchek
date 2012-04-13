@@ -1451,6 +1451,11 @@ function_keyword:	tok_FUNCTION
 			}
 		;
 
+	/* This production is used by prefix (for function statements)
+	and by implicit_stmt.  It is not used by type declaration
+	statements, which need to use different syntax for char
+	and non-char declarations.
+	*/
 type_name	:	arith_type_name
 		|	plain_char_type_name
 		|	char_type_name
@@ -1966,7 +1971,7 @@ type_stmt	:	arith_type_name arith_type_decl_list EOS
 		|	plain_char_type_name char_type_decl_list EOS
 		|	char_type_name char_type_decl_list EOS
 		|	char_type_name ',' char_type_decl_list EOS
-		|	derived_type_name derived_type_decl_list EOS
+		|	derived_type_name arith_type_decl_list EOS
 		;
 
 				/* Attribute-based type declarations */
@@ -2002,7 +2007,8 @@ attrbased_type_stmt:	arith_attrbased_type_handle
       			  }
 
 			}
-			 derived_type_decl_list EOS
+					/* use non-char declaration list */
+			 arith_type_decl_list EOS
 		;
 
 arith_attrbased_type_handle: arith_type_name
@@ -2309,8 +2315,6 @@ arith_type_decl_item: scalar_type_decl_entity
 					    f90_initializers,0);
 				msg_tail(": combined type declaration and data-style initializer");
 			    }
-			    primary_id_expr(&($1),&($$));
-			    set_attr_flags(&($1),&($$));
 			    check_initializer_type(&($$),&($2),&($4));
 			}
 				/* Handle F90 initializers here.  Note that
@@ -2329,8 +2333,6 @@ arith_type_decl_item: scalar_type_decl_entity
 					    0,0);
 				msg_tail(": F90-style initializer");
 			    }
-			    primary_id_expr(&($1),&($$));
-			    set_attr_flags(&($1),&($$));
 			    check_initializer_type(&($$),&($3),&($4));
 			    integer_context=TRUE;
 			    complex_const_allowed = FALSE;
@@ -2346,6 +2348,7 @@ arith_type_decl_item: scalar_type_decl_entity
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),(Token *)NULL);
+			     primary_id_expr(&($1),&($$));
 			     set_attr_flags(&($1),&($$));
 			}
 				/* Handle bastard initializers here.  Not checked
@@ -2380,6 +2383,7 @@ scalar_type_decl_entity:symbolic_name
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
+			     primary_id_expr(&($1),&($$));
 			     set_attr_flags(&($1),&($$));
 			}
 		;
@@ -2880,66 +2884,6 @@ derived_type_name:	tok_TYPE '(' symbolic_name ')'
 			}
 		;
 
-derived_type_decl_list:	derived_type_decl_item
-		|	derived_type_decl_list ',' derived_type_decl_item
-		;
-
-derived_type_decl_item: derived_type_decl_entity
-			{
-			     if( current_parameter_attr) {
-				syntax_error($1.line_num,$1.col_num,
-					     "PARAMETER lacks initializer");
-			     }
-			}
-				/* Handle bastard initializers (combined type decl
-				   and data statement) here.
-				 */
-		|	derived_type_decl_entity '/' 
-				{integer_context=FALSE;complex_const_allowed=TRUE;}
-					data_value_list
-				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
-			{
-			    if(f77_initializers || f90_initializers) {
-				nonstandard($2.line_num,$2.col_num,
-					    f90_initializers,0);
-				msg_tail(": combined type declaration and data-style initializer");
-			    }
-			    primary_id_expr(&($1),&($$));
-			    set_attr_flags(&($1),&($$));
-			    check_initializer_type(&($$),&($2),&($3));
-			}
-				/* Handle F90 initializers here.  Note that
-				   this production will not be reached in
-				   non attribute-based type declarations since
-				   it will be lexed as an assignment statement.
-				 */
-		|	derived_type_decl_entity  {integer_context=FALSE;complex_const_allowed = TRUE;}
-				assignment_op parameter_expr
-			{
-			    if(current_parameter_attr)
-				def_parameter(&($1),&($4),FALSE);
-
-			    check_initializer_type(&($$),&($3),&($4));
-			    integer_context=TRUE;
-			    complex_const_allowed = FALSE;
-			}
-		;
-
-derived_type_decl_entity: symbolic_name
-			{
-			     declare_type(&($1),
-					  current_datatype,
-					  current_typesize,
-					  current_len_text);
-			     process_attrs(&($1),current_dim_bound_list);
-			     primary_id_expr(&($1),&($$));
-			     set_attr_flags(&($1),&($$));
-
-			     /* type information needed for checking
-			     types in initializer */
-			     $$.TOK_type = current_datatype;
-			}
-		;
 
 /*---------------------------------------------------------------*/
 
@@ -6361,7 +6305,13 @@ PRIVATE void set_attr_flags( Token *t, Token *result )
       else
 	make_false(ASSOCIATED_EXPR,result->TOK_flags);
 
-      if(symt->allocated_flag)
+      if(symt->allocatable)
+	make_true(ALLOCATABLE_EXPR,result->TOK_flags);
+      else
+	make_false(ALLOCATABLE_EXPR,result->TOK_flags);
+
+      /* non-allocatable targets are treated as allocated */
+      if(symt->allocated_flag || (symt->target && !symt->allocatable))
 	make_true(ALLOCATED_EXPR,result->TOK_flags);
       else
 	make_false(ALLOCATED_EXPR,result->TOK_flags);
