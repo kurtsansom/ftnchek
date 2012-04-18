@@ -1,6 +1,16 @@
-		 Ftnchek Version 4.alpha patch 0
-			    March 22, 2012
+		 Ftnchek Version 4.alpha patch 1
+			    April 18, 2012
 
+Major changes since patch 0:
 
-No patches released yet.
+  -- ONLY and rename lists in USE statements supported.
 
+  -- PRIVATE type components in module-declared types are honored.
+
+  -- Warns of pointer and allocatable variables possibly used before
+     associated or allocated.
+
+  -- Fixed bug in evaluation of intrinsic functions that may be used
+     in type declarations.
+
+  -- Fixed some bugs in handling of derived types and modules.

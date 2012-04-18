@@ -782,7 +782,7 @@ PRIVATE int nil(VOID)/* to make lint happy */
 { return 0; }
 
 #define READ_ERROR (oops_message(OOPS_FATAL,proj_line_num,NO_COL_NUM,\
-     "error reading project file"),nil())
+     "error reading module/project file"),nil())
 #define READ_OK nil()
 
 #define READ_FIRST_STR(LEADER,STR) (fscanf(fd,LEADER), \
@@ -896,7 +896,6 @@ void print_token_list(const Token *tlist)
   Token *t = tlist->next_token;
 
   printf("\nRENAME ONLY list contains : ");
-
   while (t != NULL ) {
     if (t->left_token != NULL) {	/* RENAME token */
       printf("%s => %s , ", t->left_token->src_text, t->src_text);
@@ -994,8 +993,9 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
    topfilename = new_global_string(buf);
    NEXTLINE;
 #ifdef DEBUG_PROJECT
-   if(debug_latest) printf("\nModule is %s from file %s\n",modulename,topfilename);
-   print_token_list(item_list);
+   if(debug_latest) { printf("\nModule is %s from file %s\n",modulename,topfilename);
+     print_token_list(item_list);
+   }
 #endif
 			/* Read derived type definitions */
    {
@@ -1086,7 +1086,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   char dtype_name[MAXNAME+1], 
        type_module[MAXNAME+1],
        component_name[MAXNAME+1];
-  int dtype_type, component_type;
+  long dtype_type, component_type;
   long dtype_size, component_size;
   int i, dtype_num_components;
   int dtype_public,		/* dtype flag bits */
