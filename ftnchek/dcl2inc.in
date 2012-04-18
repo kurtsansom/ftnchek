@@ -23,6 +23,6 @@
 # To change, edit dcl2inc.in and rerun configure.
 # The following lines are edited by configure when it builds dcl2inc.
 prefix=@prefix@
-exec_prefix=@exec_prefix@  
-libdir=@libdir@/ftnchek 
-exec @AWK@ -f ${libdir}/dcl2inc.awk "$@"
+datarootdir=@datarootdir@
+datadir=@datadir@/ftnchek 
+exec @AWK@ -f ${datadir}/dcl2inc.awk "$@"

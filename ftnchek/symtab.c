@@ -124,7 +124,12 @@ PROTO(PRIVATE Lsymtab* install_local,( int h, int datatype, int storage_class ))
 PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
 PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
+PRIVATE void make_equivalent(Lsymtab *symt1, Lsymtab *symt2);
 
+/*
+PRIVATE void print_equiv_list(Lsymtab *symt);
+void equivalence_result_vars(int hashno, int entry_hasno);
+*/
 
 
 #ifdef DEBUG_SIZES
@@ -156,11 +161,11 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	if( (symt->ATTRBIT) ) {					 \
 	     syntax_error(id->line_num,id->col_num,"redundant"); \
 	     msg_tail(keytok_name(attr)); msg_tail("declaration"); } \
-	else {  Lsymtab *equiv=symt; \
-	  do{ \
-	    equiv->ATTRBIT = TRUE; \
-	    equiv = equiv->equiv_link; \
-	  } while(equiv != symt); }
+	else { \
+	    symt->ATTRBIT = TRUE; \
+	} 
+	    
+	  
 
 	/* Same but also checks whether a mutually exclusive bit is
 	 * set. 
@@ -288,7 +293,7 @@ call_func(id,arg)	/* Process function invocation */
 			/* First encounter with intrinsic fcn: store info */
 		symt->intrinsic = TRUE;
 		symt->info.intrins_info = defn;
-		if( INTRINS_ID(defn->intrins_flags) == I_NULL ) { /* NULL returns pointer */
+		if( defn->intrins_flags&I_PTR ) { /* returns a pointer */
 		  symt->pointer = TRUE;
 		}
 	}
@@ -1240,7 +1245,8 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	    case type_SUBROUTINE:	/* Subroutine return: OK */
 		break;
 	    default:
-			symt->result_var = TRUE;
+		/* equivalence_result_vars(current_prog_unit_hash,h); */
+		symt->result_var = TRUE;
 		break;
 	}
 }/*def_function*/
@@ -1747,70 +1753,101 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
+/*
+PRIVATE void print_equiv_list(Lsymtab *symt)
+{
+  printf("\nEquivalence list of %s :",symt->name);
+  Lsymtab *ep = symt;
+  if (ep == NULL) return;
+
+  do {
+    printf("  %s", ep->name);
+    ep = ep->equiv_link;
+  } while (ep != symt);
+
+  printf("\n");
+
+  return;
+}
+*/
+
+/* equivalence two symbol table entries by swapping equiv_links */
+void make_equivalent(Lsymtab *symt1, Lsymtab *symt2)
+{
+  Lsymtab *temp;
+
+  if (symt1 == NULL || symt2 == NULL || symt1 == symt2)
+    return;
+
+  temp = symt1->equiv_link;
+  symt1->equiv_link = symt2->equiv_link;
+  symt2->equiv_link = temp;
+
+  return;
+}
+
+/* Make result variables of function and entry point equivalent */
+/*
+void equivalence_result_vars(int hashno, int entry_hashno)
+{
+  Lsymtab *func = hashtab[hashno].loc_symtab;
+  Lsymtab *entry = hashtab[entry_hashno].loc_symtab;
+  */
+
+  /* If no RESULT clause, then equiv_link points to self, which is
+   * the result variable.  Otherwise it points to result variable.
+   * The result variables of a function subprogram are all storage
+   * associated. */
+/*
+  make_equivalent(func->equiv_link, entry->equiv_link);
+}
+*/
+
 void do_result_spec(Token *p, int hashno, int entry_hashno)
 {
-  if (strcmp(hashtab[p->value.integer].name, hashtab[hashno].name) == 0) {
-        syntax_error(p->line_num, p->col_num,
-                 "Result name must not be the same as function name");
+  Lsymtab *func = hashtab[hashno].loc_symtab;
+  Lsymtab *entry = hashtab[entry_hashno].loc_symtab;
+  Lsymtab *result = hashtab[p->value.integer].loc_symtab;
+
+  if( (strcmp(result->name, func->name) == 0) || 
+      (strcmp(result->name, entry->name) == 0) ) {
+      syntax_error(p->line_num, p->col_num,
+	      "Result name must not be the same as entry name");
   }
-  hashtab[entry_hashno].loc_symtab->result_var = FALSE;
-  hashtab[p->value.integer].loc_symtab->result_var = TRUE;
+  entry->result_var = FALSE;
+  result->result_var = TRUE;
+
+  /* create external link from function/entry name to equivalence ring
+   * of result variables
+   */
+  /*
+  entry->equiv_link = result;
+  */
+
+/*
+#ifdef DEBUG_EQUIVALENCE
+  fprintf(stdout,"\nExternal link from %s to %s\n",
+	  entry->name, entry->equiv_link->name);
+#endif
+
+
+
+#ifdef DEBUG_EQUIVALENCE
+  print_equiv_list(result);
+  print_equiv_list(func->equiv_link);
+#endif
+*/
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {
 	fprintf(list_fd,"\nFUNCTION name = %s",
-		hashtab[hashno].name);
+		func->name);
 	fprintf(list_fd,"\nENTRY name = %s",
-		hashtab[entry_hashno].name);
+		entry->name);
 	fprintf(list_fd,"\nRESULT variable = %s",
-		hashtab[p->value.integer].name);
+		result->name);
     }
 #endif
-}
-
-void do_bind_spec2(Token *p, SUBPROG_TYPE subprogtype) 
-{
-    Token *currToken;
-    for (currToken = p->left_token; currToken != NULL;
-            currToken = currToken->next_token) {
-
-        if (currToken->tclass == tok_identifier) { /* binding language, only C */
-#ifdef DEBUG_SUFFIX
-	    if(debug_latest) {
-		fprintf(list_fd,"\nLanguage binding spec, language=%s",hashtab[currToken->value.integer].name);
-	    }
-#endif
-            if (strcmp(hashtab[currToken->value.integer].name, "C") != 0)
-                syntax_error(currToken->line_num, currToken->col_num,
-                         "invalid binding language, must be C");
-        }
-
-        else if(currToken->tclass == '=') { /* NAME=identifier */
-#ifdef DEBUG_SUFFIX
-	    if(debug_latest) {
-		fprintf(list_fd,"\nLanguage binding spec, %s%s%s",
-			hashtab[currToken->left_token->value.integer].name,/*keywd NAME*/
-			currToken->src_text, /* = */
-			hashtab[currToken->next_token->value.integer].name /* bound name */
-		    );
-	    }
-#endif
-
-	    if (strcmp(hashtab[currToken->left_token->value.integer].name, "NAME") != 0)
-		syntax_error(currToken->left_token->line_num, 
-			     currToken->left_token->col_num,
-                     "invalid language binding spec");
-	    else {
-		if (subprogtype == internal_subprog) {
-		    syntax_error(currToken->left_token->line_num, 
-				 currToken->left_token->col_num,
-				 "language binding spec with NAME not permitted in internal procedure");
-		}
-		else { /* passed checks, process it */
-		}
-	    }
-	} /* else oops, can't happen */
-    }
 }
 
 /* check syntax errors in suffix */
@@ -1929,9 +1966,7 @@ equivalence(id1,id2)
 	}
 		/* now swap equiv_links so their equiv lists are united */
 	else {
-	    temp = symt1->equiv_link;
-	    symt1->equiv_link = symt2->equiv_link;
-	    symt2->equiv_link = temp;
+	   make_equivalent(symt1,symt2);
 	}
 
 		/* If either guy is in common, both are in common */

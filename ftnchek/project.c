@@ -374,7 +374,7 @@ find_variables(Lsymtab *sym_list[])
 PRIVATE void
 mod_type_out(Lsymtab *lsymt, FILE *fd)
 {
-  type_t type_index;
+  int type_index;
   Dtype *dtype;
   DtypeComponent *curr;
   int i, num_components;
@@ -1086,7 +1086,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   char dtype_name[MAXNAME+1], 
        type_module[MAXNAME+1],
        component_name[MAXNAME+1];
-  type_t dtype_type, component_type;
+  int dtype_type, component_type;
   long dtype_size, component_size;
   int i, dtype_num_components;
   int dtype_public,		/* dtype flag bits */

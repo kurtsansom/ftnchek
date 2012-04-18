@@ -90,15 +90,18 @@
 # These definitions should be customized for your local conventions
 # if you want to do "make install" or "make uninstall".
 #  prefix is the root of the destination for installing things.
+#  exec_prefix is used for arch-dependent files e.g. executables.
 #  bindir is directory for executables, mandir for man pages.
 #  manext is the extension on man pages, including the dot.
-#  libdir is the directory for library files (dcl2inc.awk).  It must
-#    agree with the libdir defined in dcl2inc as made by configure.
+#  datarootdir is root of directory tree for arch-indep data files.
+#  datadir is where arch-indep data files go (usually /usr/local/share).
+#  libdir is for object code, of which we currently have none.
 #  lispdir is where to put ftnchek.el.
 
 prefix		= @prefix@
 exec_prefix	= @exec_prefix@
 bindir		= @bindir@
+datarootdir	= @datarootdir@
 datadir		= @datadir@
 mandir		= @mandir@
 manext		= .1
@@ -368,7 +371,7 @@ fortran.c: fortran.y
 	fi
 
 # If tokdefs.h changes, update the lookup table used by block-balancing code.
-block_match.h: tokdefs.h make_blockmatch.pl
+block_match.h: tokdefs.h make_blockmatch.pl.in
 	./make_blockmatch.pl > block_match.h
 
 # This target makes an enum type for doing reverse lookup in the iokeywords table.
@@ -500,9 +503,9 @@ install-exe:	ftnchek$(EXE) dcl2inc$(CMD)
 	$(CP) ftnchek$(EXE) $(bindir)
 	-$(STRIP) $(bindir)/ftnchek$(EXE)
 	$(CHMOD) 755 $(bindir)/ftnchek$(EXE)
-	-$(MKDIR) -p $(libdir)
-	$(CP) dcl2inc.awk $(libdir)/dcl2inc.awk
-	$(CHMOD) 644 $(libdir)/dcl2inc.awk
+	-$(MKDIR) -p $(datadir)
+	$(CP) dcl2inc.awk $(datadir)/dcl2inc.awk
+	$(CHMOD) 644 $(datadir)/dcl2inc.awk
 	$(CP) dcl2inc$(CMD) $(bindir)/dcl2inc$(CMD)
 	$(CHMOD) 755 $(bindir)/dcl2inc$(CMD)
 	-$(RM) $(bindir)/fcl2vcg
@@ -584,14 +587,14 @@ install-lisp:
 uninstall:
 	-$(RM) $(bindir)/dcl2inc$(CMD)
 	-$(RM) $(bindir)/ftnchek$(CMD)
-	-$(RM) $(libdir)/dcl2inc.awk
+	-$(RM) $(datadir)/dcl2inc.awk
 	-$(RM) $(mandir)/cat1/dcl2inc$(manext)
 	-$(RM) $(mandir)/cat1/ftnchek$(manext)
 	-$(RM) $(mandir)/dcl2inc.z $(mandir)/ftnchek.z # SGI
 	-$(RM) $(mandir)/man1/dcl2inc$(manext)
 	-$(RM) $(mandir)/man1/ftnchek$(manext)
 	-$(RM) $(lispdir)/ftnchek.el
-	-$(RMDIR) $(libdir)
+	-$(RMDIR) $(datadir)
 
 # WARNING: do NOT execute this target, unless you have nroff/troff or groff
 # to recreate the formatted documentation files.

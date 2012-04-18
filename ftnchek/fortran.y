@@ -1196,17 +1196,17 @@ unlabeled_entry_stmt	:	tok_ENTRY symbolic_name
 function_stmt	:   unlabeled_function_stmt EOS
 		|   unlabeled_function_stmt suffix
 			{
-                if (block_depth == 0 /* external subprog has not been pushed yet */
-                      ||  block_stack[block_depth-1].sclass == tok_MODULE ) {
-                    do_suffix(tok_FUNCTION, module_subprog,
-                        current_prog_unit_hash,&($2),$1.value.integer);
-                }
-                else {
-                    do_suffix(tok_FUNCTION, internal_subprog,
-                        current_prog_unit_hash,&($2),$1.value.integer);
-                }
+                	  if (block_depth == 0 /* external subprog has not been pushed yet */
+			      ||  block_stack[block_depth-1].sclass == tok_MODULE ) {
+			    do_suffix(tok_FUNCTION, module_subprog,
+				      $1.value.integer,&($2),$1.value.integer);
+			  }
+			  else {
+			    do_suffix(tok_FUNCTION, internal_subprog,
+				      $1.value.integer,&($2),$1.value.integer);
+			  }
 			} 
-            EOS
+	            EOS
 		;
 
 unlabeled_function_stmt

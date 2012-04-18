@@ -62,7 +62,6 @@ PROTO(PRIVATE char* sized_typename,( int type, long size ));
 PROTO(PRIVATE void report_mismatch,( const Token *term1, const Token *op, const Token *term2 ));
 PROTO(PRIVATE void report_type,( const Token *t ));
 PROTO(PRIVATE int int_power,( int x, int n ));
-PROTO(PRIVATE int eval_intrins,( IntrinsInfo *defn, Token *args ));
 
 
 	/* shorthand for datatypes.  must match those in symtab.h */
@@ -546,6 +545,11 @@ if(debug_latest) {
       make_true(DIM_BOUND_EXPR,result->TOK_flags);
     }
 
+    if( is_true(EVALUATED_EXPR,term1->TOK_flags)
+	 && is_true(EVALUATED_EXPR,term2->TOK_flags) ) {
+		make_true(EVALUATED_EXPR,result->TOK_flags);
+    }
+
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest)
@@ -613,8 +617,7 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 
 		/* Propagate the value of integer constant expressions */
 
-    if( is_true(EVALUATED_EXPR,term1->TOK_flags)
-	&& is_true(EVALUATED_EXPR,term2->TOK_flags) ) {
+    if(is_true(EVALUATED_EXPR,result->TOK_flags)) {
 	if(result_type == type_INTEGER) {	/* Only ints propagated */
 	  int a = int_expr_value(term1),
 	      b = int_expr_value(term2),
@@ -1106,11 +1109,14 @@ func_ref_expr(id,args,result)
 		/* Generic Intrinsic functions: use propagated arg type */
 	    if(rettype == type_GENERIC) {
 		if(args->next_token == NULL) {
-		  if( INTRINS_ID(defn->intrins_flags) == I_NULL ) {
-		    /* NULL with no arg takes type of assignee */
-		    rettype = type_GENERIC;
-		  }
-		  else {
+		    /* NULL with no arg takes type of assignee, so
+		       leave its type as from table, type_GENERIC, and
+		       type will be set in assignment_stmt_type.  For
+		       other generic intrinsics, having no args is an
+		       error so make them type_UNDECL to raise an
+		       error.
+		     */
+		  if( INTRINS_ID(defn->intrins_flags) != I_NULL ) {
 		    rettype = type_UNDECL;
 		  }
 		  retsize = size_DEFAULT;
@@ -1125,7 +1131,7 @@ func_ref_expr(id,args,result)
 #endif
 		}
 			/* special case: REAL(integer|[d]real) ->  real */
-		if((defn->intrins_flags&I_SP_R) &&
+		if((INTRINS_ID(defn->intrins_flags) == I_SP_R) &&
 		   (rettype != type_COMPLEX) && (rettype != type_DCOMPLEX)) {
 			rettype = type_REAL;
 			retsize = size_DEFAULT;
@@ -1147,7 +1153,7 @@ func_ref_expr(id,args,result)
 	      else {		/* non-generic */
 
 				/* special case: CHAR(code): size=1 */
-		if(defn->intrins_flags&I_CHAR) {
+		if(INTRINS_ID(defn->intrins_flags) == I_CHAR) {
 		  retsize = 1;
 		}
 	      }
@@ -1191,18 +1197,28 @@ symt->name,sized_typename(rettype,retsize));
 		/* If intrinsic and all arguments are PARAMETER_EXPRs,
 		   then result is one too. */
 	if( symt->intrinsic ) {
-				/* Evaluate intrinsic if result is
-				   integer, the args are const (except for
-				   inquiry functions), and a handler is defined.
+	  int (*handler)( Token *args );
+
+				/* Evaluate intrinsic if a handler is
+				   defined and: result is integer or
+				   has always-evaluate flag; and the
+				   args are evaluated or function is
+				   inquiry.
 				 */
-	  if( (rettype == type_INTEGER && INTRINS_ID(defn->intrins_flags) != 0) || \
-	      INTRINS_ID(defn->intrins_flags) == I_NULL )
+	  if( (handler = defn->ii_handler) != NULL &&
+	      (rettype == type_INTEGER || defn->intrins_flags&I_EVAL) &&
+	      (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ) )
 	    {
-		     result->value.integer = eval_intrins(defn,args);
+		     result->value.integer = (*handler)(args);
 				/* Evaluation routines can affect the flags */
 		     copy_flag(EVALUATED_EXPR,result->TOK_flags,args->TOK_flags);
 	    }
-	    copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
+	  else
+	    {
+	      result->value.integer = 0;
+	      make_false(EVALUATED_EXPR,result->TOK_flags);
+	    }
+	  copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
 
 
 
@@ -1517,33 +1533,6 @@ int_power(x,n)
 	else return 1;
 }
 
-
-PRIVATE int
-#if HAVE_STDC
-eval_intrins(IntrinsInfo *defn, Token *args)
-#else /* K&R style */
-eval_intrins(defn,args)
-     IntrinsInfo *defn;
-     Token *args;
-#endif /* HAVE_STDC */
-{
-    int (*handler)( Token *args );
-    handler = defn->ii_handler;
-			/* To run handler, args must be evaluated,
-			   except for inquiry */
-    if( (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ) &&
-	handler != NULL ) {
-      return (*handler)(args);
-    }
-    else {
-#ifdef DEBUG_EXPRTYPE
-      if(debug_latest)
-	(void)fprintf(list_fd,"\nIntrinsic %s not handled",defn->name);
-      make_false(EVALUATED_EXPR,args->TOK_flags);
-#endif
-      return 0;
-    }
-}
 
 
 				/* Undefine special macros */

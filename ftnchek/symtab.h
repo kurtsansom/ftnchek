@@ -545,19 +545,13 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 
 			/* for intrins_flags field */
 
-	/* Integer-valued intrinsics that are evaluated if args const */
-#define I_ABS		0x1
-#define I_SIGN		0x2
-#define I_DIM		0x3
-#define I_MOD		0x4
-#define I_MAX		0x5
-#define I_MIN		0x6
-#define I_ICHAR		0x7
-#define I_INDEX		0x8
-#define I_NULL		0x9
-#define I_EVALUATED	0xf	/* any bit of digit set */
-				/* macro to identify evaluated functions */
-#define INTRINS_ID(flags) ((flags)&I_EVALUATED)
+	/* Define IDs for particular intrinsics that need special treatment */
+#define I_CHAR		0x1	/* CHAR function returns size=1 */
+#define I_SP_R		0x2	/* specific REAL function */
+#define I_NULL		0x3	/* NULL function yields disassociated result */
+#define I_ID		0xf	/* mask for hex digit */
+				/* macro to identify particular functions */
+#define INTRINS_ID(flags) ((flags)&I_ID)
 
 		/* Various properties of intrinsics*/
 #define I_F77 		0x00	/* Standard intrinsic (no flag: placeholder) */
@@ -566,15 +560,15 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_NONPURE	0x40	/* Arg need not be set when called */
 #define I_C_TO_R	0x80	/* Complex -> real in generic form */
 #define I_NOTARG	0x100	/* Not allowed as actual argument */
-#define I_SP_R		0x200	/* special for REAL function */
-#define I_CHAR		0x400	/* special handling for CHAR function */
-#define I_INQ		0x800  	/* inquiry, ignores value of arg */
-#define I_QARG		0x1000 	/* Arg type is R*16 or X*32 */
-#define I_QUAD		0x2000 	/* Result type is R*16 or X*32 */
-#define I_EXTRA		0x4000 	/* commonly found extra intrinsics */
-#define I_VMS		0x8000 	/* VMS systems only */
-#define I_UNIX		0x10000	/* Unix systems only */
-#define I_NONF90	0x20000	/* Not in F90 standard */
+#define I_INQ		0x200	/* inquiry, ignores value of arg */
+#define I_QARG		0x400	/* Arg type is R*16 or X*32 */
+#define I_QUAD		0x800  	/* Result type is R*16 or X*32 */
+#define I_EXTRA		0x1000 	/* commonly found extra intrinsics */
+#define I_VMS		0x2000 	/* VMS systems only */
+#define I_UNIX		0x4000 	/* Unix systems only */
+#define I_NONF90	0x8000 	/* Not in F90 standard */
+#define I_EVAL		0x10000 /* Always evaluate */
+#define I_PTR		0x20000 /* Returns a pointer */
 
 				/* Define flag type big enough for 17 bits */
 #if (SIZEOF_SHORT > 2)
@@ -1134,7 +1128,7 @@ PROTO(void save_com_block,( Token *id ));
 PROTO(void set_implicit_type,( int type, long size, char *len_text, int c1, int c2 ));
 PROTO(void stmt_function_stmt,( Token *id ));
 PROTO(char * token_name,( Token *t ));
-PROTO(char * type_name,( type_t t ));
+PROTO(char * type_name,( int t ));
 PROTO(void undef_do_variable,( int h ));
 PROTO(void use_actual_arg,( Token *id ));
 PROTO(void use_implied_do_index,( Token *id ));
