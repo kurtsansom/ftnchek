@@ -1,4 +1,4 @@
-		 README file for ftnchek version 4 alpha 0
+		 README file for ftnchek version 4 alpha 1
 
 Author: Robert Moniot
 	Fordham University
@@ -6,7 +6,7 @@ Author: Robert Moniot
 	Telephone: (212) 636-6334
 	URL: http://www.dsm.fordham.edu/~moniot
 
-Date:	March 22, 2012
+Date:	April 18, 2012
 
 Ftnchek (short for Fortran checker) is designed to detect certain
 errors in a Fortran program that a compiler usually does not.  Ftnchek
@@ -44,13 +44,9 @@ ftnchek does not yet do:
 
   -- Array and structure initializers are not accepted; they generate
      syntax errors.  PARAMETERs may not be array-valued.
-  -- Intrinsic functions introduced with F90 are not recognized.
+  -- Most intrinsic functions introduced with F90 are not recognized.
   -- KIND parameters of data types are ignored.  KIND parameters on
      constants are not recognized.
-  -- ONLY lists in USE statements are ignored: all module entities are
-     imported.
-  -- PRIVATE type components in module-declared types are treated as
-     PUBLIC.
   -- NAMELISTs and DATA statements in modules do not get exported.
   -- INTERFACE blocks are not recognized; they generate syntax errors.
   -- Set/used status of variables defined in modules is not correctly

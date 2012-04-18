@@ -20,6 +20,7 @@ Subst(){
 	sed -e 's%@prefix@%/usr/local%' \
 	    -e 's%@exec_prefix@%${prefix}%' \
 	    -e 's%@bindir@%${exec_prefix}/bin%' \
+	    -e 's%@datarootdir@%${prefix}/share%' \
 	    -e 's%@datadir@%${prefix}/share%' \
 	    -e 's%@mandir@%${prefix}/man%' \
 	    -e 's%@libdir@%${exec_prefix}/lib%' \
