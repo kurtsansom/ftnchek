@@ -1086,7 +1086,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   char dtype_name[MAXNAME+1], 
        type_module[MAXNAME+1],
        component_name[MAXNAME+1];
-  long dtype_type, component_type;
+  int dtype_type, component_type;
   long dtype_size, component_size;
   int i, dtype_num_components;
   int dtype_public,		/* dtype flag bits */
@@ -1116,7 +1116,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   char *local_name;
 
   READ_STR(" dtype",dtype_name);
-  READ_LONG(" type",dtype_type);
+  READ_NUM(" type",dtype_type);
   READ_STR(" module",type_module);
   READ_LONG(" size",dtype_size);
   fscanf(fd," flags %d %d %d %d %d %d %d %d",
@@ -1221,7 +1221,7 @@ if (use_this_item) {
   /* read in the components */
   for(i = 0; i < dtype_num_components; i++) {
     READ_STR(" component",component_name);
-    READ_LONG(" type",component_type);
+    READ_NUM(" type",component_type);
     READ_LONG(" size",component_size);
     fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	   &component_array,
@@ -1375,10 +1375,12 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
           id_param_text[strlen(id_param_text)] = '\0'; /* remove trailing quote */
           symt->info.param->value.string = new_global_string(id_param_text+1); /* skip leading quote */
           break;
+#ifndef NO_FLOATING_POINT
         case type_REAL:
         case type_DP:
           sscanf(id_param_text,"%lf",&(symt->info.param->value.dbl));
           break;
+#endif
         default:
           symt->info.param->value.integer = 0;
           break;
