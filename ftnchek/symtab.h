@@ -531,7 +531,8 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 	LINENO_t line_num, top_line_num;
 	unsigned
 	  external_decl:1,
-	  actual_arg:1;
+	  actual_arg:1,
+	  is_defn:1;
 } TokenListHeader;
 
 

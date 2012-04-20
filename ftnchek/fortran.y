@@ -1163,10 +1163,14 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 			 */
 /* 9 */
 entry_stmt	:	unlabeled_entry_stmt EOS
+	   		{
+			  equivalence_result_vars($1.value.integer);
+	   		}
 		|	unlabeled_entry_stmt suffix
 			{
 			  do_suffix(tok_ENTRY, internal_subprog,
 					current_prog_unit_hash,&($2),$1.value.integer);
+			  equivalence_result_vars($2.value.integer);
 			}
 			EOS
 		 ;
@@ -2450,8 +2454,7 @@ char_type_decl_item: char_type_decl_entity
 					  $3.value.integer,
 					  new_tree_text(
 					     $3.left_token == NULL?
-					     &($3): $3.left_token )
-					  );
+					     &($3): $3.left_token ));
 			     process_attrs(&($1),(Token *)NULL);
 			     set_attr_flags(&($1),&($$));
 			}
@@ -2487,8 +2490,7 @@ char_type_decl_item: char_type_decl_entity
 					 $3.value.integer,
 					 new_tree_text(
 					     $3.left_token == NULL?
-					     &($3): $3.left_token )
-				);
+					     &($3): $3.left_token ));
 			    process_attrs(&($1),(Token *)NULL);
 			    set_attr_flags(&($1),&($$));
 			    if(f77_initializers || f90_initializers) {
@@ -2520,8 +2522,7 @@ char_type_decl_entity:symbolic_name
 					  $3.value.integer,
 					  new_tree_text(
 					     $3.left_token == NULL?
-					     &($3): $3.left_token )
-					  );
+					     &($3): $3.left_token ));
 			     process_attrs(&($1),current_dim_bound_list);
 			     set_attr_flags(&($1),&($$));
 			}
@@ -3243,7 +3244,7 @@ cray_pointer_item:      '(' pointer_name ',' pointee_name ')'
 pointer_name    :       symbolic_name
 			{
 			     declare_type(&($1),type_INTEGER,local_ptrsize,
-					  NULL );
+					  NULL);
 			}
 		;
 

@@ -125,11 +125,7 @@ PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
 PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
 PRIVATE void make_equivalent(Lsymtab *symt1, Lsymtab *symt2);
-
-/*
-PRIVATE void print_equiv_list(Lsymtab *symt);
-void equivalence_result_vars(int hashno, int entry_hasno);
-*/
+void equivalence_result_vars(int result_hasno);
 
 
 #ifdef DEBUG_SIZES
@@ -587,15 +583,7 @@ check_stmt_function_args(symt,id,arg)
 
 
 void
-#if HAVE_STDC
 declare_type(Token *id, int datatype, long int size, char *size_text)
-#else /* K&R style */
-declare_type(id,datatype,size,size_text)
-	Token *id;
-	int datatype;
-	long size;
-	char *size_text;
-#endif /* HAVE_STDC */
 {
 	int h=id->value.integer;
 	Lsymtab *symt=hashtab[h].loc_symtab;
@@ -652,6 +640,21 @@ declare_type(id,datatype,size,size_text)
 				 */
 	      symt->line_declared = id->line_num;
 	      symt->file_declared = inctable_index;
+
+	      /* If function has a RESULT variable that is later
+	       * declared, function gets same type as RESULT variable.
+	       * (ENTRY is handled differently: if it has a RESULT
+	       * variable, that needs to be declared in specifications
+	       * prior to ENTRY, so it gets type from RESULT variable in
+	       * do_result_spec.)
+	       */
+	      if(symt->result_var) {
+		      /* Find the function this variable is in */
+		  Lsymtab *func = hashtab[current_prog_unit_hash].loc_symtab;
+		     /* Give function the variable's type, and it has status
+		      * of a subprog. */
+		  func->type = type_pack(class_SUBPROGRAM, datatype);
+	      }
 	  }
 	  }
 
@@ -1126,7 +1129,7 @@ def_ext_name(id)		/* Process external lists */
 
 void def_function(int datatype, long int size, char *size_text, Token *id, Token *args, SUBPROG_TYPE subprogtype)
 {
-	int storage_class, t;
+	int storage_class;
 	int h=id->value.integer;
 	Lsymtab *symt, *old_symt;
 	Gsymtab *gsymt;
@@ -1153,11 +1156,10 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	   */
 	   if (subprogtype == module_subprog && in_enclosing_scope(old_symt)) {
 
-	      t = datatype_of(old_symt->type);
 	      	/* Symbol seen before: check it & change class */
 
 	      if(storage_class_of(old_symt->type) == class_VAR) {
-	          old_symt->type = type_pack(class_SUBPROGRAM,t);
+	          old_symt->type = type_pack(class_SUBPROGRAM,datatype);
 	          old_symt->info.toklist = NULL;
 
 	           /* copy accessibility attribute to this entry */
@@ -1223,6 +1225,8 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 
 	TH_ptr->tokenlist = (args == NULL ? NULL: args->next_token);
 	TH_ptr->next = symt->info.toklist;
+	TH_ptr->is_defn = TRUE;
+
 	symt->info.toklist = TH_ptr;
 
 	symt->entry_point = TRUE;
@@ -1237,7 +1241,9 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 #endif
 	}
 
-	/* Test if it is a function to turn on result_var flag */
+	/* Test if it is a function to turn on result_var flag.
+	   This may be changed later if there is a RESULT spec.
+	 */
 	switch(datatype) {
 	    case type_MODULE:
 	    case type_PROGRAM:
@@ -1245,7 +1251,6 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 	    case type_SUBROUTINE:	/* Subroutine return: OK */
 		break;
 	    default:
-		/* equivalence_result_vars(current_prog_unit_hash,h); */
 		symt->result_var = TRUE;
 		break;
 	}
@@ -1753,25 +1758,10 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
-/*
-PRIVATE void print_equiv_list(Lsymtab *symt)
-{
-  printf("\nEquivalence list of %s :",symt->name);
-  Lsymtab *ep = symt;
-  if (ep == NULL) return;
-
-  do {
-    printf("  %s", ep->name);
-    ep = ep->equiv_link;
-  } while (ep != symt);
-
-  printf("\n");
-
-  return;
-}
-*/
-
-/* equivalence two symbol table entries by swapping equiv_links */
+/* Equivalence two symbol table entries by swapping equiv_links.
+   Do not call this on entries that are already equivalenced.
+   Equivalence items form a ring.
+ */
 void make_equivalent(Lsymtab *symt1, Lsymtab *symt2)
 {
   Lsymtab *temp;
@@ -1786,57 +1776,72 @@ void make_equivalent(Lsymtab *symt1, Lsymtab *symt2)
   return;
 }
 
-/* Make result variables of function and entry point equivalent */
-/*
-void equivalence_result_vars(int hashno, int entry_hashno)
+/* Make result variables of function and entry point equivalent.
+ * If function/entry has no RESULT spec then the function/entry
+ * variable itself is the result variable.
+ */
+void equivalence_result_vars(int result_hashno)
 {
-  Lsymtab *func = hashtab[hashno].loc_symtab;
-  Lsymtab *entry = hashtab[entry_hashno].loc_symtab;
-  */
+  int i;
+  Lsymtab *result = hashtab[result_hashno].loc_symtab;
 
-  /* If no RESULT clause, then equiv_link points to self, which is
-   * the result variable.  Otherwise it points to result variable.
-   * The result variables of a function subprogram are all storage
-   * associated. */
-/*
-  make_equivalent(func->equiv_link, entry->equiv_link);
+  /* Search for first result variable and equiv this new one to it. */
+  for (i = curr_scope_bottom; i < loc_symtab_top; i++) {
+    if( loc_symtab[i].result_var ) {
+      make_equivalent(result, &loc_symtab[i]);
+      break;
+    }
+  }
+
+  return;
 }
-*/
+
 
 void do_result_spec(Token *p, int hashno, int entry_hashno)
 {
-  Lsymtab *func = hashtab[hashno].loc_symtab;
-  Lsymtab *entry = hashtab[entry_hashno].loc_symtab;
-  Lsymtab *result = hashtab[p->value.integer].loc_symtab;
+  Lsymtab *func = hashtab[hashno].loc_symtab; /* prog unit */
+  Lsymtab *entry = hashtab[entry_hashno].loc_symtab; /* entry */
+  Lsymtab *result = hashtab[p->value.integer].loc_symtab; /* result var */
+  int entry_datatype = datatype_of(entry->type);
+  int result_datatype = datatype_of(result->type);
 
   if( (strcmp(result->name, func->name) == 0) || 
       (strcmp(result->name, entry->name) == 0) ) {
       syntax_error(p->line_num, p->col_num,
 	      "Result name must not be the same as entry name");
   }
-  entry->result_var = FALSE;
-  result->result_var = TRUE;
 
-  /* create external link from function/entry name to equivalence ring
-   * of result variables
+  /* If function has type spec, the result variable gets its type */
+  if (entry_datatype != type_UNDECL) {
+      /* It is not legally possible for both entry and result to
+	 have declared types.  Can only happen for ENTRY point.
+       */
+      if( result_datatype != type_UNDECL ) {
+	  syntax_error(p->line_num,NO_COL_NUM,
+		       "ENTRY name has a declared type");
+      }
+      else {
+	  result_datatype = entry_datatype;
+      }
+  }
+
+  /* propagate RESULT type to ENTRY name */
+  else if (result_datatype != type_UNDECL) {
+      entry_datatype = result_datatype;
+  }
+
+  /* Turn the function/entry name into an external name in local symbol
+   * table. Type is currently UNDECL but will get RESULT type
    */
-  /*
-  entry->equiv_link = result;
-  */
+  entry->result_var = FALSE;
+  entry->type = type_pack(class_SUBPROGRAM, entry_datatype); 
+  entry->external = TRUE;
 
-/*
-#ifdef DEBUG_EQUIVALENCE
-  fprintf(stdout,"\nExternal link from %s to %s\n",
-	  entry->name, entry->equiv_link->name);
-#endif
-
-
-
-#ifdef DEBUG_EQUIVALENCE
-  print_equiv_list(result);
-  print_equiv_list(func->equiv_link);
-#endif
-*/
+  /* propagate return type of function if available
+   * to RESULT variable 
+   */
+  result->result_var = TRUE;
+  result->type = type_pack(class_VAR, entry_datatype);
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {

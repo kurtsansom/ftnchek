@@ -167,70 +167,12 @@ else {
 
 		        break;	/* end case class_COMMON_BLOCK */
 
-
-			/* Are we inside a function or subroutine? */
 		    case class_VAR:
-
-		       if(loc_symtab[i].entry_point) {
-if((gsymt=hashtab[h].glob_symtab) == NULL) {
-    oops_message(OOPS_NONFATAL,NO_LINE_NUM,NO_COL_NUM,
-    "subprog not in global symtab:");
-    oops_tail(loc_symtab[i].name);
-}
-else {
-                          ArgListHeader *a;
-			  int implied_type;
-
-				/* Make each token list into an array of
-				   args for global table */
-			  while (head_ptr != NULL){
-			     a=make_dummy_arg_array(head_ptr->tokenlist);
-			     make_arg_names(head_ptr->tokenlist,
-					   a,gsymt->info.arglist);
-			     implied_type = get_type(&(loc_symtab[i]));
-			     a->type = type_pack(
-			         class_SUBPROGRAM,implied_type);
-			     a->size = get_size(&(loc_symtab[i]),implied_type);
-			     a->prog_unit = curr_gsymt;
-			     a->filename = head_ptr->filename;
-			     a->topfile = top_filename;
-			     a->line_num = head_ptr->line_num;
-			     a->top_line_num = head_ptr->top_line_num;
-
-			     a->next = gsymt->info.arglist;
-			     gsymt->info.arglist = a;
-			/* store arglist in local symtab for project file */
-			     loc_symtab[i].info.arglist = a;
-			     head_ptr = head_ptr->next;
-		          }/* end while (head_ptr != NULL) */
-			  /* used_flag=1 does not imply call of the routine
-			     itself unless it is recursive.  (Recursive procs
-			     are not implemented yet.)  So do not copy it
-			     from local to global symbol table.
-			   */
-			  if(loc_symtab[i].set_flag)
-			         gsymt->set_flag =
-				   gsymt->set_this_file = TRUE;
-			  if(loc_symtab[i].library_prog_unit)
-				 gsymt->library_prog_unit = TRUE;
-			  gsymt->defined = TRUE;
-			  if(gsymt != curr_gsymt) {
-			    gsymt->internal_entry = TRUE;
-			    gsymt->link.prog_unit = curr_gsymt;
-			  }
-
-			  /* Resolve accessibility of module subprog: it
-			    is private if so declared or else if not
-			    declared public and module is declared private.
-			  */
-			  gsymt->private = loc_symtab[i].private ||
-			    (!loc_symtab[i].public &&
-			     module_accessibility == tok_PRIVATE);
-}
-			}/* end if(loc_symtab[i].entry_point) */
-		    	break; /* end case class_VAR */
-
                     case class_SUBPROGRAM:
+
+		    if (loc_symtab[i].entry_point ||
+			storage_class_of(loc_symtab[i].type) ==
+			class_SUBPROGRAM) {
 if((gsymt=hashtab[h].glob_symtab) == NULL) {
     oops_message(OOPS_NONFATAL,NO_LINE_NUM,NO_COL_NUM,
     "subprog not in global symtab:");
@@ -240,6 +182,12 @@ else {
                         ArgListHeader *a;
 			int implied_type;
 			while (head_ptr != NULL){
+			  if (head_ptr->is_defn) {
+			    /* function/subroutine/entry definition */
+			     a=make_dummy_arg_array(head_ptr->tokenlist);
+			     make_arg_names(head_ptr->tokenlist,
+					   a,gsymt->info.arglist);
+			  }
 			  /* Subprogram invoked in an internal subprogram 
 			   * may also have invocations in the containing
 			   * subprogram, which is a different scope.  Here,
@@ -247,9 +195,12 @@ else {
 			   * scope, which can be determined from symtab index.
 			   */
 
-			  if(head_ptr->external_decl || head_ptr->actual_arg)
+			  else if(head_ptr->external_decl || head_ptr->actual_arg) {
+			    /* external declaration or use as actual arg */
 			    a=make_arrayless_alist();
+			  }
 			  else {
+			    /* call/invocation */
 			    a=make_arg_array(head_ptr->tokenlist);
 #ifdef DEBUG_ARG_ALIAS
 			    if(debug_latest) {
@@ -283,36 +234,72 @@ else {
 			  a->topfile = top_filename;
 			  a->line_num = head_ptr->line_num;
 			  a->top_line_num = head_ptr->top_line_num;
+
+			  if(!head_ptr->is_defn) {
 			  a->external_decl = head_ptr->external_decl;
 			  a->actual_arg = head_ptr->actual_arg;
+			  }
 
 			  a->next = gsymt->info.arglist;
 			  gsymt->info.arglist = a;
 		/* put arglist into local symtab for project file use */
 			  loc_symtab[i].info.arglist = a;
 			  head_ptr = head_ptr->next;
-		        }
-			if(loc_symtab[i].used_flag)
-			        gsymt->used_flag =
-				  gsymt->used_this_file = TRUE;
-			if(loc_symtab[i].invoked_as_func)
-			        gsymt->invoked_as_func =
-				  gsymt->invoked_as_func_this_file = TRUE;
-}
+		        }/* end while (head_ptr != NULL) */
+
+			if(loc_symtab[i].entry_point) { /* has defn */
+			  /* used_flag=1 does not imply call of the routine
+			     itself unless it is recursive.  So do not copy it
+			     from local to global symbol table.
+			   */
+			  if(loc_symtab[i].set_flag)
+			         gsymt->set_flag =
+				   gsymt->set_this_file = TRUE;
+			  if(loc_symtab[i].library_prog_unit)
+				 gsymt->library_prog_unit = TRUE;
+			  gsymt->defined = TRUE;
+			  if(gsymt != curr_gsymt) {
+			    gsymt->internal_entry = TRUE;
+			    gsymt->link.prog_unit = curr_gsymt;
+			  }
+
+			  /* Resolve accessibility of module subprog: it
+			    is private if so declared or else if not
+			    declared public and module is declared private.
+			  */
+			  gsymt->private = loc_symtab[i].private ||
+			    (!loc_symtab[i].public &&
+			     module_accessibility == tok_PRIVATE);
+
+			}
+
+			if(storage_class_of(loc_symtab[i].type) ==
+			   class_SUBPROGRAM) { /* call, possibly recursive */
+
+			  if(loc_symtab[i].used_flag)
+			    gsymt->used_flag =
+			      gsymt->used_this_file = TRUE;
+			  if(loc_symtab[i].invoked_as_func)
+			    gsymt->invoked_as_func =
+			      gsymt->invoked_as_func_this_file = TRUE;
+
 				/* Add this guy to linked list of children,
 				   unless never actually used. */
-			if(loc_symtab[i].used_flag) {
-			  ChildList *node=
-			    (ChildList *)calloc(1,sizeof(ChildList));
-			  node->child = gsymt;
-			  node->next = curr_gsymt->link.child_list;
-			  curr_gsymt->link.child_list = node;
+			  if(loc_symtab[i].used_flag) {
+			    ChildList *node=
+			      (ChildList *)calloc(1,sizeof(ChildList));
+			    node->child = gsymt;
+			    node->next = curr_gsymt->link.child_list;
+			    curr_gsymt->link.child_list = node;
+			  }
+			  if(loc_symtab[i].declared_external)
+			    gsymt->declared_external =
+			      gsymt->declared_external_this_file =  TRUE;
 			}
-			if(loc_symtab[i].declared_external)
-				 gsymt->declared_external =
-				   gsymt->declared_external_this_file =  TRUE;
+}/*else gsymt != NULL*/
+		    }/*end if entry_point || class_SUBPROGRAM*/
 
-			break;/* end case class_SUBPROGRAM*/
+		    break;/* end case class_VAR/class_SUBPROGRAM */
 
                     case class_NAMELIST:
 			if(head_ptr != NULL) {

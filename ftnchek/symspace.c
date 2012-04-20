@@ -146,6 +146,7 @@ make_TL_head(t)
 				/* Clear all the flags */
 	TH_ptr->external_decl = FALSE;
 	TH_ptr->actual_arg = FALSE;
+	TH_ptr->is_defn = FALSE;
 	TH_ptr->tokenlist = NULL;
 	TH_ptr->next = NULL;
 
