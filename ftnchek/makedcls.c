@@ -285,7 +285,7 @@ get_dimension_list(symt)
 
     append_char_to_fragment('(');
 
-    dims = array_dims(symt->info.array_dim);
+    dims = array_dims(symt->array_dim);
     for (n = 0; n < dims; ++n)
     {
 	if (n > 0)

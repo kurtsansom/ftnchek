@@ -267,7 +267,7 @@ void process_dtype_components(const char *name)
     curr->private = symt->private_components && !loc_symtab[i].public;
 
     curr->array = loc_symtab[i].array_var;
-    curr->array_dim = loc_symtab[i].info.array_dim;
+    curr->array_dim = loc_symtab[i].array_dim;
     curr->allocatable = loc_symtab[i].allocatable;
     curr++;
   }

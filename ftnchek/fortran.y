@@ -121,7 +121,8 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     label_dummy_arg_count,	/* number of labels in dummy argument list */
     len_selector_given, /* flag for use in processing CHARACTER decls */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
-    control_item_count;	/* count of items in control_info_list */
+    control_item_count,	/* count of items in control_info_list */
+    current_subprog_is_recursive; /* set if RECURSIVE prefix */
 
 PRIVATE Token *current_dim_bound_list;	/* attr-based dim bound tokenlist */
 
@@ -318,6 +319,8 @@ PRIVATE void block_stack_top_swap();
 %token tok_double_colon /*   ::   */
 %token tok_lparen	/* special left paren to avoid s/r conflicts */
 %token tok_rightarrow   /*   =>   */
+%token tok_l_ac_delimiter	/*   (/   */
+%token tok_r_ac_delimiter	/*   /)   */
 %token tok_ABSTRACT
 %token tok_ACCEPT
 %token tok_ALLOCATABLE
@@ -607,6 +610,7 @@ unlabeled_stmt	:	subprogram_header
 				       hashtab[current_prog_unit_hash].name,
 				       NO_LABEL);
 
+			    mark_recursive(&current_subprog_is_recursive);
 			}
         |   non_subprogram_header
             {
@@ -1326,6 +1330,9 @@ prefix_spec :   declaration_type_spec
         |   tok_MODULE
         |   tok_PURE
         |   tok_RECURSIVE
+	    {
+		current_subprog_is_recursive = TRUE;
+	    }
         ;
 
 declaration_type_spec:  type_name
@@ -1668,6 +1675,7 @@ block_data_handle:	tok_BLOCKDATA
 		;
 /* 15 */
 dimension_stmt	:	tok_DIMENSION array_declarator_list EOS
+		|	tok_DIMENSION tok_double_colon array_declarator_list EOS
 		;
 
 array_declarator_list:	array_declarator
@@ -2299,7 +2307,7 @@ arith_type_decl_list:	arith_type_decl_item
 
 			/* Allow the combined type declaration and data value form.
 			 */
-arith_type_decl_item: scalar_type_decl_entity
+arith_type_decl_item: arith_type_decl_entity
 			{
 			     if( current_parameter_attr) {
 				syntax_error($1.line_num,$1.col_num,
@@ -2309,7 +2317,7 @@ arith_type_decl_item: scalar_type_decl_entity
 				/* Handle bastard initializers (combined type decl
 				   and data statement) here.
 				 */
-		|	 scalar_type_decl_entity '/'
+		|	 arith_type_decl_entity '/'
 				{integer_context=FALSE;complex_const_allowed=TRUE;}
 					data_value_list
 				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
@@ -2326,7 +2334,7 @@ arith_type_decl_item: scalar_type_decl_entity
 				   non attribute-based type declarations since
 				   it will be lexed as an assignment statement.
 				 */
-		|	scalar_type_decl_entity {integer_context=FALSE;complex_const_allowed = TRUE;}
+		|	arith_type_decl_entity {integer_context=FALSE;complex_const_allowed = TRUE;}
 				assignment_op parameter_expr
 			{
 			    if(current_parameter_attr)
@@ -2341,43 +2349,10 @@ arith_type_decl_item: scalar_type_decl_entity
 			    integer_context=TRUE;
 			    complex_const_allowed = FALSE;
 			}
-				/* Note: array initializers not supported
-				   since syntax for array constructors
-				   is not yet implemented.
-				 */
-		|	array_declarator
-			{
-			     declare_type(&($1),
-					  current_datatype,
-					  current_typesize,
-					  current_len_text);
-			     process_attrs(&($1),(Token *)NULL);
-			     primary_id_expr(&($1),&($$));
-			     set_attr_flags(&($1),&($$));
-			}
-				/* Handle bastard initializers here.  Not checked
-				   for assignment compatibility.
-				 */
-		|	array_declarator '/'
-				{integer_context=FALSE;complex_const_allowed=TRUE;}
-					data_value_list
-				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
-			{
-			    declare_type(&($1),
-					 current_datatype,
-					 current_typesize,
-					 current_len_text);
-			    process_attrs(&($1),(Token *)NULL);
-			    primary_id_expr(&($1),&($$));
-			    set_attr_flags(&($1),&($$));
-			    if(f77_initializers || f90_initializers) {
-				nonstandard($2.line_num,$2.col_num,
-					    f90_initializers,0);
-				msg_tail(": combined type declaration and data-style initializer");
-			    }
+		;
 
-			    check_initializer_type(&($$),&($2),&($4));
-			}
+arith_type_decl_entity: scalar_type_decl_entity
+		|	array_declarator_entity
 		;
 
 scalar_type_decl_entity:symbolic_name
@@ -2387,6 +2362,18 @@ scalar_type_decl_entity:symbolic_name
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
+			     primary_id_expr(&($1),&($$));
+			     set_attr_flags(&($1),&($$));
+			}
+		;
+
+array_declarator_entity: array_declarator
+			{
+			     declare_type(&($1),
+					  current_datatype,
+					  current_typesize,
+					  current_len_text);
+			     process_attrs(&($1),(Token *)NULL);
 			     primary_id_expr(&($1),&($$));
 			     set_attr_flags(&($1),&($$));
 			}
@@ -2434,75 +2421,13 @@ char_type_decl_item: char_type_decl_entity
 			    set_attr_flags(&($1),&($$));
 			    check_initializer_type(&($$),&($2),&($3));
 			}
-		|	array_declarator
-			{
-			     $1.size_is_adjustable = current_size_is_adjustable;
-			     $1.size_is_expression = current_size_is_expression;
-			     declare_type(&($1),
-					  current_datatype,
-					  current_typesize,
-					  current_len_text);
-			     process_attrs(&($1),(Token *)NULL);
-			     set_attr_flags(&($1),&($$));
-			}
-		|	array_declarator '*' len_specification
-			{
-			     $1.size_is_adjustable = $3.size_is_adjustable;
-			     $1.size_is_expression = $3.size_is_expression;
-			     declare_type(&($1),
-					  current_datatype,
-					  $3.value.integer,
-					  new_tree_text(
-					     $3.left_token == NULL?
-					     &($3): $3.left_token ));
-			     process_attrs(&($1),(Token *)NULL);
-			     set_attr_flags(&($1),&($$));
-			}
-		|	array_declarator '/'
-				{integer_context=FALSE;complex_const_allowed=TRUE;}
-					data_value_list
-				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
-			{
-			    $1.size_is_adjustable = current_size_is_adjustable;
-			    $1.size_is_expression = current_size_is_expression;
-			    declare_type(&($1),
-					 current_datatype,
-					 current_typesize,
-					 current_len_text);
-			    process_attrs(&($1),(Token *)NULL);
-			    set_attr_flags(&($1),&($$));
-			    if(f77_initializers || f90_initializers) {
-				nonstandard($2.line_num,$2.col_num,
-					    f90_initializers,0);
-				msg_tail(": combined type declaration and data-style initializer");
-			    }
-			    use_lvalue(&($1));
-			}
-		|	array_declarator '*' len_specification '/'
-				{integer_context=FALSE;complex_const_allowed=TRUE;}
-					data_value_list
-				{integer_context=TRUE;complex_const_allowed=FALSE;}  '/'
-			{
-			    $1.size_is_adjustable = $3.size_is_adjustable;
-			    $1.size_is_expression = $3.size_is_expression;
-			    declare_type(&($1),
-					 current_datatype,
-					 $3.value.integer,
-					 new_tree_text(
-					     $3.left_token == NULL?
-					     &($3): $3.left_token ));
-			    process_attrs(&($1),(Token *)NULL);
-			    set_attr_flags(&($1),&($$));
-			    if(f77_initializers || f90_initializers) {
-				nonstandard($4.line_num,$4.col_num,
-					    f90_initializers,0);
-				msg_tail(": combined type declaration and data-style initializer");
-			    }
-			    use_lvalue(&($1));
-			}
    		;
 
-char_type_decl_entity:symbolic_name
+char_type_decl_entity:char_scalar_type_decl_entity
+		|	char_array_declarator_entity
+		;
+
+char_scalar_type_decl_entity: symbolic_name
 			{
 			     $1.size_is_adjustable = current_size_is_adjustable;
 			     $1.size_is_expression = current_size_is_expression;
@@ -2528,6 +2453,31 @@ char_type_decl_entity:symbolic_name
 			}
 		;
 
+char_array_declarator_entity: array_declarator
+			{
+			     $1.size_is_adjustable = current_size_is_adjustable;
+			     $1.size_is_expression = current_size_is_expression;
+			     declare_type(&($1),
+					  current_datatype,
+					  current_typesize,
+					  current_len_text);
+			     process_attrs(&($1),(Token *)NULL);
+			     set_attr_flags(&($1),&($$));
+			}
+		|	array_declarator '*' len_specification
+			{
+			     $1.size_is_adjustable = $3.size_is_adjustable;
+			     $1.size_is_expression = $3.size_is_expression;
+			     declare_type(&($1),
+					  current_datatype,
+					  $3.value.integer,
+					  new_tree_text(
+					     $3.left_token == NULL?
+					     &($3): $3.left_token ));
+			     process_attrs(&($1),(Token *)NULL);
+			     set_attr_flags(&($1),&($$));
+			}
+		;
 
 /*---------------------------addition----------------------------*/
 
@@ -3444,15 +3394,25 @@ data_dlist_item	:	array_element_lvalue
 		|	data_implied_do_list
 		;
 
-data_implied_do_list:  '(' data_dlist ',' symbolic_name
-				'=' data_do_loop_bounds ')'
+data_implied_do_list:  '(' data_dlist ',' implied_do_control ')'
+		;
+
+implied_do_control: symbolic_name '=' implied_do_loop_bounds
 			{
-			    use_implied_do_index(&($4));
+			   use_implied_do_index(&($1));
+			   $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		;
 
-data_do_loop_bounds:	int_constant_expr ',' int_constant_expr
-		| int_constant_expr ',' int_constant_expr ',' int_constant_expr
+implied_do_loop_bounds:	integer_expr ',' integer_expr
+			{
+			  $$.left_token = add_tree_node(&($2),&($1),&($3));
+			}
+		|	integer_expr ',' integer_expr ',' integer_expr
+			{
+			  $3.left_token = add_tree_node(&($4),&($3),&($5));
+			  $$.left_token = add_tree_node(&($2),&($1),&($3));
+			}
 		;
 
 
@@ -4282,18 +4242,7 @@ io_item		:	expr
 		;
 
 /* 49 */
-io_implied_do_list:	'(' io_list ',' variable_name '=' do_loop_bounds ')'
-			{
-			  if( ! is_true(LVALUE_EXPR,$4.TOK_flags) ) {
-			    syntax_error($4.line_num,$4.col_num,
-					 "index is not assignable");
-			    if(is_true(CONST_EXPR,$4.TOK_flags))
-				msg_tail(": it is a constant");
-			  }
-			  else {
-			     use_implied_do_index(&($4));
-			  }
-			}
+io_implied_do_list:	'(' io_list ',' implied_do_control ')'
 		;
 
 /* 50 */
@@ -4684,6 +4633,7 @@ expr		:	log_expr
 				/* Fix it up in case it is used in
 				 * expr list.  However for dtype
 				 * components the link is genuine.
+===> NO LONGER TRUE.  REMOVE.
 				 */
 			    if( !is_true(DTYPE_COMPONENT,$1.TOK_flags) )
 				$$.next_token = (Token *) NULL;
@@ -4839,6 +4789,15 @@ compound_object	:	function_reference
 			    make_true(EVALUATED_EXPR,$$.TOK_flags);
 			    make_true(DIM_BOUND_EXPR,$$.TOK_flags);
 			}
+
+		|	array_constructor
+			{
+			    /* Put type and kind information of
+			       ac_value_list into the handle
+			    */
+			    check_ac_list(&($1), &($$));
+			}
+
 		|	'(' expr ')'
 			{
 			    $$ = $2;
@@ -4860,6 +4819,51 @@ compound_object	:	function_reference
 							  (Token*)NULL);
 			}
 		;
+
+array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
+			{
+			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
+			}
+
+		|	'[' ac_value_list ']' /* F2010 alternative form */
+			{
+			    $1.tclass = tok_l_ac_delimiter; /* use same as above */
+			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
+			}
+		;
+
+			    /* Each ac_value in ac_value_list shall have
+			    same type and kind.  If a character type,
+			    must also have same length.
+			    */
+
+ac_value_list	:	ac_value
+	      		{
+			    $$.next_token = append_token((Token*)NULL,&($1));
+			}
+	 	|	ac_value_list ',' ac_value
+			{
+			    $$.next_token = append_token($1.next_token,&($3));
+			}
+		;
+
+ac_value	:	expr
+			{
+			  if(is_true(ID_EXPR,$1.TOK_flags)){
+			    use_variable(&($1));
+			  }
+			}
+	 	|	ac_implied_do
+	 	;
+
+ac_implied_do	:	'(' ac_value_list ',' implied_do_control ')'
+	      		{
+			    /* change token class to tok_DO for tree */
+			    $3.tclass = tok_DO;
+			    $$.left_token = add_tree_node(&($3),&($2),&($4));
+			}
+	      	;
+
 
 				/* Literal constants are numbers, strings
 				   holleriths, and logical constants */
@@ -5855,8 +5859,12 @@ add_tree_node(node,left,right)
 		   null, then that expression is a primary.  Otherwise
 		   it is the root node of a subtree.
 		 */
-  if(left->left_token == (Token *)NULL) {
-    new_left=new_token();
+  if( left->left_token == (Token *)NULL 
+      || node->tclass == tok_DO/* implied-do has expr list as left child */
+      || node->tclass == tok_l_ac_delimiter/*array constructor has expr
+      					     list as left child */
+    ) {
+     new_left=new_token();
     *new_left = *left;			/* Copy primary to permanent space */
   }
   else {
@@ -5897,7 +5905,6 @@ append_token(tlist,t)
 	tcopy->next_token = tlist; /* link it onto front of list */
 	return tcopy;		/* return it as new tlist */
 }
-
 
 			/* Routine to pop closing statement of block off
 			   the stack.  Note: label should be NO_LABEL even

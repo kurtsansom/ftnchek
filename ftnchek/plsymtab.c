@@ -282,6 +282,9 @@ print_lsyms_briefly(sym_list,n,do_types)
 	      }
 	      else if(sym_list[i]->size == size_DEFAULT)
 		(void)fprintf(list_fd," ");
+	      if(sym_list[i]->recursive) {
+		(void)fprintf(list_fd," recursive");
+	      }
 	      (void)fprintf(list_fd,"  ");
 	    }
 	  }
@@ -440,7 +443,7 @@ print_variables(sym_list,n)
 			/* print no. of dimensions next to var name */
 	  if(sym_list[i]->array_var) {
 		(void)fprintf(list_fd," %ld",
-			       array_dims(sym_list[i]->info.array_dim));
+			       array_dims(sym_list[i]->array_dim));
 	  }
 	  else {
 		(void)fprintf(list_fd,"%2s","");
@@ -543,8 +546,8 @@ print_arg_array(arglist)	/* prints type and flag info for arguments */
 		if(a[i].array_var)
 		    (void)fprintf(list_fd,
 			    ":%ldD(%ld)",
-			    array_dims(a[i].info.array_dim),
-			    array_size(a[i].info.array_dim)
+			    array_dims(a[i].array_dim),
+			    array_size(a[i].array_dim)
 		    );
 		(void)fprintf(list_fd,
 			" lval%d set%d asg%d ubs%d ary%d are%d ext%d do%d",

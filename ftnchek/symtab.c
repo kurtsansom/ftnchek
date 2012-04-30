@@ -125,7 +125,6 @@ PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
 PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
 PRIVATE void make_equivalent(Lsymtab *symt1, Lsymtab *symt2);
-void equivalence_result_vars(int result_hasno);
 
 
 #ifdef DEBUG_SIZES
@@ -454,6 +453,41 @@ call_subr(id,arg)	/* Process call statements */
 
 }/*call_subr*/
 
+void check_ac_list(Token *list, Token *result)
+{
+    int ref_type, curr_type;
+    long int curr_tclass;
+    /* Token *curr = reverse_tokenlist(list->next_token); */
+    Token *curr = list;
+
+    /* Store reference type information */
+    ref_type = curr->TOK_type;
+
+    while (curr != NULL) {
+	curr_type = curr->TOK_type;
+	curr_tclass = curr->tclass;
+
+	/* Implied DO's */
+	if (curr_tclass == '(') {
+	}
+	/* Check types of constants */
+	else if (curr_type != ref_type) {
+	    /*
+	    syntax_error(curr->line_num, curr->col_num,
+		    "Type mismatch in array constructor");
+	    printf("\n tclass is %ld\n", curr->tclass);
+	    return;
+	    */
+	}
+
+	curr = curr->next_token;
+    }
+
+    result->TOK_type = ref_type;
+
+    return;
+}
+
 		/* check out consistency of intrinsic argument list */
 PRIVATE
 void
@@ -648,7 +682,7 @@ declare_type(Token *id, int datatype, long int size, char *size_text)
 	       * prior to ENTRY, so it gets type from RESULT variable in
 	       * do_result_spec.)
 	       */
-	      if(symt->result_var) {
+	      if(symt->result_var && !symt->entry_point) {
 		      /* Find the function this variable is in */
 		  Lsymtab *func = hashtab[current_prog_unit_hash].loc_symtab;
 		     /* Give function the variable's type, and it has status
@@ -675,7 +709,7 @@ declare_type(Token *id, int datatype, long int size, char *size_text)
 
 	if( datatype_of(symt->type) == type_STRING ) {
 	  if(symt->array_var) {
-	    int i, dims = array_dims(symt->info.array_dim);
+	    int i, dims = array_dims(symt->array_dim);
 	    char **tvec = new_textvec(dims+1);
 
 	    for(i=0; i<dims; i++)	/* Copy the old list over */
@@ -772,11 +806,11 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	symt->array_var = TRUE;
 	
 	if(!equivalence_flag && !allocatable_flag){      /* some checking should be done here */
-	   if(symt->info.array_dim != 0)
+	   if(symt->array_dim != 0)
 	      syntax_error(id->line_num,id->col_num,
 		"Array redimensioned");
 	   else
-	      symt->info.array_dim = array_dim_info(arg->TOK_dims,
+	      symt->array_dim = array_dim_info(arg->TOK_dims,
 						    arg->TOK_elts);
 
 	}
@@ -1758,6 +1792,19 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
+/* Set recursive flag to TRUE in symbol table */
+void mark_recursive(int *is_recursive)
+{
+  Lsymtab *symt = hashtab[current_prog_unit_hash].loc_symtab;
+
+  if (*is_recursive == TRUE) {
+    symt->recursive = TRUE;
+    *is_recursive = FALSE;
+  }
+
+  return;
+}
+
 /* Equivalence two symbol table entries by swapping equiv_links.
    Do not call this on entries that are already equivalenced.
    Equivalence items form a ring.
@@ -1944,7 +1991,7 @@ equivalence(id1,id2)
 #endif /* HAVE_STDC */
 {
 	int h1=id1->value.integer, h2=id2->value.integer;
-	Lsymtab *symt1,*symt2,*temp;
+	Lsymtab *symt1,*symt2;
 
 		/* install the variables in symtab if not seen before */
 	if( (symt1=hashtab[h1].loc_symtab) == NULL) {
@@ -2035,7 +2082,7 @@ get_size_text(symt,type)		/* ARGSUSED1 */
   if(datatype != type_UNDECL) {
 				/* Declared: use text in symtab entry */
     if(symt->array_var)
-      return symt->src.textvec[array_dims(symt->info.array_dim)];
+      return symt->src.textvec[array_dims(symt->array_dim)];
     else
       return symt->src.text;
   }
@@ -2247,7 +2294,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    }
 
 	    symt->name = hashtab[h].name;
-	    symt->info.array_dim = 0;
+	    symt->array_dim = 0;
 
 		      /* Set symtab info fields */
 	    symt->type = type_pack(storage_class,datatype);
@@ -2433,7 +2480,7 @@ ref_array(id,subscrs)   /* Array reference: install in symtab */
 	else{    /* check that subscrs match dimension info */
 
 
-	  if(arg_count(subscrs->next_token)!=array_dims(symt->info.array_dim)){
+	  if(arg_count(subscrs->next_token)!=array_dims(symt->array_dim)){
 	      syntax_error(subscrs->line_num,subscrs->col_num,
 			"array");
 	      msg_tail(symt->name);

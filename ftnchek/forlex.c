@@ -122,7 +122,7 @@ PRIVATE int closeup_saw_whitespace;
 		 */
 PRIVATE char fortran_legal_chars[]=
 " x\"x$%x'()*+,-./0123456789:x<=>xx\
-ABCDEFGHIJKLMNOPQRSTUVWXYZxxxxxxabcdefghijklmnopqrstuvwxyzxxxxx";
+ABCDEFGHIJKLMNOPQRSTUVWXYZ[x]xxxabcdefghijklmnopqrstuvwxyzxxxxx";
 
 		/* This is the working copy of list of legal chars, with
                    any chars in idletter_list made legal using the
@@ -1567,6 +1567,20 @@ get_punctuation(token)
             /* recognize module rename and ptr assignment => */
         else if(curr_char == '=' && next_char == '>') {
                 token->tclass = tok_rightarrow;
+                multichar = TRUE;
+                advance();
+		src_text_buf[src_text_len++] = curr_char;
+	}
+            /* recognize beginning of array constructor (/ */
+        else if(curr_char == '(' && next_char == '/') {
+                token->tclass = tok_l_ac_delimiter;
+                multichar = TRUE;
+                advance();
+		src_text_buf[src_text_len++] = curr_char;
+	}
+            /* recognize end of array constructor /) */
+        else if(curr_char == '/' && next_char == ')') {
+                token->tclass = tok_r_ac_delimiter;
                 multichar = TRUE;
                 advance();
 		src_text_buf[src_text_len++] = curr_char;

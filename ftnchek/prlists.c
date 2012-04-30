@@ -372,10 +372,10 @@ make_arg_array(t)
 		Lsymtab *symt = hashtab[h].loc_symtab;
 		if( (arglist[i].array_var = symt->array_var) == 0 ) {
 				/* change scalars to 0 dims, size 1 */
-		  arglist[i].info.array_dim = array_dim_info(0,1);
+		  arglist[i].array_dim = array_dim_info(0,1);
 		}
 		else {
-		  arglist[i].info.array_dim = symt->info.array_dim;
+		  arglist[i].array_dim = symt->array_dim;
 		}
 		arglist[i].declared_external = symt->declared_external;
 
@@ -431,7 +431,7 @@ make_arg_array(t)
 		}
 	    }
 	    else {
-		arglist[i].info.array_dim = array_dim_info(0,1);
+		arglist[i].array_dim = array_dim_info(0,1);
 		arglist[i].array_var = FALSE;
 		arglist[i].declared_external = FALSE;
 	    }
@@ -588,7 +588,7 @@ make_com_array(t)
 	   h = s->value.integer;
 	   symt = hashtab[h].loc_symtab;
 	   comlist[i].name = NULL; /* names are added later by make_com_list */
-	   if( (comlist[i].dimen_info = symt->info.array_dim) == 0)
+	   if( (comlist[i].dimen_info = symt->array_dim) == 0)
 				/* change scalars to 0 dims, size 1 */
 	     comlist[i].dimen_info = array_dim_info(0,1);
        	   comlist[i].type = get_type(symt);
@@ -690,9 +690,9 @@ make_dummy_arg_array (t)
 	        int implied_type;
 		int h = s->value.integer;
 		Lsymtab *symt = hashtab[h].loc_symtab;
-		if( (arglist[i].info.array_dim = symt->info.array_dim) == 0)
+		if( (arglist[i].array_dim = symt->array_dim) == 0)
 				/* change scalars to 0 dims, size 1 */
-		  arglist[i].info.array_dim = array_dim_info(0,1);
+		  arglist[i].array_dim = array_dim_info(0,1);
 		implied_type = get_type(symt);
 		arglist[i].type = type_pack(storage_class_of(symt->type),
 						implied_type);
@@ -709,7 +709,7 @@ make_dummy_arg_array (t)
 		arglist[i].intent_out = symt->intent_out;
 	    }
 	    else {	/* It is a label */
-		arglist[i].info.array_dim = 0;
+		arglist[i].array_dim = 0;
 		arglist[i].type = s->TOK_type;
 		arglist[i].size = 0;
 		arglist[i].is_lvalue = FALSE;

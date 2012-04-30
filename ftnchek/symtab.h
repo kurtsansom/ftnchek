@@ -449,7 +449,6 @@ typedef int LABEL_t;              /* a label (0-99999) */
                 /* Symbol table argument list declarations */
 
 typedef union {		/* InfoUnion: misc info about symtab entry */
-	     unsigned long array_dim;	/* array size and no. of dims */
 	     struct ALHead *arglist;	/* ptr to func/subr argument list */
 	     struct CMHead *comlist;    /* ptr to common block list */
 	     struct TLHead *toklist;  /* ptr to token list */
@@ -465,6 +464,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 	long common_index;	/* index in block */
 	long size;
 	type_t type;
+	unsigned long array_dim;	/* array size and no. of dims */
 	short same_as;	/* index if two actual arguments the same */
 	unsigned is_lvalue: 1,
 		 set_flag: 1,
@@ -638,6 +638,7 @@ typedef struct lSymtEntry{
 	LINENO_t line_declared, line_set, line_used, line_assocd, line_allocd;
 	short file_declared, file_set, file_used, file_assocd, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
+	unsigned long array_dim;	/* array size and no. of dims */
 			/* Flags */
 	unsigned
 	     used_flag: 1,	/* value is accessed (read from variable) */
@@ -673,10 +674,11 @@ typedef struct lSymtEntry{
 	     defined_in_include: 1, /* to suppress some warnings if unused */
 	     defined_in_module: 1, /* imported via USE */
 	     declared_external: 1, /* explicitly declared external */
-	     declared_intrinsic: 1; /* explicitly declared intrinsic */
-	     unsigned size_is_adjustable : 1; /* CHARACTER*(*) declaration */
-	     unsigned size_is_expression : 1; /* CHARACTER*(expr) declaration */
-	     unsigned result_var : 1; /* variable is result name for a function */
+	     declared_intrinsic: 1, /* explicitly declared intrinsic */
+	     size_is_adjustable : 1, /* CHARACTER*(*) declaration */
+	     size_is_expression : 1, /* CHARACTER*(expr) declaration */
+	     result_var : 1, /* variable is result name for a function */
+	     recursive : 1; /* recursive subprogram */
 } Lsymtab;
 
 typedef struct gSymtEntry{	/* Global symbol table element */
@@ -1072,6 +1074,7 @@ PROTO(void apply_attr,( Token *id, int attr ));
 PROTO(void call_func,( Token *id, Token *arg ));
 PROTO(void call_subr,( Token *id, Token *arg ));
 PROTO(char * char_expr_value,( Token *t ));
+PROTO(void check_ac_list,( Token *list, Token *result ));
 PROTO(void check_loose_ends,( int curmodhash ));
 PROTO(void declare_type,( Token *id, int datatype, long size, char *size_text ));
 PROTO(void def_arg_name,( Token *id ));
@@ -1097,6 +1100,7 @@ PROTO(int do_RETURN,( int hashno, Token *keyword ));
 PROTO(void do_bind_spec,(Token *p, SUBPROG_TYPE subprogtype));
 PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno));
 PROTO(void equivalence,( Token *id1, Token *id2 ));
+PROTO(void equivalence_result_vars,(int result_hashno));
 PROTO(DBLVAL float_expr_value,( Token *t ));
 PROTO(int get_size,( const Lsymtab *symt, int type ));
 PROTO(char * get_size_text,( const Lsymtab *symt, int type ));
@@ -1107,6 +1111,7 @@ Lsymtab *install_local(int h, int datatype, int storage_class);
 PROTO(int int_expr_value,( Token *t ));
 PROTO(char * new_global_string,( char *s ));
 PROTO(void free_textvec,( char **p ));
+PROTO(void mark_recursive, (int *is_recursive));
 PROTO(char * new_src_text,( const char *s, int len ));
 PROTO(char * new_src_text_alloc,( int size ));
 PROTO(char * new_tree_text,( Token *t ));

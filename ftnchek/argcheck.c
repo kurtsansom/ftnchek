@@ -188,16 +188,16 @@ arg_array_cmp(name,args1,args2)
 		      dims1,dims2,size1,size2;
 
 		    if(a1[i].array_var) {
-		      dims1 = array_dims(a1[i].info.array_dim);
-		      size1 = array_size(a1[i].info.array_dim);
+		      dims1 = array_dims(a1[i].array_dim);
+		      size1 = array_size(a1[i].array_dim);
 		    }
 		    else {
 		      dims1 = 0;
 		      size1 = 1;
 		    }
 		    if(a2[i].array_var && !a2[i].array_element) {
-		      dims2 = array_dims(a2[i].info.array_dim);
-		      size2 = array_size(a2[i].info.array_dim);
+		      dims2 = array_dims(a2[i].array_dim);
+		      size2 = array_size(a2[i].array_dim);
 		    }
 		    else {
 		      dims2 = 0;
@@ -226,8 +226,8 @@ arg_array_cmp(name,args1,args2)
 			   at least equal aggregate size.  */
 		    long dims1,size1;
 		    if(a1[i].array_var) {
-		      dims1 = array_dims(a1[i].info.array_dim);
-		      size1 = array_size(a1[i].info.array_dim);
+		      dims1 = array_dims(a1[i].array_dim);
+		      size1 = array_size(a1[i].array_dim);
 		    }
 		    else {
 		      dims1 = 0;
@@ -285,8 +285,8 @@ arg_array_cmp(name,args1,args2)
 			    diminfo1,diminfo2;
 			  long dims1,dims2,size1,size2,
 			    cmpsize1,cmpsize2;
-			  diminfo1 = a1[i].info.array_dim;
-			  diminfo2 = a2[i].info.array_dim;
+			  diminfo1 = a1[i].array_dim;
+			  diminfo2 = a2[i].array_dim;
 			  dims1 = array_dims(diminfo1);
 			  dims2 = array_dims(diminfo2);
 			  cmpsize1 = size1 = array_size(diminfo1);

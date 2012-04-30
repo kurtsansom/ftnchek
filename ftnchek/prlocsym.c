@@ -158,14 +158,19 @@ print_loc_symbols(VOID)
 			(void)fprintf(list_fd,"*");
 			imps++;
 	  }
+	  if(prog_unit->recursive) {
+	    (void)fprintf(list_fd," recursive");
+	  }
 	  (void)fprintf(list_fd,"\n");
 
 
 				/* Print Entry Points (skip if only one,
-				   since it is same as prog unit name) */
+				   since it is same as prog unit name).
+				   Print entry data types if function.
+				*/
       if(do_symtab && numentries > 1) {
 	      (void)fprintf(list_fd,"\nEntry Points\n");
-	      (void) print_lsyms_briefly(sym_list,numentries,FALSE);
+	      (void) print_lsyms_briefly(sym_list,numentries,this_is_a_function);
       }
 
 			/* End of printing prog unit name and entry points */
@@ -178,7 +183,8 @@ print_loc_symbols(VOID)
     if(do_symtab) {
 	int i,n;
 	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
-	    if(storage_class_of(loc_symtab[i].type) == class_SUBPROGRAM) {
+	    if(storage_class_of(loc_symtab[i].type) == class_SUBPROGRAM &&
+	       !loc_symtab[i].entry_point) {
 		  sym_list[n++] = &loc_symtab[i];
 	    }
 	}

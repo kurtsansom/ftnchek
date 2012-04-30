@@ -433,7 +433,7 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
 		0,0);		/* for future use */
   if(lsymt->array_var) {
     NEXTLINE;
-    WRITE_NUM(" dims",lsymt->info.array_dim);
+    WRITE_NUM(" dims",lsymt->array_dim);
   }
   else if(lsymt->parameter) {
     NEXTLINE;
@@ -677,7 +677,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 	diminfo = (
 		   ((storage_class_of(arg[i].type) == class_VAR) &&
 		   is_computational_type(datatype_of(arg[i].type))) ?
-		     arg[i].info.array_dim: 0 );
+		     arg[i].array_dim: 0 );
 	WRITE_NUM(" dims",array_dims(diminfo));
 	WRITE_NUM(" elts",array_size(diminfo));
 	{ char *cblk;
@@ -1354,7 +1354,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
       READ_LONG(" dims",id_array_dim);
       if (use_this_item) {
         symt->array_var = TRUE;
-        symt->info.array_dim = id_array_dim;
+        symt->array_dim = id_array_dim;
       }
     }
     else if( id_param ) {
@@ -1734,7 +1734,7 @@ id_name,id_class,id_type);
 	else
 	  alist[iarg].name = var;
 #endif
-	alist[iarg].info.array_dim = array_dim_info(arg_dims,arg_elts);
+	alist[iarg].array_dim = array_dim_info(arg_dims,arg_elts);
 	alist[iarg].type = type_pack(arg_class,mapped_arg_type);
 	alist[iarg].size = arg_size;
 	if( strcmp(arg_common_block,"-") == 0 ) { /* indicator for "none" */
