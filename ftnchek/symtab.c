@@ -207,6 +207,16 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 		   check_and_set_attr(intent_in);
 		   check_and_set_attr(intent_out);
 	       }
+	       break;
+	  case tok_ELEMENTAL:
+	       check_and_set_attr2(elemental,recursive);
+	       break;
+	  case tok_PURE:
+	       check_and_set_attr(pure);
+	       break;
+	  case tok_RECURSIVE:
+	       check_and_set_attr2(recursive,elemental);
+	       break;
 	}
 #undef check_and_set_attr
 #undef check_and_set_attr2
@@ -272,6 +282,12 @@ call_func(id,arg)	/* Process function invocation */
 	   }
 	}
 
+	/* check recursive calls on non-recursive subprograms */
+	if( h == current_prog_unit_hash && !symt->recursive) {
+	    syntax_error(id->line_num,id->col_num,
+		    "subprogram is not recursive:");
+	    msg_tail(symt->name);
+	}
 
 	t = datatype_of(symt->type);
 		/* Symbol seen before: check it & change class */
@@ -399,6 +415,12 @@ call_subr(id,arg)	/* Process call statements */
 	   }
 	}
 
+	/* check recursive calls on non-recursive subprograms */
+	if( h == current_prog_unit_hash && !symt->recursive) {
+	    syntax_error(id->line_num,id->col_num,
+		    "subprogram is not recursive:");
+	    msg_tail(symt->name);
+	}
 
 	t=datatype_of(symt->type);
 		/* Symbol seen before: check it & change class */
@@ -452,41 +474,6 @@ call_subr(id,arg)	/* Process call statements */
     symt->used_flag = TRUE;
 
 }/*call_subr*/
-
-void check_ac_list(Token *list, Token *result)
-{
-    int ref_type, curr_type;
-    long int curr_tclass;
-    /* Token *curr = reverse_tokenlist(list->next_token); */
-    Token *curr = list;
-
-    /* Store reference type information */
-    ref_type = curr->TOK_type;
-
-    while (curr != NULL) {
-	curr_type = curr->TOK_type;
-	curr_tclass = curr->tclass;
-
-	/* Implied DO's */
-	if (curr_tclass == '(') {
-	}
-	/* Check types of constants */
-	else if (curr_type != ref_type) {
-	    /*
-	    syntax_error(curr->line_num, curr->col_num,
-		    "Type mismatch in array constructor");
-	    printf("\n tclass is %ld\n", curr->tclass);
-	    return;
-	    */
-	}
-
-	curr = curr->next_token;
-    }
-
-    result->TOK_type = ref_type;
-
-    return;
-}
 
 		/* check out consistency of intrinsic argument list */
 PRIVATE
@@ -1792,18 +1779,6 @@ do_RETURN(hashno,keyword)
 	return valid;
 }/*do_RETURN*/
 
-/* Set recursive flag to TRUE in symbol table */
-void mark_recursive(int *is_recursive)
-{
-  Lsymtab *symt = hashtab[current_prog_unit_hash].loc_symtab;
-
-  if (*is_recursive == TRUE) {
-    symt->recursive = TRUE;
-    *is_recursive = FALSE;
-  }
-
-  return;
-}
 
 /* Equivalence two symbol table entries by swapping equiv_links.
    Do not call this on entries that are already equivalenced.
@@ -2903,7 +2878,7 @@ use_lvalue(id)	/* handles scalar lvalue */
 			/* check for intent.  Ok to assign to target
 			   of intent(in) pointer.
 			 */
-	if (symt->intent_in && !symt->pointer) {
+	if (symt->intent_in && !symt->pointer && !symt->intent_out) {
 	  syntax_error(id->line_num,id->col_num,
 	    "argument with intent IN must not be set:");
 	  msg_tail(symt->name);
@@ -3080,7 +3055,7 @@ use_pointer_lvalue(Token *id, Token *rhs)
     symt->file_declared = inctable_index;
   }
 
-  if (symt->intent_in) {
+  if (symt->intent_in && !symt->intent_out) {
     syntax_error(id->line_num,id->col_num,
 		 "argument with intent IN must not be set:");
     msg_tail(symt->name);

@@ -151,15 +151,15 @@ print_loc_symbols(VOID)
 
 
 	  (void)fprintf(list_fd,"\n\nProg unit %s:",progunit_name);
+	  if(prog_unit->recursive) {
+	    (void)fprintf(list_fd," recursive");
+	  }
 	  if( this_is_a_function ) (void)fprintf(list_fd," func:");
 	  (void)fprintf(list_fd," %4s",type_name(progunit_type));
 			/* Print a * next to non-declared function name */
 	  if(datatype_of(prog_unit->type) == type_UNDECL ) {
 			(void)fprintf(list_fd,"*");
 			imps++;
-	  }
-	  if(prog_unit->recursive) {
-	    (void)fprintf(list_fd," recursive");
 	  }
 	  (void)fprintf(list_fd,"\n");
 

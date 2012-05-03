@@ -369,6 +369,7 @@ struct tokstruct {
 	long tclass,tsubclass;	/* Token category and subcategory */
 	long size;		/* sizeof(datatype) */
 	type_t TOK_type;	/* Storage class & data type of identifier */
+	unsigned long array_dim;/* array size and no. of dims */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
 	/* int symtab_index; */	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
@@ -678,7 +679,9 @@ typedef struct lSymtEntry{
 	     size_is_adjustable : 1, /* CHARACTER*(*) declaration */
 	     size_is_expression : 1, /* CHARACTER*(expr) declaration */
 	     result_var : 1, /* variable is result name for a function */
-	     recursive : 1; /* recursive subprogram */
+	     elemental : 1, 	/* ELEMENTAL subprogram */
+	     pure : 1, 		/* PURE subprogram */
+	     recursive : 1; 	/* RECURSIVE subprogram */
 } Lsymtab;
 
 typedef struct gSymtEntry{	/* Global symbol table element */
@@ -1074,7 +1077,6 @@ PROTO(void apply_attr,( Token *id, int attr ));
 PROTO(void call_func,( Token *id, Token *arg ));
 PROTO(void call_subr,( Token *id, Token *arg ));
 PROTO(char * char_expr_value,( Token *t ));
-PROTO(void check_ac_list,( Token *list, Token *result ));
 PROTO(void check_loose_ends,( int curmodhash ));
 PROTO(void declare_type,( Token *id, int datatype, long size, char *size_text ));
 PROTO(void def_arg_name,( Token *id ));

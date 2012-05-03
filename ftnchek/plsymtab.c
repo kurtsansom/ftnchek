@@ -275,6 +275,9 @@ print_lsyms_briefly(sym_list,n,do_types)
 	      (void)fprintf(list_fd,": intrns ");
 	    else {
 	      (void)fprintf(list_fd,":");
+	      if(sym_list[i]->recursive) {
+		(void)fprintf(list_fd," recursive");
+	      }
 	      (void) print_var_type(list_fd,sym_list[i]);
 	      if(datatype_of(sym_list[i]->type) == type_UNDECL) {
 		implicits++; /* Flag and count undeclareds */
@@ -282,9 +285,6 @@ print_lsyms_briefly(sym_list,n,do_types)
 	      }
 	      else if(sym_list[i]->size == size_DEFAULT)
 		(void)fprintf(list_fd," ");
-	      if(sym_list[i]->recursive) {
-		(void)fprintf(list_fd," recursive");
-	      }
 	      (void)fprintf(list_fd,"  ");
 	    }
 	  }

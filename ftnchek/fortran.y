@@ -69,6 +69,7 @@ as the "MIT License."
 #include <ctype.h>
 #include "ftnchek.h"
 #include "symtab.h"
+#include "symutils.h"
 #include "dtypes.h"
 
 	/* The following section is for use with bison-derived
@@ -118,11 +119,13 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     current_intent_in_attr,	/* set if intent IN attr given */
     current_intent_out_attr,	/* set if intent OUT attr given */
     current_access_spec,	/* value of access spec in type defn stmt */
+    current_elemental_attr,	/* subprog is ELEMENTAL */
+    current_pure_attr,		/* subprog is PURE */
+    current_recursive_attr,	/* subprog is RECURSIVE */
     label_dummy_arg_count,	/* number of labels in dummy argument list */
     len_selector_given, /* flag for use in processing CHARACTER decls */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
-    control_item_count,	/* count of items in control_info_list */
-    current_subprog_is_recursive; /* set if RECURSIVE prefix */
+    control_item_count;	/* count of items in control_info_list */
 
 PRIVATE Token *current_dim_bound_list;	/* attr-based dim bound tokenlist */
 
@@ -197,7 +200,11 @@ int
     current_private_attr = FALSE, \
     current_intent_in_attr = FALSE, \
     current_intent_out_attr = FALSE, \
-    current_dim_bound_list = NULL   )
+    current_dim_bound_list = NULL, \
+    current_datatype = 0, \
+    current_pure_attr = FALSE, \
+    current_elemental_attr = FALSE, \
+    current_recursive_attr = FALSE )
 
 			/* Define stuff for checking block nesting */
 
@@ -263,6 +270,7 @@ PROTO(PRIVATE void END_processing,( Token *t ));
 PROTO(PRIVATE void init_io_ctrl_list,( void ));
 PROTO(PRIVATE void record_default_io,( void ));
 PROTO(PRIVATE void process_attrs,(Token *t,Token *dim_bounds));
+PROTO(PRIVATE void process_prefix_attrs,(Token *t));
 PROTO(PRIVATE void give_kind_warning,(Token *t));
 #ifdef DEBUG_PARSER
 PROTO(PRIVATE void print_exprlist,( char *s, Token *t ));
@@ -372,7 +380,6 @@ PRIVATE void block_stack_top_swap();
 %token tok_GOTO
 %token tok_IF
 %token tok_IMPLICIT
-%token tok_IMPURE
 %token tok_IN
 %token tok_INCLUDE
 %token tok_INOUT
@@ -609,8 +616,6 @@ unlabeled_stmt	:	subprogram_header
 			    push_block(&($1),$1.tclass,subprog,
 				       hashtab[current_prog_unit_hash].name,
 				       NO_LABEL);
-
-			    mark_recursive(&current_subprog_is_recursive);
 			}
         |   non_subprogram_header
             {
@@ -719,47 +724,36 @@ non_subprogram_header
 subprogram_header:	prog_stmt
 			{
 			    current_prog_unit_type = type_PROGRAM;
-                if (interface_block)
-                    syntax_error($1.line_num,$1.col_num,
-                        "block data statment invalid inside interface block");
+			    if (interface_block)
+				syntax_error($1.line_num,$1.col_num,
+				    "program statment invalid inside interface block");
 			}
 		|	function_stmt
 			{
 			    current_prog_unit_type = type_SUBROUTINE;
-
-/*--------------------addition--------------------------------*/
-				inside_function = TRUE;
-/*-----------------------------------------------------------*/
+			    inside_function = TRUE;
+			    reset_type_attrs();
 			}
 		|	subroutine_stmt
 			{
 			    current_prog_unit_type = type_SUBROUTINE;
-
-/*--------------------addition--------------------------------*/
-				inside_function = FALSE;
-/*-----------------------------------------------------------*/
+			    inside_function = FALSE;
+			    reset_type_attrs();
 			}
 		|	block_data_stmt
 			{
-/*--------------------addition--------------------------------*/
-
-                if (interface_block)
-                    syntax_error($1.line_num,$1.col_num,
-                        "block data statment invalid inside interface block");
-
-/*-----------------------------------------------------------*/
+			    if (interface_block)
+				syntax_error($1.line_num,$1.col_num,
+				    "block data statment invalid inside interface block");
 			    current_prog_unit_type = type_BLOCK_DATA;
 			}
 		|	module_stmt
 			{
-/*--------------------addition--------------------------------*/
-                if (interface_block)
-                    syntax_error($1.line_num,$1.col_num,
-                        "module statement invalid inside interface block");
+			    if (interface_block)
+				syntax_error($1.line_num,$1.col_num,
+				    "module statement invalid inside interface block");
 				current_prog_unit_type = type_MODULE;
 			}
-/*-----------------------------------------------------------*/
-
 		;
 
 end_stmt	:	unlabeled_end_stmt
@@ -1233,6 +1227,7 @@ unlabeled_function_stmt
 				      &($2),
 				      (Token*)NULL,
 					  find_subprog_type($1.tclass));
+			 process_prefix_attrs(&($2));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 
@@ -1249,6 +1244,7 @@ unlabeled_function_stmt
 				      &($2),
 				      &($4),
 					  find_subprog_type($1.tclass));
+			 process_prefix_attrs(&($2));
 			 current_prog_unit_hash=
 			   def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -1326,12 +1322,16 @@ prefix  :   prefix_spec
 
 prefix_spec :   declaration_type_spec
         |   tok_ELEMENTAL
-        |   tok_IMPURE
-        |   tok_MODULE
+	    {
+		current_elemental_attr = TRUE;
+	    }
         |   tok_PURE
+	    {
+		current_pure_attr = TRUE;
+	    }
         |   tok_RECURSIVE
 	    {
-		current_subprog_is_recursive = TRUE;
+		current_recursive_attr = TRUE;
 	    }
         ;
 
@@ -1523,6 +1523,7 @@ unlabeled_subroutine_stmt
 				       &($2),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
+			  process_prefix_attrs(&($2));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 			  
@@ -1538,6 +1539,7 @@ unlabeled_subroutine_stmt
 				       &($2),
 				       &($4),
 					   find_subprog_type($1.tclass));
+			  process_prefix_attrs(&($2));
 			  current_prog_unit_hash=
 			    def_curr_prog_unit(&($2));
 #ifdef DEBUG_PARSER
@@ -4630,13 +4632,6 @@ parameter_expr	:	/* arith, char, or logical */ expr
 /* 76 following the text of the standard, not the diagrams */
 expr		:	log_expr
 			{
-				/* Fix it up in case it is used in
-				 * expr list.  However for dtype
-				 * components the link is genuine.
-===> NO LONGER TRUE.  REMOVE.
-				 */
-			    if( !is_true(DTYPE_COMPONENT,$1.TOK_flags) )
-				$$.next_token = (Token *) NULL;
 #ifdef DEBUG_PARSER
 			    if(debug_parser) {
 				(void)fprintf(list_fd,
@@ -4791,12 +4786,6 @@ compound_object	:	function_reference
 			}
 
 		|	array_constructor
-			{
-			    /* Put type and kind information of
-			       ac_value_list into the handle
-			    */
-			    check_ac_list(&($1), &($$));
-			}
 
 		|	'(' expr ')'
 			{
@@ -4822,13 +4811,25 @@ compound_object	:	function_reference
 
 array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
 			{
+			    $2.next_token = reverse_tokenlist($2.next_token);
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
+			    $$.TOK_type = $2.TOK_type;
+			    $$.size = $2.size;
+			    $$.TOK_flags = 0;
+			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
+			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
 			}
 
 		|	'[' ac_value_list ']' /* F2010 alternative form */
 			{
+			    $2.next_token = reverse_tokenlist($2.next_token);
 			    $1.tclass = tok_l_ac_delimiter; /* use same as above */
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
+			    $$.TOK_type = $2.TOK_type;
+			    $$.size = $2.size;
+			    $$.TOK_flags = 0;
+			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
+			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
 			}
 		;
 
@@ -4844,6 +4845,7 @@ ac_value_list	:	ac_value
 	 	|	ac_value_list ',' ac_value
 			{
 			    $$.next_token = append_token($1.next_token,&($3));
+			    binexpr_type(&($1),&($2),&($3),&($$));
 			}
 		;
 
@@ -4858,9 +4860,15 @@ ac_value	:	expr
 
 ac_implied_do	:	'(' ac_value_list ',' implied_do_control ')'
 	      		{
+			    $2.next_token = reverse_tokenlist($2.next_token);
 			    /* change token class to tok_DO for tree */
 			    $3.tclass = tok_DO;
 			    $$.left_token = add_tree_node(&($3),&($2),&($4));
+			    $$.TOK_type = $2.TOK_type;
+			    $$.size = $2.size;
+			    $$.TOK_flags = 0;
+			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
+			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
 			}
 	      	;
 
@@ -5674,6 +5682,20 @@ process_attrs(Token *t,Token *dim_bounds)
     if(dim_bounds != NULL)
 	def_array_dim(t,dim_bounds);
 
+}
+
+			/* Routine to apply attributes of subprogram
+			   specified in prefix.
+			 */
+PRIVATE void
+process_prefix_attrs(Token *t)
+{
+    if(current_elemental_attr)
+	apply_attr(t,tok_ELEMENTAL);
+    if(current_pure_attr)
+	apply_attr(t,tok_PURE);
+    if(current_recursive_attr)
+	apply_attr(t,tok_RECURSIVE);
 }
 
 /* Routine to do appropriate checking before applying INTENT */

@@ -169,7 +169,6 @@ PRIVATE struct {
 {"GOTO",	tok_GOTO,	IK | EK,			2},
 {"IF",		tok_IF,		IK | NI | EK | MP | NA | CN,	0},
 {"IMPLICIT",	tok_IMPLICIT,	IK | NP | NI,			0},
-{"IMPURE",	tok_IMPURE,	IK | NP | NI,			0},
 {"IN",		tok_IN,		IK | NP | NI | EK | NA,		0},
 {"INCLUDE",	tok_INCLUDE,	IK | NP | NI | EK | NA,		0},
 {"INOUT",	tok_INOUT,	IK | NI | EK,			2},

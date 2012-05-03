@@ -129,7 +129,7 @@ PRIVATE unsigned char assignment_type[NumT][NumT]={
 };
 
 
-#define INTRINS_ARGS (opclass == ',') /* Flag to modify behavior of binexpr_type */
+#define COMMA_LIST (opclass == ',') /* Flag to modify behavior of binexpr_type */
 
 	/* Routine used in printing diagnostics: returns string "type" for
 	   unsized objects, "type*size" for explicitly sized things.  Due
@@ -286,7 +286,7 @@ binexpr_type(term1,op,term2,result)
 			/* Intrinsic function argument list: no promotion
 			   across type categories.  Accept matching type
 			   categories: size match will be checked later. */
-	    case ',': /* INTRINS_ARGS */
+	    case ',': /* COMMA_LIST */
 		if( type_category[type1] != type_category[type2] )
 		  result_type = E;
 		else if(type1 == S)
@@ -305,7 +305,7 @@ binexpr_type(term1,op,term2,result)
 
 	if( (type1 != E && type2 != E) ) {
 	    if( result_type == E) {
-	      if(INTRINS_ARGS) {
+	      if(COMMA_LIST) {
 		syntax_error(op->line_num,op->col_num,
 		       "type mismatch between intrinsic function arguments:");
 		report_mismatch(term1,op,term2);
@@ -367,7 +367,7 @@ binexpr_type(term1,op,term2,result)
 			   of plain real to dble or plain complex to dcpx,
 			   and check for promotions of real types.
 			 */
-      else if(INTRINS_ARGS?
+      else if(COMMA_LIST?
 	      (type1 != type2 || 
 	       (type1 == type2  && is_numeric_type(type1) &&
 		(size1 != size_DEFAULT || size2 != size_DEFAULT))) :
@@ -410,7 +410,7 @@ if(debug_latest)
 #endif
 	if(tc1 == tc2) {/* same type category */
 				/* Intrins args: size promotion illegal */
-	  if(INTRINS_ARGS && ls1 != ls2) {
+	  if(COMMA_LIST && ls1 != ls2) {
 	      syntax_error(op->line_num,op->col_num,
 			 "precision mismatch in intrinsic argument list:");
 	      report_mismatch(term1,op,term2);
@@ -423,7 +423,7 @@ if(debug_latest)
 	        && !is_true(CONST_EXPR,term2->TOK_flags))
 	    {
 	      nonportable(op->line_num,op->col_num,
-			  INTRINS_ARGS?"intrinsic argument list":"expr");
+			  COMMA_LIST?"intrinsic argument list":"expr");
 	      msg_tail("mixes default and explicit");
 	      msg_tail((is_numeric_type(t1)&&is_numeric_type(t2))?
 			 "precision":"size");
@@ -478,7 +478,7 @@ if(debug_latest)
 
 				/* Give -trunc warning if a real or
 				   complex type is promoted to double. */
-	if(trunc_promotion && !INTRINS_ARGS && is_float_type(t1) ) {
+	if(trunc_promotion && !COMMA_LIST && is_float_type(t1) ) {
 		  /* First clause checks R+R size agreement */
 	  if( (type_category[result_type] == R && ls1 != ls2)
 		     /* Second clause checks R+C and C+C */
@@ -569,7 +569,7 @@ is_true(PARAMETER_EXPR,result->TOK_flags),
 is_true(EVALUATED_EXPR,result->TOK_flags));
 #endif
 
-  if(! INTRINS_ARGS) {		/* Remaining steps only applicable to exprs */
+  if(! COMMA_LIST) {		/* Remaining steps only applicable to exprs */
 
 		/* Remember if integer division was used */
     if(result_type == type_INTEGER &&
@@ -670,7 +670,7 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 	  warning(op->line_num,op->col_num,
 		  "integer to negative power usually yields 0");
 	}
-  }/* end if !INTRINS_ARGS */
+  }/* end if !COMMA_LIST */
 }/*binexpr_type*/
 
 
