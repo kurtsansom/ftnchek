@@ -148,7 +148,7 @@ PRIVATE char *current_len_text;	/* for type*len declarations: text of len */
 
 PRIVATE int kind_warning_given=FALSE; /* to say "not interpreted" only once */
 
-PRIVATE Token save_token,	/* Holds token shared by productions */
+PRIVATE Token
     len_spec_token,		/* Holds character length spec temporarily */
     dim_bound_token;		/* Holds attr-based dim-bound list header */
 
@@ -251,6 +251,7 @@ PRIVATE int
 				/* Defns of private functions */
 
 void ddd_hook();
+PRIVATE void check_token(Token *);
 PROTO(PRIVATE void push_block,(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 			       char *name, LABEL_t label));
 PROTO(PRIVATE void pop_block,(Token *t, int stmt_class,
@@ -294,9 +295,6 @@ PRIVATE void block_stack_top_swap();
        token.TOK_type = type_pack = storage_class << 4 + datatype
        token.TOK_flags: CONST_EXPR, LVALUE_EXPR, etc.
        token.TOK_flags: COMMA_FLAG used to handle extra/missing commas
-  4. substring_interval
-       token.class = start index  --> TOK_start
-       token.subclass = end index --> TOK_end
 */
 
 
@@ -1780,12 +1778,12 @@ equiv_entity	:	symbolic_name
 			}
 		;
 
-array_equiv_name:	symbolic_name '(' subscript_list ')'
+array_equiv_name:	tok_array_identifier '(' subscript_list ')'
 				/* should check */
 		;
 
-substring_equiv_name:	symbolic_name substring_interval
-		|	array_equiv_name substring_interval
+substring_equiv_name:	tok_identifier '(' bounds_range ')'
+		|	array_equiv_name '(' bounds_range ')'
 		;
 
 /* 19 */
@@ -3401,17 +3399,37 @@ data_implied_do_list:  '(' data_dlist ',' implied_do_control ')'
 
 implied_do_control: symbolic_name '=' implied_do_loop_bounds
 			{
+			   $$.value.integer = $3.value.integer;
 			   use_implied_do_index(&($1));
 			   $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		;
 
-implied_do_loop_bounds:	integer_expr ',' integer_expr
+implied_do_loop_bounds:	bounds_expr ',' bounds_expr
 			{
+			  if( $1.value.integer == size_UNKNOWN ||
+			      $3.value.integer == size_UNKNOWN ) {
+			    $$.value.integer = size_UNKNOWN;
+			  }
+			  else {
+			    $$.value.integer = $3.value.integer - $1.value.integer + 1;
+			  }
 			  $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
-		|	integer_expr ',' integer_expr ',' integer_expr
+		|	bounds_expr ',' bounds_expr ',' bounds_expr
 			{
+			  if( $1.value.integer == size_UNKNOWN ||
+			      $3.value.integer == size_UNKNOWN ||
+			      $5.value.integer == size_UNKNOWN ) {
+			    $$.value.integer = size_UNKNOWN;
+			  }
+			  else {
+			    int span = ($3.value.integer-$1.value.integer+$5.value.integer)
+			      /$5.value.integer;
+			    if(span < 0)
+			      span = 0;
+			    $$.value.integer = span;
+			  }
 			  $3.left_token = add_tree_node(&($4),&($3),&($5));
 			  $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
@@ -4783,9 +4801,13 @@ compound_object	:	function_reference
 			    make_true(LIT_CONST,$$.TOK_flags);
 			    make_true(EVALUATED_EXPR,$$.TOK_flags);
 			    make_true(DIM_BOUND_EXPR,$$.TOK_flags);
+			    $$.array_dim = array_dim_info(0,0);
 			}
 
 		|	array_constructor
+			{
+			    check_token(&($1));
+			}
 
 		|	'(' expr ')'
 			{
@@ -4811,6 +4833,7 @@ compound_object	:	function_reference
 
 array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
 			{
+			    $$.array_dim = $1.array_dim = $2.array_dim;
 			    $2.next_token = reverse_tokenlist($2.next_token);
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
 			    $$.TOK_type = $2.TOK_type;
@@ -4822,6 +4845,7 @@ array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
 
 		|	'[' ac_value_list ']' /* F2010 alternative form */
 			{
+			    $$.array_dim = $1.array_dim = $2.array_dim;
 			    $2.next_token = reverse_tokenlist($2.next_token);
 			    $1.tclass = tok_l_ac_delimiter; /* use same as above */
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
@@ -4844,25 +4868,61 @@ ac_value_list	:	ac_value
 			}
 	 	|	ac_value_list ',' ac_value
 			{
+			    if( array_size_is_unknown($1.array_dim) ||
+			        array_size_is_unknown($3.array_dim) ) {
+				$$.array_dim = array_dim_info_unk_size(1);
+			    }
+			    else {
+				$$.array_dim = array_dim_info(1,
+				    array_size($1.array_dim) + 
+				    array_size($3.array_dim));
+			    }
+
 			    $$.next_token = append_token($1.next_token,&($3));
 			    binexpr_type(&($1),&($2),&($3),&($$));
 			}
 		;
 
-ac_value	:	expr
+ac_value	:	make_ac_value
+	 		{
+			    /* change scalar to 1 dimensional array */
+			    if( array_dims($1.array_dim) == 0 ) {
+				$$.array_dim = array_dim_info(1,1);
+			    }
+			    else {
+				if( array_size_is_unknown($1.array_dim) ) {
+				    $$.array_dim =
+				        array_dim_info_unk_size(1);
+				}
+				else {
+				    $$.array_dim = array_dim_info(1,
+					array_size($1.array_dim));
+				}
+			    }
+			}
+
+make_ac_value	:	expr
 			{
-			  if(is_true(ID_EXPR,$1.TOK_flags)){
-			    use_variable(&($1));
-			  }
+			    if(is_true(ID_EXPR,$1.TOK_flags)){
+			      use_variable(&($1));
+			    }
 			}
 	 	|	ac_implied_do
 	 	;
 
 ac_implied_do	:	'(' ac_value_list ',' implied_do_control ')'
 	      		{
+			    if( array_size_is_unknown($2.array_dim) ||
+				$4.value.integer == size_UNKNOWN ) {
+			      $$.array_dim = array_dim_info_unk_size(1);
+			    }
+			    else {
+			      $$.array_dim = array_dim_info(1,
+				    array_size($2.array_dim)*$4.value.integer);
+			    }
 			    $2.next_token = reverse_tokenlist($2.next_token);
 			    /* change token class to tok_DO for tree */
-			    $3.tclass = tok_DO;
+			    $$.tclass = $3.tclass = tok_DO;
 			    $$.left_token = add_tree_node(&($3),&($2),&($4));
 			    $$.TOK_type = $2.TOK_type;
 			    $$.size = $2.size;
@@ -5041,6 +5101,7 @@ array_element_lvalue:	array_name '(' subscript_list ')'
 				$$.left_token = add_tree_node(
 						   &($2),&($1),$3.next_token);
 				$$.next_token = (Token *) NULL;
+				$$.array_dim.dims = $$.array_dim.size = 0;
 			}
 		;
 
@@ -5054,6 +5115,8 @@ array_element_name:	array_name '(' subscript_list ')'
 					/* array now becomes scalar */
 				make_false(ARRAY_ID_EXPR,$$.TOK_flags);
 				make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
+			        $$.array_dim = array_dim_info(0,0);
+
 				$$.left_token = add_tree_node(
 						   &($2),&($1),$3.next_token);
 				$$.next_token = (Token *) NULL;
@@ -5071,21 +5134,13 @@ subscript_list	:	subscript
 			}
 		     ;
 
-subscript	:	expr
-			{
-			    if(is_true(ID_EXPR,$1.TOK_flags)){
-				 use_variable(&($1));
-			    }
-				/* check subscript exprs for integer type */
-			    if(datatype_of($1.TOK_type) != type_INTEGER)
-			      if(trunc_real_subscript)
-			         warning($1.line_num,$1.col_num,
-					 "subscript is not integer");
-			}
+subscript	:	bounds_expr  /* array element */
+		|	bounds_range /* array section */
+		|	bounds_range ':' bounds_expr /* array section */
 		;
 
 /* 89 */
-substring_name	:	fun_or_substr_handle  substring_interval
+substring_name	:	fun_or_substr_handle  '(' bounds_range ')'
 			{
 				   /* restore status of complex flag */
 			    if(!is_true(COMPLEX_FLAG,$1.TOK_flags))
@@ -5094,111 +5149,100 @@ substring_name	:	fun_or_substr_handle  substring_interval
 				   arg list text */
 			    if(is_true(ID_EXPR,$1.TOK_flags))
 			       make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
-			    $$.size=substring_size(&($1),&($2));
+			    $$.size=substring_size(&($1),&($3));
 			    $$.left_token = add_tree_node(
-					       &save_token,&($1),&($2));
+					       &($2),&($1),&($3));
 			    $$.next_token = (Token *) NULL;
 			}
 
-		|	function_reference  substring_interval
+		|	function_reference  '(' bounds_range ')'
 			{
-			    $$.size=substring_size(&($1),&($2));
+			    $$.size=substring_size(&($1),&($3));
 			    $$.left_token = add_tree_node(
-					       &save_token,&($1),&($2));
+					       &($2),&($1),&($3));
 			    $$.next_token = (Token *) NULL;
 			}
 
-		|	array_element_name substring_interval
+		|	array_element_name '(' bounds_range ')'
 			{
-			    $$.size=substring_size(&($1),&($2));
+			    $$.size=substring_size(&($1),&($3));
 			    $$.left_token = add_tree_node(
-					       &save_token,&($1),&($2));
+					       &($2),&($1),&($3));
 			    $$.next_token = (Token *) NULL;
 			}
 		;
 
-substring_lvalue:	scalar_name substring_interval
+substring_lvalue:	scalar_name '(' bounds_range ')'
 			{
 			    ref_variable(&($1));
 			    $$.TOK_flags = $1.TOK_flags;
-			    $$.size=substring_size(&($1),&($2));
+			    $$.size=substring_size(&($1),&($3));
 			    $$.left_token = add_tree_node(
-					       &save_token,&($1),&($2));
+					       &($2),&($1),&($3));
 			    $$.next_token = (Token *) NULL;
 			}
-		|	array_element_lvalue substring_interval
+		|	array_element_lvalue '(' bounds_range ')'
 			{
-			    $$.size=substring_size(&($1),&($2));
+			    $$.size=substring_size(&($1),&($3));
 			    $$.left_token = add_tree_node(
-					       &save_token,&($1),&($2));
+					       &($2),&($1),&($3));
 			    $$.next_token = (Token *) NULL;
 			}
 		;
 
-			/* substring interval: limits go into
-			   TOK_start, TOK_end.  */
 
-substring_interval:	'(' ':' ')'
+bounds_range	:	':'
 			{
-			    $$.TOK_start=1;
-			    $$.TOK_end=0; /* 0 means LEN */
+			    Token empty = $1;
 
-			    save_token = $1; /* Save the paren for tree node */
+			    (void)empty_token(&empty);
 			    $$.left_token =
-			      add_tree_node(&($2),
-				     empty_token(&($1)),empty_token(&($3)));
+			      add_tree_node(&($1),&empty,&empty);
 				/* Nullify next_token so it looks like
 				   a tokenlist */
 			    $$.next_token = (Token *)NULL;
 			}
 
-		  |	'(' substr_index_expr ':' ')'
+		  |	bounds_expr ':'
 			{
-			    $$.TOK_start=$2.value.integer;
-			    $$.TOK_end=0; /* 0 means LEN */
+			    Token empty = $2;
 
-			    save_token = $1; /* Save the paren for tree node */
+			    (void)empty_token(&empty);
 			    $$.left_token =
-			      add_tree_node(&($3),&($2),empty_token(&($4)));
+			      add_tree_node(&($2),&($1),&empty);
+			    $$.left_token->left_token->value.integer = $1.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
-		  |	'(' ':' substr_index_expr ')'
+		  |	':' bounds_expr
 			{
-			    $$.TOK_start=1;
-			    $$.TOK_end=$3.value.integer;
+			    Token empty = $1;
 
-			    save_token = $1; /* Save the paren for tree node */
+			    (void)empty_token(&empty);
 			    $$.left_token =
-			      add_tree_node(&($2),empty_token(&($1)),&($3));
+			      add_tree_node(&($1),&empty,&($2));
+			    $$.left_token->next_token->value.integer = $2.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
-		  |	'(' substr_index_expr ':' substr_index_expr ')'
+		  |	bounds_expr ':' bounds_expr
 			{
-			    $$.TOK_start=$2.value.integer;
-			    $$.TOK_end=$4.value.integer;
-
-			    save_token = $1; /* Save the paren for tree node */
-			    $$.left_token =
-			      add_tree_node(&($3),&($2),&($4));
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
+			    $$.left_token->left_token->value.integer = $1.value.integer;
+			    $$.left_token->next_token->value.integer = $3.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
 		  ;
 
-substr_index_expr:	arith_expr
-			{
-			  if(is_true(ID_EXPR,$1.TOK_flags)){
-			    use_variable(&($1));
-			  }
-				/* check validity and replace nonconst
+bounds_expr	:	integer_expr
+{check_token(&($1));
+				/* store value, replacing nonconst
 				   value by size_UNKNOWN. */
 			  if(is_true(CONST_EXPR,$1.TOK_flags)) {
-			    if( ($$.value.integer=int_expr_value(&($1))) < 1) {
-			      syntax_error($1.line_num,$1.col_num,
-					   "invalid substring index");
-			    }
+			    $$.value.integer=int_expr_value(&($1));
 			  }
-			  else  /* (no longer need ID hash index) */
+			  else { /* (no longer need ID hash index) */
 			    $$.value.integer=size_UNKNOWN;
+			  }
+			  make_false(ID_EXPR,$$.TOK_flags);
 			}
 		;
 
@@ -5233,35 +5277,23 @@ array_name	:	tok_array_identifier
    to avoid shift-reduce conflict with function reference. */
 component	:	variable_name '%' component_name
 			{
-			    /* Create initial linked list ->compname->varname */
-/*
-			    $3.next_token = append_token((Token*)NULL,&($1));
-			    $$.next_token = append_token($3.next_token,&($3));
-*/
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		|	array_element_name '%' component_name
 			{
-			    /* Create initial linked list ->compname->varname */
-/*
-			    $3.next_token = append_token((Token*)NULL,&($1));
-			    $$.next_token = append_token($3.next_token,&($3));
-*/
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		|	component '%' component_name
 			{
-			    /* Link new component onto front of list */
-/*
-			    $$.next_token = append_token($1.next_token,&($3));
-*/
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		;
 
 component_name	:	tok_identifier
 		|	tok_identifier '(' subscript_list ')'
-		|	tok_identifier substring_interval
+			{
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
+			}
 		;
 
 /* symbolic_name refers to a name without making it into an id expr */
@@ -6406,3 +6438,7 @@ void ddd_hook()
     printf("hello");
 }
 #endif
+
+PRIVATE void check_token(Token *id)
+{
+}

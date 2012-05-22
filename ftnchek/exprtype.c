@@ -609,6 +609,36 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 	}
     }
 
+    /* check for array conformance */
+    {
+	unsigned long term1_array_size, term2_array_size;
+	term1_array_size = array_size(term1->array_dim);
+	term2_array_size = array_size(term2->array_dim);
+
+	if( !array_size_is_unknown(term2->array_dim) &&
+	    !array_size_is_unknown(term1->array_dim) ) {
+	    if( term1_array_size != term2_array_size ) {
+		syntax_error(op->line_num,op->col_num,
+			"arrays not conformable:");
+		fprintf(list_fd," %ld",term1_array_size);
+		msg_tail("and");
+		fprintf(list_fd," %ld",term2_array_size);
+	    }
+	}
+	else {
+	    syntax_error(op->line_num,op->col_num,
+		    "arrays not conformable:");
+	    array_size_is_unknown(term1->array_dim) ?
+		msg_tail("unknown size") :
+		fprintf(list_fd," %ld",term1_array_size) ;
+	    msg_tail("and");
+	    array_size_is_unknown(term2->array_dim) ?
+		msg_tail("unknown size") :
+		fprintf(list_fd," %ld",term2_array_size) ;
+	}
+
+    }
+
 			/* If either term is an identifier, set use flag */
     if(is_true(ID_EXPR,term1->TOK_flags))
 	use_variable(term1);
@@ -860,6 +890,46 @@ assignment_stmt_type(term1,equals,term2)
 	      }
 	    }
 	    else {
+	      unsigned long term1_array_size, term2_array_size;
+	      term1_array_size = array_size(term1->array_dim);
+	      term2_array_size = array_size(term2->array_dim);
+
+	      if( is_true(ARRAY_ID_EXPR, term1->TOK_flags) &&
+		  /* ignore character types for now */
+		  datatype_of(term2->TOK_type) != type_STRING ) {
+		if( array_dims(term2->array_dim) ) {
+		  if( !array_size_is_unknown(term2->array_dim) ) {
+		      if( term1_array_size != term2_array_size ) {
+			syntax_error(equals_line_num,equals_col_num,
+				     "array size mismatch:");
+			fprintf(list_fd," %ld",term1_array_size);
+			msg_tail("and");
+			fprintf(list_fd," %ld",term2_array_size);
+		      }
+		  }
+		  else {
+		      syntax_error(equals_line_num,equals_col_num,
+			           "array size mismatch:");
+		      array_size_is_unknown(term1->array_dim) ?
+			  msg_tail("unknown size") :
+			  fprintf(list_fd," %ld",term1_array_size) ;
+		      msg_tail("and");
+		      array_size_is_unknown(term2->array_dim) ?
+			  msg_tail("unknown size") :
+			  fprintf(list_fd," %ld",term2_array_size) ;
+		  }
+		}
+	      }
+	      else {
+		/*
+		 * Commented because also checked in grammar
+		if( is_true(ARRAY_ID_EXPR, term2->TOK_flags) ) {
+		  syntax_error(equals_line_num,equals_col_num,
+		      "array assigned to scalar");
+		}
+		*/
+	      }
+		
 	      if(result_type >= W) {		/* W result */
 		if(f77_mixed_expr || f90_mixed_expr) {
 		  nonstandard(equals_line_num,equals_col_num,f90_mixed_expr,0);
@@ -1265,6 +1335,7 @@ primary_id_expr(id,primary)
 #endif
 	primary->size =get_size(symt,id_type);
 	primary->left_token = (Token *) NULL;
+	primary->array_dim = symt->array_dim;
 
 	make_true(ID_EXPR,primary->TOK_flags);
 
@@ -1471,7 +1542,7 @@ substring_size(id,limits)
 #ifdef DEBUG_EXPRTREES
 	Lsymtab *symt = hashtab[id->value.integer].loc_symtab;
 #endif
-/***	id_type=get_type(symt); **/
+	Token *start_bound, *end_bound;
 	id_type = datatype_of(id->TOK_type);
 
 	substr_len=size_UNKNOWN;
@@ -1488,23 +1559,36 @@ substring_size(id,limits)
 	    print_expr_list(limits);
 	  }
 #endif
-		/* fortran.y stores (startindex:endindex) in
-		   TOK_start, Tok_end */
-	  startindex = limits->TOK_start;
-	  endindex = limits->TOK_end;
+
+	  /* get tokens holding starting and ending bounds */
+	  start_bound = limits->left_token->left_token;
+	  end_bound = limits->left_token->next_token;
+	  if( start_bound->tclass == tok_empty ) /* empty start bounds expr (:...) */
+	    startindex = 1;
+	  else
+	    startindex = start_bound->value.integer;
+
+	  if( end_bound->tclass == tok_empty ) /* empty end bounds expr (...:) */
+	    endindex=id_len;
+	  else
+	    endindex = end_bound->value.integer;
+
 	  if(startindex != size_UNKNOWN && endindex != size_UNKNOWN) {
-		/* Check limits unless endindex=0 */
-	    if( startindex > endindex && endindex > 0 ) {
+		/* Check limits validity.  Note end index<=0 and start>end allowed in F90 */
+	    int f90_invalid, f77_invalid;
+	    f90_invalid = (startindex <= 0 ||
+		   (id_len != size_UNKNOWN && (startindex > id_len || endindex > id_len)) );
+	    f77_invalid = (endindex <= 0 || startindex > endindex);
+	    if( f90_invalid || (f77_substring_bounds && f77_invalid) ) {
 	      syntax_error(limits->line_num,limits->col_num,
 		      "invalid substring limits");
+	      if(! f90_invalid)
+		msg_tail("for F77");
 	    }
 	    else {
-	      if(endindex == 0)	/* 0 means it was (startindex: ) */
-		endindex=id_len;
 	      substr_len = endindex-startindex+1;
-	      if(id_len > 0 && substr_len > id_len)
-		syntax_error(limits->line_num,limits->col_num,
-		      "substring size exceeds string size");
+	      if(substr_len < 0)	/* F90 rule allows zero-length substrings */
+		substr_len = 0;
 	    }
 	  }
 	}

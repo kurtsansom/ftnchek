@@ -405,6 +405,11 @@ call_subr(id,arg)	/* Process call statements */
 	   symt = install_local(h,type_SUBROUTINE,class_SUBPROGRAM);
    	   symt->info.toklist = NULL;
 	}
+	else if (!in_curr_scope(symt)) {
+	   /* copy appropriate fields to new masking entry */
+	   symt = inherit_local(h,symt);
+	   hashtab[h].loc_symtab = symt;
+	}
 	else {			/* protect ourself against nonsense */
 	   if( symt->array_var || symt->parameter ) {
 	      syntax_error(id->line_num,id->col_num,
@@ -793,12 +798,13 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	symt->array_var = TRUE;
 	
 	if(!equivalence_flag && !allocatable_flag){      /* some checking should be done here */
-	   if(symt->array_dim != 0)
+	  if(array_dims(symt->array_dim) != 0 || array_dims(symt->array_dim) != 0)
 	      syntax_error(id->line_num,id->col_num,
 		"Array redimensioned");
-	   else
+	   else {
 	      symt->array_dim = array_dim_info(arg->TOK_dims,
 						    arg->TOK_elts);
+	   }
 
 	}
 
@@ -2269,7 +2275,8 @@ Recompile me with LARGE_MACHINE option\n"
 	    }
 
 	    symt->name = hashtab[h].name;
-	    symt->array_dim = 0;
+				/* all items start life as scalars */
+	    symt->array_dim = array_dim_info(0,0);
 
 		      /* Set symtab info fields */
 	    symt->type = type_pack(storage_class,datatype);
@@ -3659,4 +3666,12 @@ Recompile me with LARGE_MACHINE option\n"
 	  ++loc_symtab_top;
 	}
 	return symt;
+}
+
+/* Compare array dim info of two arrays.  Returns 0 if match, 1 if differ. */
+int array_dim_cmp(array_dim_t a, array_dim_t b)
+{
+  return (array_size_is_unknown(a) || array_size_is_unknown(b)) ||
+    (array_dims(a) != array_dims(b)) ||
+    (array_size(a) != array_size(b));
 }

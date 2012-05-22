@@ -342,6 +342,11 @@ SYM_SHARED
 char *implicit_len_text[('Z'-'A'+1)+2];
 */
 
+typedef struct {
+    unsigned long size;	/* total size of an array */
+    short dims;	/* number of dimensions in an array */
+    unsigned size_unknown : 1;
+} array_dim_t;
 
 	/* Declaration of Token data structure.  N.B. do not change without
 	   consulting preamble of fortran.y for uses with nonterminals.
@@ -352,8 +357,6 @@ char *implicit_len_text[('Z'-'A'+1)+2];
 #define TOK_dims tclass
 #define TOK_elts tsubclass
 
-#define TOK_start tclass
-#define TOK_end  tsubclass
 
 
 struct tokstruct {
@@ -362,6 +365,7 @@ struct tokstruct {
 		DBLVAL dbl;
 		char *string;
 	} value;		/* Value of constant */
+	array_dim_t array_dim;	/* array size and no. of dims */
 	struct tokstruct
 	  *left_token,		/* Left child in expr tree */
 	  *next_token;		/* Right child or next in linked list */
@@ -369,7 +373,6 @@ struct tokstruct {
 	long tclass,tsubclass;	/* Token category and subcategory */
 	long size;		/* sizeof(datatype) */
 	type_t TOK_type;	/* Storage class & data type of identifier */
-	unsigned long array_dim;/* array size and no. of dims */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
 	/* int symtab_index; */	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
@@ -459,13 +462,13 @@ typedef union {		/* InfoUnion: misc info about symtab entry */
 } InfoUnion;
 
 typedef struct {	/* ArgListElement: holds subprog argument data */
+	array_dim_t array_dim;	/* array size and no. of dims */
 	char *name;		/* name of dummy arg or text of actual arg */
 	InfoUnion info;
 	struct gSymtEntry *common_block; /* block it belongs to if any */
 	long common_index;	/* index in block */
 	long size;
 	type_t type;
-	unsigned long array_dim;	/* array size and no. of dims */
 	short same_as;	/* index if two actual arguments the same */
 	unsigned is_lvalue: 1,
 		 set_flag: 1,
@@ -499,8 +502,8 @@ typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 		/* Symbol table common block list declarations */
 
 typedef struct {	/* ComListElement: holds common var data */
+	array_dim_t dimen_info;
 	char *name;		/* name of common variable */
-	unsigned long dimen_info;
 	long size;
 	type_t type;
 	unsigned		/* copies of flags from symtab */
@@ -617,6 +620,7 @@ typedef struct childlist {
 
 
 typedef struct lSymtEntry{
+	array_dim_t array_dim;	/* array size and no. of dims */
 	char *name;             /* Identifier name in stringspace */
 	InfoUnion info;
 	union{
@@ -639,7 +643,6 @@ typedef struct lSymtEntry{
 	LINENO_t line_declared, line_set, line_used, line_assocd, line_allocd;
 	short file_declared, file_set, file_used, file_assocd, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
-	unsigned long array_dim;	/* array size and no. of dims */
 			/* Flags */
 	unsigned
 	     used_flag: 1,	/* value is accessed (read from variable) */
@@ -901,14 +904,17 @@ typedef struct PSpace {
 
 #define flag_combo(A,B,C) (((A)<<2) | ((B)<<1) | (C))
 
-
-	/* These macros are for dimensions & sizes of arrays */
-
-#define array_dims(dim_info) ((dim_info)&0xF)
-#define array_size(dim_info) ((dim_info)>>4)
-#define array_dim_info(dim,size) (((long)(size)<<4)+(dim))
-
-
+ 	/* Macros for working with array_dim field */
+				/* get no. of dimensions */
+#define array_dims(DIM_INFO) (DIM_INFO.dims)
+				/* get no. of elements */
+#define array_size(DIM_INFO) (DIM_INFO.size)
+				/* test if no. of elements is unknown */
+#define array_size_is_unknown(DIM_INFO) ((int)DIM_INFO.size_unknown)
+				/* create info field of given dims&size */
+#define array_dim_info(DIM,SIZE) ((array_dim_t){(SIZE),(DIM),FALSE})
+				/* create info field for unknown size */
+#define array_dim_info_unk_size(DIM) ((array_dim_t){0L,(DIM),TRUE})
 
 		/* Defns used by expression type propagation mechanisms
 		   in fortran.y and exprtype.c  The flags go in token.TOK_flags
@@ -1074,6 +1080,13 @@ PROTO(void read_module_file, (int h, Token *only, int only_list_mode));
 
 			/* in symtab.c */
 PROTO(void apply_attr,( Token *id, int attr ));
+#if 0
+PROTO(int array_dims, (array_dim_t dim_info));
+PROTO(unsigned long array_size, (array_dim_t dim_info));
+PROTO(array_dim_t array_dim_info, ( short dim, unsigned long size ));
+PROTO(int array_size_is_unknown,(array_dim_t dim_info));
+#endif
+PROTO(int array_dim_cmp,(array_dim_t a, array_dim_t b));
 PROTO(void call_func,( Token *id, Token *arg ));
 PROTO(void call_subr,( Token *id, Token *arg ));
 PROTO(char * char_expr_value,( Token *t ));

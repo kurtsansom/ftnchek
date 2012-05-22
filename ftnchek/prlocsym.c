@@ -869,7 +869,7 @@ if(debug_latest) {
 	     (void)fprintf(list_fd," ");
 
 	  if(components[j].array) {
-	     (void)fprintf(list_fd," %ld",
+	     (void)fprintf(list_fd," %d",
 			   array_dims(components[j].array_dim));
 	  }
 	  else {

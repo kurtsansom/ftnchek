@@ -22,9 +22,9 @@ int dtype_table_top 	/* starting index in Dtype_table */
 ;
 
 typedef struct DerivedTypeComponent {
+  array_dim_t array_dim;	/* array size and no. of dims */
   char *name;			/* component name (not in symtab) */
   type_t type;			
-  unsigned long array_dim;	/* array size and no. of dims */
   long size;			/* Size of object in bytes */
   	/* flags */
   unsigned

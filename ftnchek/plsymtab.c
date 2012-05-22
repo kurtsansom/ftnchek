@@ -442,8 +442,8 @@ print_variables(sym_list,n)
 
 			/* print no. of dimensions next to var name */
 	  if(sym_list[i]->array_var) {
-		(void)fprintf(list_fd," %ld",
-			       array_dims(sym_list[i]->array_dim));
+		(void)fprintf(list_fd," %d",
+			      array_dims(sym_list[i]->array_dim));
 	  }
 	  else {
 		(void)fprintf(list_fd,"%2s","");
@@ -615,7 +615,8 @@ print_com_array(cmlist)
 			    "*%ld",
 			    c[i].size
 		    );
-		if(c[i].dimen_info != array_dim_info(0,1))
+		if( array_dims(c[i].dimen_info) != 0 &&
+		    array_size(c[i].dimen_info) != 1 )
 		    (void)fprintf(list_fd,
 			    ":%ldD(%ld)",
 			    array_dims(c[i].dimen_info),

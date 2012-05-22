@@ -281,7 +281,7 @@ arg_array_cmp(name,args1,args2)
 			else {
 					/*   B. Actual arg is whole array */
 					/*	Warn if dims or sizes differ */
-			  unsigned long
+			  array_dim_t
 			    diminfo1,diminfo2;
 			  long dims1,dims2,size1,size2,
 			    cmpsize1,cmpsize2;

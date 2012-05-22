@@ -14,7 +14,8 @@ PRIVATE int duplicate_dtype( int type_id );  /* check if derived type definition
     exists in dtype_table */
 PRIVATE int is_same_components(int s_id,int t_id,
        const DtypeComponent *source, const DtypeComponent *target, int num_components);
-PRIVATE  DtypeComponent *last_component(Token *comp_token);
+PRIVATE DtypeComponent *last_component(Token *comp_token, 
+	array_dim_t *result_dim);
 
 PRIVATE void make_error_dtype_token( Token *result );
 PRIVATE DtypeComponent *find_component(int d, const char *s);
@@ -415,7 +416,7 @@ int is_same_components(int s_id,int t_id,
     if ( source[i].private || target[i].private ) /* no private components */
       return FALSE;
     if ( (source[i].array != target[i].array) || /* arrayness match */
-	 (source[i].array && (source[i].array_dim != target[i].array_dim)) )
+	 (source[i].array && array_dim_cmp(source[i].array_dim,target[i].array_dim) != 0) )
       return FALSE;
       /* types must match except if pointers to own type */
     if ( (source[i].type != target[i].type) &&
@@ -557,12 +558,29 @@ if(debug_latest) {
  * Operates recursively, checking as it goes to make sure that the
  * data object of which a component is sought is of a derived type.
  */
-PRIVATE DtypeComponent *last_component(Token *comp_token)
+PRIVATE DtypeComponent *last_component(Token *comp_token, 
+	array_dim_t *result_dim)
 {
   int h, d;
   DtypeComponent *comp_dtype;
   Token *base = comp_token->left_token;	      /* e.g. A%B in A%B%C */
   Token *component = comp_token->next_token;  /* e.g. C in A%B%C */
+  int base_scalar_ref = FALSE;
+  int component_scalar_ref = FALSE;
+
+  /* If base is an array element, we got the '(' token that is root of
+   * array expression instead of variable.  Jog down one level to get
+   * variable.
+   */
+  if( base->tclass == '(' ) {
+    base = base->left_token;
+    base_scalar_ref = TRUE;	/* MUST FIX TO HANDLE ARRAY SECTIONS */
+  }
+
+  if( component->tclass == '(' ) {
+    component = component->left_token;
+    component_scalar_ref = TRUE;/* MUST FIX TO HANDLE ARRAY SECTIONS */
+  }
 
   if( base->left_token == NULL ) {	/* base variable */
     Lsymtab *symt;
@@ -588,9 +606,14 @@ PRIVATE DtypeComponent *last_component(Token *comp_token)
       return NULL;
     }
 
+    /* reference to an array */
+    if (symt->array_var && !base_scalar_ref) {
+      *result_dim = array_dim_info(array_dims(symt->array_dim),
+	      array_size(symt->array_dim) );
+    }
   }
   else {				/* base % component */
-    DtypeComponent *base_dtype = last_component(base); /* find last component's type */
+    DtypeComponent *base_dtype = last_component(base, result_dim); /* find last component's type */
     if( base_dtype == NULL ) {
       return NULL;
     }
@@ -615,10 +638,25 @@ PRIVATE DtypeComponent *last_component(Token *comp_token)
     return NULL;
   }
   else {
+    /* not a scalar reference to an array */
+    if (comp_dtype->array && !component_scalar_ref) {
+      /* In component references, only one reference can be to an
+       * array.
+       */
+      if (array_dims((*result_dim)) != 0) {
+	syntax_error(component->line_num,component->col_num,
+	    "more than one component of nonzero rank");
+      }
+      else {
+	*result_dim = array_dim_info(array_dims(comp_dtype->array_dim),
+	    array_size(comp_dtype->array_dim) );
+      }
+    }
+
 #ifdef DEBUG_DTYPE
     if(debug_latest) {
 	printf("\nlast component %s type %d=%s",
-	       comp_dtype->name,d,dtype_table[d]->name);
+	       comp_dtype->name,datatype_of(comp_dtype->type),type_name(datatype_of(comp_dtype->type)));
 	fflush(stdout);
     }
 #endif
@@ -634,8 +672,9 @@ PRIVATE DtypeComponent *last_component(Token *comp_token)
 void ref_component(Token *comp_token, Token *result, int lvalue)
 {
   DtypeComponent *comp_dtype;
+  array_dim_t result_dim = array_dim_info(0,0);
 
-  comp_dtype = last_component(comp_token->left_token);
+  comp_dtype = last_component(comp_token->left_token, &result_dim);
 
   if(comp_dtype == NULL) {			/* not found */
     make_error_dtype_token( result );
@@ -645,9 +684,11 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
 
     result->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
     result->size = comp_dtype->size;
+    result->array_dim = result_dim;
 #ifdef DEBUG_DTYPE
   if(debug_latest) {
     fprintf(list_fd,"\nResult has type %d",datatype_of(result->TOK_type));
+    fprintf(list_fd," dims %d size %ld",array_dims(result_dim),array_size(result_dim));
     fprintf(list_fd,"\n");
   }
 #endif

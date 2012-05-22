@@ -409,7 +409,8 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
 		  0,0,0,0,0);		/* for future use */
     if(curr[i].array) {
       NEXTLINE;
-      WRITE_NUM(" dims",curr[i].array_dim);
+      WRITE_NUM(" dims",array_dims(curr[i].array_dim));
+      WRITE_NUM(" elts",array_size(curr[i].array_dim));
     }
     NEXTLINE;
   }
@@ -433,9 +434,10 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
 		0,0);		/* for future use */
   if(lsymt->array_var) {
     NEXTLINE;
-    WRITE_NUM(" dims",lsymt->array_dim);
+    WRITE_NUM(" dims",array_dims(lsymt->array_dim));
+    WRITE_NUM(" elts",array_size(lsymt->array_dim));
   }
-  else if(lsymt->parameter) {
+  if(lsymt->parameter) {
     NEXTLINE;
     WRITE_STR(" value",lsymt->info.param->src_text);
   }
@@ -618,7 +620,6 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
   ArgListHeader *a=gsymt->info.arglist;
   ArgListElement *arg;
   int i,n;
-  unsigned long diminfo;
   Gsymtab *last_calling_prog_unit;
   int locally_defined = do_defns || has_defn(a); /* (avoid call if unnecessary) */
 
@@ -674,12 +675,16 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 	WRITE_NUM(" class",storage_class_of(arg[i].type));
 	WRITE_NUM(" type",datatype_of(arg[i].type));
 	WRITE_NUM(" size",arg[i].size);
-	diminfo = (
-		   ((storage_class_of(arg[i].type) == class_VAR) &&
-		   is_computational_type(datatype_of(arg[i].type))) ?
-		     arg[i].array_dim: 0 );
-	WRITE_NUM(" dims",array_dims(diminfo));
-	WRITE_NUM(" elts",array_size(diminfo));
+	if( ((storage_class_of(arg[i].type) == class_VAR) &&
+	     is_computational_type(datatype_of(arg[i].type))) ) {
+	  WRITE_NUM(" dims",array_dims(arg[i].array_dim));
+	  WRITE_NUM(" elts",array_size(arg[i].array_dim));
+	}
+	else {
+	  WRITE_NUM(" dims",0);
+	  WRITE_NUM(" elts",0);
+	}
+	  
 	{ char *cblk;
 	  if( arg[i].common_block == (Gsymtab *)NULL )
 	    cblk = "-";	/* place holder if no block name */
@@ -1105,7 +1110,8 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
     component_dummy3,
     component_dummy4,
     component_dummy5;
-  int component_array_dim;
+  int component_array_dims;
+  unsigned long component_array_elts;
   int duplicate_dtype = FALSE;
   Dtype *dtype;
   DtypeComponent *curr;
@@ -1234,9 +1240,13 @@ if (use_this_item) {
 	   &component_dummy5);
     if( component_array ) {
       NEXTLINE;
-      READ_NUM(" dims",component_array_dim);
+      READ_NUM(" dims",component_array_dims);
+      READ_LONG(" elts",component_array_elts);
     }
-
+    else {
+      component_array_dims = 0;
+      component_array_elts = 0;
+    }
     NEXTLINE;
 
     /* If new, store component info into dtype_table */
@@ -1244,8 +1254,7 @@ if (use_this_item) {
       curr = dtype->components;
       curr[i].name = new_global_string(component_name);
       curr[i].type = map_type(component_type);
-      curr[i].array_dim = (component_array) ?
-	component_array_dim : 0;
+      curr[i].array_dim = array_dim_info(component_array_dims,component_array_elts);
       curr[i].size = component_size;
       curr[i].array = component_array;
       curr[i].pointer = component_pointer;
@@ -1300,7 +1309,8 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
     id_target,
     id_dummy1,
     id_dummy2;
-  unsigned long id_array_dim;
+  int id_array_dims;
+  unsigned long id_array_elts;
   int use_this_item, in_list;
   char *local_name;
 
@@ -1351,10 +1361,11 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 
     if( id_array_var ) {
       NEXTLINE;
-      READ_LONG(" dims",id_array_dim);
+      READ_NUM(" dims",id_array_dims);
+      READ_LONG(" elts",id_array_elts);
       if (use_this_item) {
         symt->array_var = TRUE;
-        symt->array_dim = id_array_dim;
+        symt->array_dim = array_dim_info(id_array_dims,id_array_elts);
       }
     }
     else if( id_param ) {
@@ -1441,8 +1452,9 @@ arg_info_in(fd,filename,is_defn,item_list)
     int mapped_alist_type;
     unsigned alist_line, alist_topline;
     long alist_size;
-    unsigned numargs,iarg,arg_num,arg_class,arg_type,arg_dims;
+    unsigned numargs,iarg,arg_num,arg_class,arg_type;
     int mapped_arg_type;
+    int arg_dims;
     unsigned long arg_elts;
     long arg_size;
     char arg_common_block[MAXNAME+1];
@@ -1790,7 +1802,8 @@ com_info_in(FILE *fd, const char *filename, const char *modulename, Token *item_
 		clist_saved,
 		clist_future;
     unsigned clist_line,clist_topline;
-    unsigned numvars,prev_n,ivar,var_num,var_class,var_type,var_dims;
+    unsigned numvars,prev_n,ivar,var_num,var_class,var_type;
+    int var_dims;
     unsigned long var_elts;
     unsigned			/* Flags for common variables */
 		var_used,
