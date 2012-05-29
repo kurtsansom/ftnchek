@@ -62,6 +62,9 @@ PROTO(PRIVATE char* sized_typename,( int type, long size ));
 PROTO(PRIVATE void report_mismatch,( const Token *term1, const Token *op, const Token *term2 ));
 PROTO(PRIVATE void report_type,( const Token *t ));
 PROTO(PRIVATE int int_power,( int x, int n ));
+PROTO(PRIVATE int array_section_size,(Token *id, int dim, Token *bounds));
+PROTO(PRIVATE void check_array_conformance,(Token *term1, Token *term2,
+		    int op_line_num, int op_col_num));
 
 
 	/* shorthand for datatypes.  must match those in symtab.h */
@@ -405,7 +408,7 @@ binexpr_type(term1,op,term2,result)
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest)
-  (void)fprintf(list_fd,"\nt1=%s s1=%d ls1=%d t2=%s s2=%d ls2=%d",
+  (void)fprintf(list_fd,"\nt1=%s s1=%ld ls1=%ld t2=%s s2=%ld ls2=%ld",
 	  type_name(t1),s1,ls1, type_name(t2), s2, ls2);
 #endif
 	if(tc1 == tc2) {/* same type category */
@@ -558,7 +561,7 @@ is_true(CONST_EXPR,term1->TOK_flags),
 is_true(PARAMETER_EXPR,term1->TOK_flags),
 is_true(EVALUATED_EXPR,term1->TOK_flags),
 
-operator->src_text,
+op->src_text,
 
 is_true(CONST_EXPR,term2->TOK_flags),
 is_true(PARAMETER_EXPR,term2->TOK_flags),
@@ -609,35 +612,9 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 	}
     }
 
-    /* check for array conformance */
-    {
-	unsigned long term1_array_size, term2_array_size;
-	term1_array_size = array_size(term1->array_dim);
-	term2_array_size = array_size(term2->array_dim);
+    /* Arrays combined in expr must have conformable shapes */
 
-	if( !array_size_is_unknown(term2->array_dim) &&
-	    !array_size_is_unknown(term1->array_dim) ) {
-	    if( term1_array_size != term2_array_size ) {
-		syntax_error(op->line_num,op->col_num,
-			"arrays not conformable:");
-		fprintf(list_fd," %ld",term1_array_size);
-		msg_tail("and");
-		fprintf(list_fd," %ld",term2_array_size);
-	    }
-	}
-	else {
-	    syntax_error(op->line_num,op->col_num,
-		    "arrays not conformable:");
-	    array_size_is_unknown(term1->array_dim) ?
-		msg_tail("unknown size") :
-		fprintf(list_fd," %ld",term1_array_size) ;
-	    msg_tail("and");
-	    array_size_is_unknown(term2->array_dim) ?
-		msg_tail("unknown size") :
-		fprintf(list_fd," %ld",term2_array_size) ;
-	}
-
-    }
+    check_array_conformance(term1,term2,op->line_num,op->col_num);
 
 			/* If either term is an identifier, set use flag */
     if(is_true(ID_EXPR,term1->TOK_flags))
@@ -813,6 +790,69 @@ unexpr_type(op,term1,result)
     }
 }
 
+/* Routine to check conformance of arrays in a binary expression or
+   assignment.
+	   OK:
+	     array = scalar
+	     array = array (matching shape)
+	     array op scalar
+	     scalar op array
+	     array op array (matching shape)
+	   Not OK:
+	     scalar = array
+	     array = array (mismatching shape)
+	     array op array (mismatching shape)
+
+   Note however that scalar = array is already flagged in grammar at
+   assignment_stmt production, so we only need to catch shape mismatch
+   of array =/op array.
+
+   If size of either array is unknown, size test passes, but
+   rank is still checked.
+ */
+
+PRIVATE
+void check_array_conformance(Token *term1, Token *term2,
+     int op_line_num, int op_col_num)
+{
+    if( is_true(ARRAY_EXPR, term1->TOK_flags) &&
+	is_true(ARRAY_EXPR, term2->TOK_flags) ) {
+      long array1_size = array_size(term1->array_dim);
+      long array2_size = array_size(term2->array_dim);
+      int array1_dims = array_dims(term1->array_dim);
+      int array2_dims = array_dims(term2->array_dim);
+
+			/* Only check if both sides are nonscalar. */
+      if( array1_dims != 0 && array2_dims != 0 ) {
+
+				/* First check rank match */
+	if( array1_dims != array2_dims ) {
+	  syntax_error(op_line_num,op_col_num,
+		       "array rank mismatch:");
+	  msg_tail(ulongtostr((unsigned long)array1_dims));
+	  msg_tail("and");
+	  msg_tail(ulongtostr((unsigned long)array2_dims));
+	}
+
+	else {		/* rank match OK: check shape */
+	    /* When we support array shapes, each dimension size match
+	       should be checked.  For now just check total size, if known.
+	     */
+	  if( !array_size_is_unknown(term1->array_dim) &&
+	      !array_size_is_unknown(term2->array_dim) ) {
+	    if( array1_size != array2_size ) {
+	      syntax_error(op_line_num,op_col_num,
+			   "array size mismatch:");
+	      msg_tail(ulongtostr((unsigned long)array1_size));
+	      msg_tail("and");
+	      msg_tail(ulongtostr((unsigned long)array2_size));
+	    }
+	  }
+	}
+      }
+    }
+}
+
 	/* this routine checks type and size match in assignment statements
 	   and in parameter assignments */
 
@@ -858,6 +898,10 @@ assignment_stmt_type(term1,equals,term2)
 	msg_tail("assigned to");
 	report_type(term1);
       }
+      else {
+	  check_array_conformance(term1, term2,
+		equals_line_num, equals_col_num);
+      }
     }
     else if( ! is_computational_type(type1) ) {
       if( misc_warn ) {
@@ -878,7 +922,6 @@ assignment_stmt_type(term1,equals,term2)
     else {
 	result_type = (unsigned)assignment_type[type1][type2];
 
-
 	if( (type1 != E && type2 != E) ) {
 	    if( result_type == E) {
 	      if( misc_warn ) {
@@ -890,45 +933,8 @@ assignment_stmt_type(term1,equals,term2)
 	      }
 	    }
 	    else {
-	      unsigned long term1_array_size, term2_array_size;
-	      term1_array_size = array_size(term1->array_dim);
-	      term2_array_size = array_size(term2->array_dim);
-
-	      if( is_true(ARRAY_ID_EXPR, term1->TOK_flags) &&
-		  /* ignore character types for now */
-		  datatype_of(term2->TOK_type) != type_STRING ) {
-		if( array_dims(term2->array_dim) ) {
-		  if( !array_size_is_unknown(term2->array_dim) ) {
-		      if( term1_array_size != term2_array_size ) {
-			syntax_error(equals_line_num,equals_col_num,
-				     "array size mismatch:");
-			fprintf(list_fd," %ld",term1_array_size);
-			msg_tail("and");
-			fprintf(list_fd," %ld",term2_array_size);
-		      }
-		  }
-		  else {
-		      syntax_error(equals_line_num,equals_col_num,
-			           "array size mismatch:");
-		      array_size_is_unknown(term1->array_dim) ?
-			  msg_tail("unknown size") :
-			  fprintf(list_fd," %ld",term1_array_size) ;
-		      msg_tail("and");
-		      array_size_is_unknown(term2->array_dim) ?
-			  msg_tail("unknown size") :
-			  fprintf(list_fd," %ld",term2_array_size) ;
-		  }
-		}
-	      }
-	      else {
-		/*
-		 * Commented because also checked in grammar
-		if( is_true(ARRAY_ID_EXPR, term2->TOK_flags) ) {
-		  syntax_error(equals_line_num,equals_col_num,
-		      "array assigned to scalar");
-		}
-		*/
-	      }
+	      check_array_conformance(term1, term2,
+		    equals_line_num, equals_col_num);
 		
 	      if(result_type >= W) {		/* W result */
 		if(f77_mixed_expr || f90_mixed_expr) {
@@ -1296,7 +1302,7 @@ symt->name,sized_typename(rettype,retsize));
 if(debug_latest) {
 (void)fprintf(list_fd,"\n%s(...) ",defn->name);
 if(is_true(EVALUATED_EXPR,args->TOK_flags))
-  (void)fprintf(list_fd,"=%d",result->value.integer);
+  (void)fprintf(list_fd,"=%ld",result->value.integer);
 else
   (void)fprintf(list_fd,"not evaluated");
 (void)fprintf(list_fd,": const param eval=(%d %d %d)",
@@ -1352,7 +1358,7 @@ primary_id_expr(id,primary)
 		    make_true(DO_VARIABLE,primary->TOK_flags);
 		}
 		if(symt->array_var)
-		    make_true(ARRAY_ID_EXPR,primary->TOK_flags);
+		    make_true(ARRAY_EXPR,primary->TOK_flags);
 		if(symt->set_flag || symt->common_var || symt->parameter
 				  || symt->argument)
 		    make_true(SET_FLAG,primary->TOK_flags);
@@ -1539,9 +1545,6 @@ substring_size(id,limits)
 {
 	int id_type,id_len;
 	int startindex,endindex,substr_len;
-#ifdef DEBUG_EXPRTREES
-	Lsymtab *symt = hashtab[id->value.integer].loc_symtab;
-#endif
 	Token *start_bound, *end_bound;
 	id_type = datatype_of(id->TOK_type);
 
@@ -1553,12 +1556,6 @@ substring_size(id,limits)
 	}
 	else {
 	  id_len = id->size;
-#ifdef DEBUG_EXPRTREES
-	  if(debug_latest) {
-	    fprintf(list_fd,"\nSubstring %s :: ",symt->name);
-	    print_expr_list(limits);
-	  }
-#endif
 
 	  /* get tokens holding starting and ending bounds */
 	  start_bound = limits->left_token->left_token;
@@ -1585,15 +1582,160 @@ substring_size(id,limits)
 	      if(! f90_invalid)
 		msg_tail("for F77");
 	    }
-	    else {
-	      substr_len = endindex-startindex+1;
-	      if(substr_len < 0)	/* F90 rule allows zero-length substrings */
-		substr_len = 0;
+	    /* calculate len whether limits valid or not */
+	    substr_len = endindex-startindex+1;
+	    if(substr_len < 0)	/* F90 rule allows zero-length substrings */
+	      substr_len = 0;
+	  }
+	/* One common special case is if bounds are same quantity, then
+	   length=1 regardless whether value of bound is known.  In
+	   general we could compare expr trees but that gets messy, so
+	   we only test identifier name match, e.g. S(I:I).  In that
+	   case src_text will point to same place so just compare
+	   ptrs.
+	 */
+	  else {		/* one or both bounds size_UNKNOWN */
+	    if( start_bound->tclass == tok_identifier &&
+		end_bound->tclass == tok_identifier &&
+		start_bound->src_text == end_bound->src_text ) {
+	      substr_len = 1;
 	    }
 	  }
 	}
+#ifdef DEBUG_ARRAY
+	  if(debug_latest) {
+	    fprintf(list_fd,"\nSubstring %s(",id->src_text);
+#ifdef DEVELOPMENT
+	    print_expr_list(limits);
+#endif
+	    fprintf(list_fd,") len=%d",substr_len);
+	  }
+#endif
 	return substr_len;
 }
+
+/* Figures out the size of an array section or element */
+array_dim_t
+subarray_size(Token *id, Token *subscript_list)
+{
+    /* Note : Sizes for array sections with empty bounds is not supported
+     * because we do not store the size of individual dimensions. This
+     * may be implemented in the near future.
+     */
+
+    long size = 1;
+    int dims = 0;
+
+    /* Argument is a handle which acts as a header for the list */
+    Token *subscript = subscript_list->next_token;
+
+    while (subscript != NULL) {
+	/* An array section */
+	if (subscript->left_token == NULL ||
+	    subscript->left_token->tclass != ':' ) { /* rank-0 subscript */
+	    /* when shapes are supported, verify that index is in range */
+	}
+	else {				/* rank-1 array section */
+	    long dim_size = array_section_size(id,dims,subscript->left_token);
+	    if(dim_size == size_UNKNOWN)
+		size = size_UNKNOWN;
+	    else if(size != size_UNKNOWN)
+		size *= dim_size;
+	    dims++;
+	}
+	subscript = subscript->next_token;
+    }
+
+    if (dims == 0)		   /* result is scalar? */
+	size = 0;			/* by convention scalar is (0,0) */
+
+#ifdef DEBUG_ARRAY
+    if(debug_latest) {
+	fprintf(list_fd,"\nArray %s(",id->src_text);
+#ifdef DEVELOPMENT			/* needed for print_expr_tree */
+	print_expr_list(subscript_list->next_token);
+#endif
+	fprintf(list_fd,") dims %d size %ld",dims,size);
+    }
+#endif
+
+    return array_dim_info(dims,size);
+
+}
+
+/* Routine to find size of array section specified by bounds, for
+   dimension dim (numbering from 0 to rank-1 of array).
+ */
+PRIVATE int
+array_section_size(Token *id, int dim, Token *bounds)
+{
+    int startindex, endindex, stride_len, array_len;
+    Token *start_bound, *end_bound, *stride;
+
+    array_len = size_UNKNOWN;
+
+    /* get tokens holding starting and ending bounds */
+    if (bounds->left_token->tclass == ':') { /* has stride */
+	start_bound = bounds->left_token->left_token;
+	end_bound = bounds->left_token->next_token;
+	stride = bounds->next_token;
+    }
+    else {
+	start_bound = bounds->left_token;
+	end_bound = bounds->next_token;
+	stride = (Token *)NULL;
+    }
+
+    if( start_bound->tclass == tok_empty ) { /* empty start bounds expr (:...) */
+	   /* When shapes are implemented, this should be start index
+	      of dimension dim. */
+	startindex = size_UNKNOWN;
+    }
+    else {
+	/* When shapes are implemented, should check that this is in range. */
+	startindex = start_bound->value.integer;
+    }
+
+    if( end_bound->tclass == tok_empty ) {/* empty end bounds expr (...:) */
+	   /* When shapes are implemented, this should be end index
+	      of dimension dim. */
+	endindex = size_UNKNOWN;
+    }
+    else {
+	/* When shapes are implemented, should check that this is in range. */
+	endindex = end_bound->value.integer;
+    }
+
+    if( stride == NULL ) /* no stride */
+	stride_len = 1;
+    else /* note stride cannot be empty if it is prefixed by a ':' */
+	stride_len = stride->value.integer;
+
+    if(stride_len == 0) {
+	syntax_error(stride->line_num,stride->col_num,
+		"Stride cannot be zero");
+    }
+    else {
+      if(startindex != size_UNKNOWN && endindex != size_UNKNOWN &&
+	    stride_len != size_UNKNOWN) {
+	array_len = (endindex-startindex+stride_len)/stride_len;
+	if(array_len < 0)
+	    array_len = 0;
+      }
+      else {		/* one or both bounds or stride size_UNKNOWN */
+      /* Handle common special case of identical bounds, unit stride */
+	if( start_bound->tclass == tok_identifier &&
+	    end_bound->tclass == tok_identifier &&
+	    stride_len == 1 &&	/* stride > 1 would not make sense here */
+	    start_bound->src_text == end_bound->src_text ) {
+	  array_len = 1;
+	}
+      }
+    }
+
+    return array_len;
+}
+
 
 	/* Integer power: uses recursion x**n = (x**(n/2))**2 */
 PRIVATE int

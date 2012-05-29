@@ -720,14 +720,14 @@ declare_type(Token *id, int datatype, long int size, char *size_text)
 
 #ifdef DEBUG_EXPRTREES
 	      if(debug_latest) {
-		fprintf(list_fd,"\n      %s",type_table[datatype]);
+		fprintf(list_fd,"\n      %s",type_name(datatype));
 		size_text = get_size_text(symt,0);
 		if(size_text != NULL) {
 		  fprintf(list_fd," * %s",size_text);
 		}
 		else {
 		  if(symt->size != size_DEFAULT)
-		  fprintf(list_fd," * %d",symt->size);
+		  fprintf(list_fd," * %ld",symt->size);
 		}
 		fprintf(list_fd," %s",symt->name);
 	      }
@@ -859,7 +859,7 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	  if(debug_latest) {
 	    int type=datatype_of(symt->type);
 	    fprintf(list_fd,"\n      %s",
-		    (type == type_UNDECL)?"DIMENSION":type_table[type]);
+		    (type == type_UNDECL)?"DIMENSION":type_name(type));
 	    if(is_char)
 	      fprintf(list_fd," * %s",symt->src.textvec[dims]);
 
@@ -2405,7 +2405,7 @@ msg_expr_tree(const Token *t)
 	msg_tail("..");
 }
 
-#ifdef DEBUG_EXPRTREES		/* Routines to print out expr tree src text */
+#ifdef DEVELOPMENT		/* Routines to print out expr tree src text */
 void
 print_src_text(t)
      Token *t;

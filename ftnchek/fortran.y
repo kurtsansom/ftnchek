@@ -250,8 +250,7 @@ PRIVATE int
 
 				/* Defns of private functions */
 
-void ddd_hook();
-PRIVATE void check_token(Token *);
+PRIVATE void check_token(Token *);	/* hook for ddd debugging */
 PROTO(PRIVATE void push_block,(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 			       char *name, LABEL_t label));
 PROTO(PRIVATE void pop_block,(Token *t, int stmt_class,
@@ -1398,7 +1397,7 @@ bind_name   :   symbolic_name '=' expr
                     
                         /* check if expr is constant and scalar */
                 if (!is_true(CONST_EXPR,$3.TOK_flags) ||
-                      is_true(ARRAY_ID_EXPR,$3.TOK_flags))
+                      is_true(ARRAY_EXPR,$3.TOK_flags))
                     syntax_error( $3.line_num, $3.col_num,
                        "scalar constant expression expected");
             }
@@ -3450,9 +3449,9 @@ assignment_stmt	:	lvalue assignment_op {complex_const_allowed = TRUE;
 			  else {
 			    int array_lhs, array_rhs;
 			    array_lhs =
-			      (($1.TOK_flags&(ARRAY_ID_EXPR|ARRAY_ELEMENT_EXPR)) == ARRAY_ID_EXPR);
+			      (($1.TOK_flags&(ARRAY_EXPR|ARRAY_ELEMENT_EXPR)) == ARRAY_EXPR);
 			    array_rhs =
-			      (($4.TOK_flags&(ARRAY_ID_EXPR|ARRAY_ELEMENT_EXPR)) == ARRAY_ID_EXPR);
+			      (($4.TOK_flags&(ARRAY_EXPR|ARRAY_ELEMENT_EXPR)) == ARRAY_EXPR);
 			    if( array_lhs || array_rhs ) {
 			      if( (! array_lhs) && misc_warn) {
 				warning($1.line_num,$1.col_num,
@@ -4791,6 +4790,9 @@ data_object	:	variable_name
 compound_object	:	function_reference
 
 		|	substring_name
+			{
+			    check_token(&($1));
+			}
 
 		|	literal_const
 			{
@@ -4806,7 +4808,8 @@ compound_object	:	function_reference
 
 		|	array_constructor
 			{
-			    check_token(&($1));
+			    /* array constructor is an array of rank 1 */
+			    make_true(ARRAY_EXPR,$$.TOK_flags);
 			}
 
 		|	'(' expr ')'
@@ -4820,7 +4823,7 @@ compound_object	:	function_reference
 				}
 				use_variable(&($2));
 				make_false(LVALUE_EXPR,$$.TOK_flags);
-				make_false(ARRAY_ID_EXPR,$$.TOK_flags);
+				make_false(ARRAY_EXPR,$$.TOK_flags);
 				make_false(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
 				make_false(ID_EXPR,$$.TOK_flags);
 				make_false(DO_VARIABLE,$$.TOK_flags);
@@ -5095,13 +5098,16 @@ array_element_lvalue:	array_name '(' subscript_list ')'
 				if(debug_parser)
 				    print_exprlist("array lvalue",&($3));
 #endif
+				$$.array_dim = subarray_size(&($1),&($3));
 					/* array now becomes scalar */
-				make_false(ARRAY_ID_EXPR,$$.TOK_flags);
-				make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
+				if (array_dims($$.array_dim) == 0) {
+				    make_false(ARRAY_EXPR,$$.TOK_flags);
+				    make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
+				}
+
 				$$.left_token = add_tree_node(
-						   &($2),&($1),$3.next_token);
+					   &($2),&($1),$3.next_token);
 				$$.next_token = (Token *) NULL;
-				$$.array_dim.dims = $$.array_dim.size = 0;
 			}
 		;
 
@@ -5112,13 +5118,15 @@ array_element_name:	array_name '(' subscript_list ')'
 				if(debug_parser)
 				    print_exprlist("array",&($3));
 #endif
+				$$.array_dim = subarray_size(&($1),&($3));
 					/* array now becomes scalar */
-				make_false(ARRAY_ID_EXPR,$$.TOK_flags);
-				make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
-			        $$.array_dim = array_dim_info(0,0);
-
+				if (array_dims($$.array_dim) == 0) {
+				    make_false(ARRAY_EXPR,$$.TOK_flags);
+				    make_true(ARRAY_ELEMENT_EXPR,$$.TOK_flags);
+				}
+				
 				$$.left_token = add_tree_node(
-						   &($2),&($1),$3.next_token);
+					   &($2),&($1),$3.next_token);
 				$$.next_token = (Token *) NULL;
 			}
 		;
@@ -5127,6 +5135,7 @@ array_element_name:	array_name '(' subscript_list ')'
 subscript_list	:	subscript
 			{
 			    $$.next_token = append_token((Token*)NULL,&($1));
+			    $$.left_token = (Token *) NULL;/* not meaningful in list header */
 			}
 		|	subscript_list ',' subscript
 			{
@@ -5136,7 +5145,20 @@ subscript_list	:	subscript
 
 subscript	:	bounds_expr  /* array element */
 		|	bounds_range /* array section */
-		|	bounds_range ':' bounds_expr /* array section */
+	  		{
+			/* the left token of bounds_range contains
+			   a tree whose root is ':' and children
+			   are the bounds values
+			 */
+	  		}
+
+		|	bounds_range ':' bounds_expr /* array section with
+							stride */
+	  		{
+			    $$.left_token = add_tree_node(&($2),&($1),&($3));
+			    $$.next_token = (Token *) NULL;
+	  		}
+
 		;
 
 /* 89 */
@@ -5210,7 +5232,6 @@ bounds_range	:	':'
 			    (void)empty_token(&empty);
 			    $$.left_token =
 			      add_tree_node(&($2),&($1),&empty);
-			    $$.left_token->left_token->value.integer = $1.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
 		  |	':' bounds_expr
@@ -5220,29 +5241,37 @@ bounds_range	:	':'
 			    (void)empty_token(&empty);
 			    $$.left_token =
 			      add_tree_node(&($1),&empty,&($2));
-			    $$.left_token->next_token->value.integer = $2.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
 		  |	bounds_expr ':' bounds_expr
 			{
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
-			    $$.left_token->left_token->value.integer = $1.value.integer;
-			    $$.left_token->next_token->value.integer = $3.value.integer;
 			    $$.next_token = (Token *)NULL;
 			}
 		  ;
 
 bounds_expr	:	integer_expr
-{check_token(&($1));
+	    		{
+			  int bounds_val;
 				/* store value, replacing nonconst
 				   value by size_UNKNOWN. */
 			  if(is_true(CONST_EXPR,$1.TOK_flags)) {
-			    $$.value.integer=int_expr_value(&($1));
+			    bounds_val=int_expr_value(&($1));
 			  }
 			  else { /* (no longer need ID hash index) */
-			    $$.value.integer=size_UNKNOWN;
+			    bounds_val=size_UNKNOWN;
 			  }
-			  make_false(ID_EXPR,$$.TOK_flags);
+			  if( $$.left_token == NULL ) {
+			    /* bounds expr is a primary */
+			    $$.value.integer = bounds_val;
+			    make_false(ID_EXPR,$$.TOK_flags);
+			  }
+			  else {
+			    /* non-primary, need to store value in
+			     * what will be the root when tied to : */
+			    $$.left_token->value.integer = bounds_val;
+			    make_false(ID_EXPR,$$.left_token->TOK_flags);
+			  }
 			}
 		;
 
@@ -5279,7 +5308,7 @@ component	:	variable_name '%' component_name
 			{
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
-		|	array_element_name '%' component_name
+		|	base_array_name '%' component_name
 			{
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
@@ -5289,10 +5318,28 @@ component	:	variable_name '%' component_name
 			}
 		;
 
+base_array_name :	array_name '(' subscript_list ')'
+			{
+			  /* list is built in reverse order, restore original */
+			    $3.next_token = reverse_tokenlist($3.next_token);
+			    $$.left_token = add_tree_node(
+				    &($2),&($1),$3.next_token);
+			    $$.next_token = (Token *) NULL;
+			}
+		;
+
 component_name	:	tok_identifier
 		|	tok_identifier '(' subscript_list ')'
 			{
+			    $3.next_token = reverse_tokenlist($3.next_token);
 			    $$.left_token = add_tree_node(&($2),&($1),&($3));
+			}
+		|	tok_identifier '(' subscript_list ')'
+			'(' bounds_range ')'
+			{
+			    $3.next_token = reverse_tokenlist($3.next_token);
+			    $4.left_token = add_tree_node(&($2),&($1),&($3));
+			    $$.left_token = add_tree_node(&($5),&($4),&($6));
 			}
 		;
 
@@ -6431,13 +6478,6 @@ void block_stack_top_swap()
   block_stack[block_depth-1] = block_stack[block_depth-2];
   block_stack[block_depth-2] = temp;
 }
-
-#ifdef DEVELOPMENT
-void ddd_hook()
-{
-    printf("hello");
-}
-#endif
 
 PRIVATE void check_token(Token *id)
 {

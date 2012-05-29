@@ -14,8 +14,7 @@ PRIVATE int duplicate_dtype( int type_id );  /* check if derived type definition
     exists in dtype_table */
 PRIVATE int is_same_components(int s_id,int t_id,
        const DtypeComponent *source, const DtypeComponent *target, int num_components);
-PRIVATE DtypeComponent *last_component(Token *comp_token, 
-	array_dim_t *result_dim);
+PRIVATE DtypeComponent *last_component(Token *comp_token);
 
 PRIVATE void make_error_dtype_token( Token *result );
 PRIVATE DtypeComponent *find_component(int d, const char *s);
@@ -558,33 +557,39 @@ if(debug_latest) {
  * Operates recursively, checking as it goes to make sure that the
  * data object of which a component is sought is of a derived type.
  */
-PRIVATE DtypeComponent *last_component(Token *comp_token, 
-	array_dim_t *result_dim)
+
+/* shared variables for determining array shape and type size */
+PRIVATE array_dim_t result_dim;
+PRIVATE int result_size;
+
+PRIVATE DtypeComponent *last_component(Token *comp_token)
 {
   int h, d;
   DtypeComponent *comp_dtype;
   Token *base = comp_token->left_token;	      /* e.g. A%B in A%B%C */
   Token *component = comp_token->next_token;  /* e.g. C in A%B%C */
-  int base_scalar_ref = FALSE;
-  int component_scalar_ref = FALSE;
+  Token *base_id, *component_id;	      /* id tokens, e.g. A in A(1)%B */
 
   /* If base is an array element, we got the '(' token that is root of
    * array expression instead of variable.  Jog down one level to get
    * variable.
    */
+  base_id = base;			/* get id tokens */
+  component_id = component;
   if( base->tclass == '(' ) {
-    base = base->left_token;
-    base_scalar_ref = TRUE;	/* MUST FIX TO HANDLE ARRAY SECTIONS */
+    base_id = base_id->left_token;
   }
 
   if( component->tclass == '(' ) {
-    component = component->left_token;
-    component_scalar_ref = TRUE;/* MUST FIX TO HANDLE ARRAY SECTIONS */
+      /* last component may be character type in which case may need to
+       * jog down one more level for C(subscript_list)(substring_range)*/
+    while (component_id->left_token != NULL)
+      component_id = component_id->left_token;
   }
 
-  if( base->left_token == NULL ) {	/* base variable */
+  if( base_id->left_token == NULL ) {	/* base variable */
     Lsymtab *symt;
-    h = base->value.integer;	/* handle has base variable's hash index */
+    h = base_id->value.integer;	/* handle has base variable's hash index */
     symt = hashtab[h].loc_symtab;
     d = get_type(symt);
 #ifdef DEBUG_DTYPE
@@ -593,27 +598,39 @@ PRIVATE DtypeComponent *last_component(Token *comp_token,
 	fflush(stdout);
     }
 #endif
+
 					/* do some basic checking */
     if( storage_class_of(symt->type) != class_VAR ) { /* base is not a variable?? */
-      syntax_error(base->line_num,base->col_num,symt->name);
+      syntax_error(base_id->line_num,base_id->col_num,symt->name);
       msg_tail("is not a variable");
       return NULL;
     }
 
     if (!is_derived_type(d)) {		/* base variable not a derived type?? */
-      syntax_error(base->line_num,base->col_num,symt->name);
+      syntax_error(base_id->line_num,base_id->col_num,symt->name);
       msg_tail("is not a structure object");
       return NULL;
     }
 
     /* reference to an array */
-    if (symt->array_var && !base_scalar_ref) {
-      *result_dim = array_dim_info(array_dims(symt->array_dim),
-	      array_size(symt->array_dim) );
+    if( symt->array_var ) {
+      /* if base is a subscripted array, get its dim info */
+      result_dim = 
+	base_id->array_dim = symt->array_dim; /* update the token */
+      if (base->tclass == '(' ) {
+	result_dim = subarray_size(base_id,base);
+      }
+
+#ifdef DEBUG_DTYPE
+    if(debug_latest) {
+      printf("\n dims %d size %ld",array_dims(result_dim),array_size(result_dim));
+      fflush(stdout);
+    }
+#endif
     }
   }
   else {				/* base % component */
-    DtypeComponent *base_dtype = last_component(base, result_dim); /* find last component's type */
+    DtypeComponent *base_dtype = last_component(base); /* find last component's type */
     if( base_dtype == NULL ) {
       return NULL;
     }
@@ -626,8 +643,7 @@ PRIVATE DtypeComponent *last_component(Token *comp_token,
     }
 #endif
   }
-
-  h = component->value.integer;
+  h = component_id->value.integer;
 
     /* Look up the component in the derived type table entry */
   if ((comp_dtype=find_component(d, hashtab[h].name)) == NULL) {
@@ -638,19 +654,70 @@ PRIVATE DtypeComponent *last_component(Token *comp_token,
     return NULL;
   }
   else {
-    /* not a scalar reference to an array */
-    if (comp_dtype->array && !component_scalar_ref) {
-      /* In component references, only one reference can be to an
-       * array.
+	  /* If this is the last component, it can have character type
+	     and can have a substring expression.  If also an array,
+	     it can have subcript list.  The grammar cannot
+	     differentiate in C(1:n) between array section and
+	     substring, so it creates a subscript list.  If it is in
+	     fact a substring, we need to take first (and only)
+	     subscript expression as bounds.  This will be corrected
+	     for C(1:n)(1:m) below.
+	   */
+    Token *substring_bounds;
+    if( component->tclass == '(' )
+      substring_bounds = component->next_token->next_token; /* correct for C(1:n) as substring */
+    else 
+      substring_bounds = (Token *) NULL;
+
+    /* fetch info from derived type table */
+    component_id->size = comp_dtype->size;
+    component_id->TOK_type = comp_dtype->type;
+    component_id->array_dim = comp_dtype->array_dim;
+
+				/* Handle array component */
+    if (comp_dtype->array) {
+      /* Subscript_list will point to array indexing.  Will need
+	 to jog down if component is also a substring.
        */
-      if (array_dims((*result_dim)) != 0) {
-	syntax_error(component->line_num,component->col_num,
-	    "more than one component of nonzero rank");
+      Token *subscript_list = component->next_token; /* For C(1:n) as array */
+
+      /* if no subscripting, component gets its declared dimensions */
+      array_dim_t component_dim = component_id->array_dim;
+
+	/* if component expr is a subscripted array, get its dim info */
+      if (component->tclass == '(' ) {
+	if (component->left_token->tclass == '(') {  /* for C(1:n)(1:m) */
+	  subscript_list = component->left_token->next_token;
+	  substring_bounds = component->next_token;
+	}
+	else {			/* C(1:n) is array ref, not substring bounds */
+	  substring_bounds = (Token *) NULL;
+	}
+	component_dim = subarray_size(component_id,subscript_list);
       }
-      else {
-	*result_dim = array_dim_info(array_dims(comp_dtype->array_dim),
-	    array_size(comp_dtype->array_dim) );
+
+      /* Replace current result_dim by component dim if the latter
+	 is of nonzero rank.  Catch multiple nonzero-rank components.
+      */
+      if (array_dims(component_dim) > 0) {
+	if (array_dims(result_dim) > 0 ) {
+	  syntax_error(component_id->line_num,component_id->col_num,
+		       "only one component may be of nonzero rank");
+	}
+	else {
+	  result_dim = component_dim;	/* result gets component's shape */
+	}
       }
+
+    }	/* end if (comp_dtype->array) */
+
+    /* Now deal with possible substring as last component */
+    if (datatype_of(comp_dtype->type) == type_STRING && substring_bounds) {
+      result_size = substring_size(component_id,substring_bounds);
+    }
+    else {
+      /* all except substring take size of component */
+      result_size = comp_dtype->size;	/* last component wins */
     }
 
 #ifdef DEBUG_DTYPE
@@ -672,18 +739,18 @@ PRIVATE DtypeComponent *last_component(Token *comp_token,
 void ref_component(Token *comp_token, Token *result, int lvalue)
 {
   DtypeComponent *comp_dtype;
-  array_dim_t result_dim = array_dim_info(0,0);
+  result_size = 0;
+  result_dim = array_dim_info(0,0);
 
-  comp_dtype = last_component(comp_token->left_token, &result_dim);
+  comp_dtype = last_component(comp_token->left_token);
 
   if(comp_dtype == NULL) {			/* not found */
     make_error_dtype_token( result );
     /* error message was given by last_component */
   }
   else {
-
     result->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
-    result->size = comp_dtype->size;
+    result->size = result_size;
     result->array_dim = result_dim;
 #ifdef DEBUG_DTYPE
   if(debug_latest) {
@@ -701,6 +768,10 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
     make_true(LVALUE_EXPR,result->TOK_flags); /* result is assignable */
     make_true(ID_EXPR,result->TOK_flags); /* value.integer is hashtable index */
     make_true(DTYPE_COMPONENT,result->TOK_flags); /* is component of derived type var */
+    if (array_dims(result->array_dim) != 0) {
+	make_true(ARRAY_EXPR,result->TOK_flags);
+	make_false(ARRAY_ELEMENT_EXPR,result->TOK_flags);
+    }
 
 #if 0					  /* all this is done elsewhere? */
     if (lvalue) {

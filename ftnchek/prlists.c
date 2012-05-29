@@ -437,7 +437,7 @@ make_arg_array(t)
 	    }
 
 	    arglist[i].array_element =
-		arglist[i].array_var && !is_true(ARRAY_ID_EXPR,s->TOK_flags);
+		arglist[i].array_var && !is_true(ARRAY_EXPR,s->TOK_flags);
 
 	    if( is_true(LVALUE_EXPR,s->TOK_flags) ){
 		arglist[i].is_lvalue = TRUE;
@@ -537,7 +537,7 @@ make_arg_names(tlist, alhead, prev_alhead)
 	      name = prev_arglist[i].name;
 	    }
 	    else if(is_true(ID_EXPR,s->TOK_flags)
-		    && !is_true(ARRAY_ELEMENT_EXPR,s->TOK_flags)) {
+		    && !(is_true(ARRAY_ELEMENT_EXPR,s->TOK_flags)||is_true(DTYPE_COMPONENT,s->TOK_flags))) {
 	      if(hashtab[h].glob_symtab != NULL) {
 		name = hashtab[h].glob_symtab->name;
 	      }

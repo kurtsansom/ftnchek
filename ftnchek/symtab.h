@@ -343,9 +343,8 @@ char *implicit_len_text[('Z'-'A'+1)+2];
 */
 
 typedef struct {
-    unsigned long size;	/* total size of an array */
+    long size;	/* total size of an array */
     short dims;	/* number of dimensions in an array */
-    unsigned size_unknown : 1;
 } array_dim_t;
 
 	/* Declaration of Token data structure.  N.B. do not change without
@@ -906,15 +905,15 @@ typedef struct PSpace {
 
  	/* Macros for working with array_dim field */
 				/* get no. of dimensions */
-#define array_dims(DIM_INFO) (DIM_INFO.dims)
+#define array_dims(DIM_INFO) ((DIM_INFO).dims)
 				/* get no. of elements */
-#define array_size(DIM_INFO) (DIM_INFO.size)
+#define array_size(DIM_INFO) ((DIM_INFO).size)
 				/* test if no. of elements is unknown */
-#define array_size_is_unknown(DIM_INFO) ((int)DIM_INFO.size_unknown)
+#define array_size_is_unknown(DIM_INFO) ((DIM_INFO).size == size_UNKNOWN)
 				/* create info field of given dims&size */
-#define array_dim_info(DIM,SIZE) ((array_dim_t){(SIZE),(DIM),FALSE})
+#define array_dim_info(DIM,SIZE) ((array_dim_t){(SIZE),(DIM)})
 				/* create info field for unknown size */
-#define array_dim_info_unk_size(DIM) ((array_dim_t){0L,(DIM),TRUE})
+#define array_dim_info_unk_size(DIM) ((array_dim_t){size_UNKNOWN,(DIM)})
 
 		/* Defns used by expression type propagation mechanisms
 		   in fortran.y and exprtype.c  The flags go in token.TOK_flags
@@ -931,7 +930,7 @@ typedef struct PSpace {
 #define LVALUE_EXPR		0x2	/* assignable */
 #define CONST_EXPR		0x4	/* compile-time constant per std 6.7*/
 #define LIT_CONST		0x8	/* a number or string literal */
-#define ARRAY_ID_EXPR		0x10	/* an array or array element */
+#define ARRAY_EXPR		0x10	/* an array or array element */
 #define ARRAY_ELEMENT_EXPR	0x20 	/* an array element */
 #define INT_QUOTIENT_EXPR	0x40 	/* contains INT/INT */
 #define STMT_FUNCTION_EXPR	0x80
@@ -1047,6 +1046,7 @@ PROTO(void func_ref_expr,( Token *id, Token *args, Token *result ));
 PROTO(void primary_id_expr,( Token *id, Token *primary ));
 PROTO(void stmt_fun_arg_cmp,( const Lsymtab *symt, const Token *d_arg, const Token *a_arg ));
 PROTO(int substring_size,( Token *id, Token *limits ));
+PROTO(array_dim_t subarray_size,( Token *id, Token *subscript_list ));
 PROTO(void unexpr_type,( Token *term1, Token *op, Token *result ));
 PROTO(int intrins_arg_cmp,( IntrinsInfo *defn, Token *t));
 
@@ -1133,7 +1133,7 @@ PROTO(char * new_tree_text,( Token *t ));
 PROTO(char ** new_textvec,( int n ));
 PROTO(Token * new_token,( void ));
 PROTO(void msg_expr_tree, (const Token *t));
-#ifdef DEBUG_EXPRTREES
+#ifdef DEVELOPMENT
 PROTO(void print_src_text,( Token *t ));
 PROTO(void print_expr_tree,( Token *t ));
 PROTO(void print_expr_list,( Token *t ));
