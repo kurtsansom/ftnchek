@@ -64,12 +64,13 @@ fi
 
 dnl The following system utilities should be standard on all UNIX systems.
 dnl If they are not found on standard path, they are left pathless.
-
+dnl One exception is CC, for which users often use 3rd party compilers
+dnl off the beaten path, so for it we use the user's path.
 STDPATH=/bin:/usr/bin:/usr/ucb:/usr/5bin
 LOCALPATH=$STDPATH:/usr/local/bin
 
 AC_PATH_PROG(AWK,$AWK_NAME,$AWK_NAME,$STDPATH)
-AC_PATH_PROG(CC,${CC-cc},cc,$STDPATH)
+AC_PATH_PROG(CC,${CC-cc},cc)
 AC_PATH_PROG(CHMOD,chmod,chmod,$STDPATH)
 AC_PATH_PROG(CMP,cmp,cmp,$STDPATH)
 AC_PATH_PROG(CP,cp,cp,$STDPATH)
