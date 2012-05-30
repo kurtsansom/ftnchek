@@ -64,6 +64,7 @@ Subst(){
 	    -e 's%@PATCH@%patch%' \
 	    -e 's%@PERL@%/usr/bin/perl%' \
 	    -e 's%@PRINTENV@%printenv%' \
+	    -e 's%@PStoPDF@%ps2pdf%' \
 	    -e 's%@PWD_PROG@%pwd%' \
 	    -e 's%@RM@%rm -f%' \
 	    -e 's%@RMDIR@%rmdir%' \
@@ -71,6 +72,8 @@ Subst(){
 	    -e 's%@SOELIM@%soelim%' \
 	    -e 's%@TBL@%tbl%' \
 	    -e 's%@TAR@%tar%' \
+	    -e 's%@TXTtoPS@%enscript%' \
+	    -e 's%@TXTtoPSOPTS@%%' \
 	    -e 's%@YACC@%bison%' \
 	    -e 's%@YACC_NAME@%bison%' \
 	    -e 's%@YFLAGS@%-y%' \

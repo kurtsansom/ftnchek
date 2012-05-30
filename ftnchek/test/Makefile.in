@@ -691,8 +691,11 @@ CheckSetting:
 
 dosokay: doshelp dosinclude doswildcard
 
+# this target creates DOS Okay dir if it does not exist
+$(DOSOKAY):
+	-mkdir $(DOSOKAY)
 
-doshelp: $(DOSOKAY)/help.fcl $(DOSOKAY)/help.fcx
+doshelp: $(DOSOKAY) $(DOSOKAY)/help.fcl $(DOSOKAY)/help.fcx
 
 HELPSUB=  -e 's,^    -,    /,' -e 's,^        Use -,        Use /,' \
 	  -e 's/intrinsic=str \[unix\]/intrinsic=str [common]/'
@@ -704,7 +707,7 @@ $(DOSOKAY)/help.fcx: $(OKAY)/help.fcx
 	$(SED) $(HELPSUB) $(OKAY)/help.fcx > $(DOSOKAY)/help.fcx
 
 
-dosinclude: $(DOSOKAY)/include.fcl $(DOSOKAY)/include.fcx
+dosinclude: $(DOSOKAY) $(DOSOKAY)/include.fcl $(DOSOKAY)/include.fcx
 
 INCLUDESUB= -e 's,/Include/,\\Include\\,'
 
@@ -715,7 +718,7 @@ $(DOSOKAY)/include.fcx: $(OKAY)/include.fcx
 	$(SED) $(INCLUDESUB) $(OKAY)/include.fcx > $(DOSOKAY)/include.fcx
 
 
-doswildcard: $(DOSOKAY)/wildcard.fc1 $(DOSOKAY)/wildcard.fc2 \
+doswildcard: $(DOSOKAY) $(DOSOKAY)/wildcard.fc1 $(DOSOKAY)/wildcard.fc2 \
 	     $(DOSOKAY)/wildcard.fc3 $(DOSOKAY)/wildcard.fc4
 
 WILDCARDSUB= -e 's,equivalent to -,equivalent to /,'

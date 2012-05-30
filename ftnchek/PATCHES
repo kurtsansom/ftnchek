@@ -1,5 +1,27 @@
-		 Ftnchek Version 4.alpha patch 1
-			    April 18, 2012
+		 Ftnchek Version 4.alpha patch 2
+			    May 30, 2012
+
+Major changes since patch 1:
+
+  -- Array sections are supported.  Note, however, that detailed array
+     shapes are not presently stored, so only rank and total size are
+     checked for conformance in array-valued expressions and
+     assignments.
+
+  -- Array constructors and derived-type constructors are accepted.
+     For array constructors, both the Fortran 90 delimiters (/ ... /)
+     and the Fortran 2010 delimiters [ ... ] are accepted.
+
+  -- Derived types having array and character components with subarray
+     and substring expressions are accepted.
+
+  -- Functions with RESULT clauses are treated correctly.
+
+  -- Recursive functions and subroutines are supported.
+
+  -- Numerous bugs fixed.
+
+
 
 Major changes since patch 0:
 
