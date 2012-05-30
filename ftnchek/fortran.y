@@ -870,6 +870,22 @@ specification_stmt:	anywhere_stmt
 			  reset_type_attrs();
 			}
 		|	use_stmt
+		|	interface_stmt
+		 	{
+		 	    interface_block = TRUE;
+			    push_block(&($1),$1.tclass,construct,curr_stmt_name, NO_LABEL);
+		 	    stmt_sequence_no = 0; /* allow subprog decls */
+		 	    push_loc_scope();
+			    generic_spec_allowed = FALSE;
+		 	}
+		|	end_interface_stmt
+		 	{
+		 	    pop_loc_scope();
+		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+		 	    interface_block = FALSE;
+			    generic_spec_allowed = FALSE;
+			    stmt_sequence_no = SEQ_IMPLICIT;
+		 	}
 		;
 
 anywhere_stmt	:	entry_stmt
@@ -899,19 +915,6 @@ specif_stmt	:	dimension_stmt
 		|	access_stmt
 		|	intent_stmt
 		|	optional_stmt
-		|	interface_stmt
-		 	{
-		 	    interface_block = TRUE;
-		 	    push_block(&($1),$1.tclass,construct,NULL, NO_LABEL);
-		 	    stmt_sequence_no = 0; /* allow subprog decls */
-		 	    push_loc_scope();
-		 	}
-		|	end_interface_stmt
-		 	{
-		 	    pop_loc_scope();
-		 	    pop_block(&($1),$1.tclass,NULL,NO_LABEL);
-		 	    interface_block = FALSE;
-		 	}
 		|	procedure_stmt
 		 	{
 		 	    if (!interface_block)
@@ -2607,13 +2610,24 @@ only_item   :   generic_spec
 
 generic_spec    :   symbolic_name
 		{
-		     /* def_arg_name(&($1)); */
-		     /* primary_id_expr(&($1),&($$)); */
+		    curr_stmt_name = hashtab[$1.value.integer].name;
 		}
+					/* for these other forms, save
+					 * minimum info necessary for
+					 * checking block match in
+					 * curr_stmt_name.  SHOULD FIX.
+					 */
         |   tok_OPERATOR '(' operator ')'
+		{
+		  curr_stmt_name = $3.src_text;
+		}
         |   tok_ASSIGNMENT '(' '=' ')'
+		{
+		  curr_stmt_name = $3.src_text;
+		}
         |   defined_io_generic_spec
 		{
+		  curr_stmt_name = $1.src_text;
 	        /* Fortran 2010 feature which is parsed but not checked */
 		}
         ;
@@ -2651,14 +2665,12 @@ defined_io_generic_spec :   symbolic_name '(' symbolic_name ')'
         ;
 
 interface_stmt  :   interface_handle EOS
-            {
-                generic_spec_allowed = FALSE;
-            }
-        |   interface_handle generic_spec EOS
-            {
-                generic_spec_allowed = FALSE;
-            }
-        ;
+		{
+		    curr_stmt_name = (char *)NULL;
+		}
+	        |   interface_handle generic_spec EOS
+		    /* curr_stmt_name is set in generic_spec production */
+	        ;
 
 interface_handle    :   tok_INTERFACE
             {
@@ -2693,9 +2705,19 @@ procedure_stmt_handle  :   tok_PROCEDURE
 		}
         ;
 
-end_interface_stmt   :   tok_ENDINTERFACE EOS
-        |   tok_ENDINTERFACE generic_spec
+end_interface_stmt   :   end_interface_handle EOS
+		{
+		    curr_stmt_name = (char *)NULL;
+		}
+	        |   end_interface_handle generic_spec
+		    /* curr_stmt_name is set in generic_spec production */
         ;
+
+end_interface_handle :   tok_ENDINTERFACE
+		{
+		    generic_spec_allowed = TRUE;
+		}
+	;
 
 derived_type_def_stmt   :   derived_type_handle dtype_name EOS
         ;
