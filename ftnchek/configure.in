@@ -169,6 +169,26 @@ then
   AC_MSG_WARN([for re-making html docs if deleted.  Need vh-man2html.])
 fi
 
+dnl There are many text-to-postscript converters out there.  I have
+dnl not tried to be exhaustive in providing suitable options to them.
+dnl The target listings.ps is compatible with enscript and a2ps.
+dnl This target is only of interest to developers so don't warn if
+dnl converter not found.
+AC_PATH_PROGS(TXTtoPSPROG,enscript a2ps,enscript)
+case "$TXTtoPSPROG" in
+dnl If converter is enscript, have it create table of contents
+     *enscript)
+	TXTtoPSOPTS="--toc"
+	TXTtoPS="$TXTtoPSPROG"
+	;;
+     *a2ps)
+	TXTtoPSOPTS="-1"
+	TXTtoPS="$TXTtoPSPROG"
+	;;
+esac
+
+dnl Likewise there are various ps to pdf converters.
+AC_PATH_PROGS(PStoPDF,ps2pdf,ps2pdf)
 
 dnl Look for strip.  If not, use a harmless substitute
 
@@ -452,6 +472,7 @@ AC_SUBST(PACK)
 AC_SUBST(PATCH)
 AC_SUBST(PERL)
 AC_SUBST(PRINTENV)
+AC_SUBST(PStoPDF)
 AC_SUBST(PWD_PROG)
 AC_SUBST(RM)
 AC_SUBST(RMDIR)
@@ -459,6 +480,8 @@ AC_SUBST(SHELL)
 AC_SUBST(SOELIM)
 AC_SUBST(TAR)
 AC_SUBST(TBL)
+AC_SUBST(TXTtoPS)
+AC_SUBST(TXTtoPSOPTS)
 AC_SUBST(ZIP)
 AC_SUBST(YACC)
 AC_SUBST(YACC_NAME)

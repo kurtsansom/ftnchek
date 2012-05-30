@@ -146,6 +146,7 @@ NAWK		= @AWK@
 NROFF		= @NROFF@
 NROFFPLAIN	= @NROFFPLAIN@
 PATCH		= @PATCH@
+PStoPDF		= @PStoPDF@
 PWD_PROG	= @PWD_PROG@
 RM		= @RM@
 RMDIR		= @RMDIR@
@@ -155,6 +156,7 @@ SOELIM		= @SOELIM@
 STRIP           = @STRIP@
 TAR		= @TAR@
 TBL		= @TBL@
+TXTtoPS		= @TXTtoPS@
 YACC            = @YACC@
 YACC_NAME	= @YACC_NAME@
 ZIP		= @ZIP@
@@ -172,7 +174,7 @@ CTAGSFLAGS	=
 ETAGS		= @ETAGS@
 
 # The following suffixes are for making various forms of documentation
-.SUFFIXES: .cat .catman .doc .man .ps .i
+.SUFFIXES: .cat .catman .doc .man .ps .pdf .i
 
 
 # Pack is needed only for install-man-sgi target
@@ -200,6 +202,8 @@ CFLAGS          = @CFLAGS@ $(DEBUG_FLAGS) $(DEVEL_CFLAGS)
 LDLIBS          = @LDLIBS@
 LDFLAGS         = @LDFLAGS@ $(DEBUG_FLAGS) $(DEVEL_LDFLAGS)
 YFLAGS          = @YFLAGS@ -d
+
+TXTtoPSOPTS	= @TXTtoPSOPTS@
 
 # fortran.o first because of possible remake if tokdefs.h changes (see below)
 OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o dtypes.o exprtype.o \
@@ -429,6 +433,11 @@ ftnchek$(manext):	ftnchek.man average.f average.out correct.f
 .man.doc:
 	$(TBL) $< | $(NROFFPLAIN) -man | $(COL) > $@
 
+# Rule to convert PostScript files to PDF.
+# This rule works for ps2pdf; for other converters your mileage may vary.
+.ps.pdf:
+	$(PStoPDF) $(PStoPDFOPTS) $< $@
+
 # ftnchek.ps is PostScript form of documentation.  For ftnchek.ps we use
 # cleaner ftnchek.1 rather than ftnchek.man.
 ftnchek.ps:	ftnchek$(manext)
@@ -437,6 +446,13 @@ ftnchek.ps:	ftnchek$(manext)
 # Other man files are clean enough as they are.
 .man.ps:
 	$(TBL) < $< | $(EQN) | $(MANtoPS) > $@
+
+# listings target makes PDF file of sources.
+listings: listings.pdf
+
+listings.ps:
+	$(TXTtoPS) $(TXTtoPSOPTS) -o listings.ps \
+	`echo $(SRCS)|sed -e 's/fortran\.c//' -e 's/config-[^ ]*//g'`
 
 # $(HTMLDIR)/toc.html represents all the files in the html directory.  They
 # are built from ftnchek.html by the script make_html.sh whenever
