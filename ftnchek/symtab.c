@@ -217,6 +217,9 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	  case tok_RECURSIVE:
 	       check_and_set_attr2(recursive,elemental);
 	       break;
+	  case tok_OPTIONAL:
+	       check_and_set_attr(optional);
+	       break;
 	}
 #undef check_and_set_attr
 #undef check_and_set_attr2

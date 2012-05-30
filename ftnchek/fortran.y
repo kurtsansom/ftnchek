@@ -118,6 +118,7 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     current_private_attr,	/* set if PRIVATE attr given */
     current_intent_in_attr,	/* set if intent IN attr given */
     current_intent_out_attr,	/* set if intent OUT attr given */
+    current_optional_attr,	/* set if OPTIONAL attr given */
     current_access_spec,	/* value of access spec in type defn stmt */
     current_elemental_attr,	/* subprog is ELEMENTAL */
     current_pure_attr,		/* subprog is PURE */
@@ -200,6 +201,7 @@ int
     current_private_attr = FALSE, \
     current_intent_in_attr = FALSE, \
     current_intent_out_attr = FALSE, \
+    current_optional_attr = FALSE, \
     current_dim_bound_list = NULL, \
     current_datatype = 0, \
     current_pure_attr = FALSE, \
@@ -896,6 +898,7 @@ specif_stmt	:	dimension_stmt
                 |       allocatable_stmt
 		|	access_stmt
 		|	intent_stmt
+		|	optional_stmt
 		|	interface_stmt
 		 	{
 		 	    interface_block = TRUE;
@@ -1446,6 +1449,9 @@ intent_id	:	variable_name
 			  apply_intent_attr(&($1));
 			}
 		;
+
+optional_stmt	:	tok_OPTIONAL attr_decl_list EOS
+	      	;
 
 /*--------------------------------------------------------*/
 
@@ -2083,11 +2089,26 @@ type_attr	:	tok_DIMENSION '(' dim_bound_list ')'
 			{
 			  current_private_attr = TRUE;
 			}
-        |   language_binding_spec  
-        |   intent_attr
-        |   tok_OPTIONAL
-        |   tok_PROTECTED
-        |   tok_VOLATILE
+		|   	language_binding_spec  
+			{
+			    /* Fortran 2010 attribute is parsed but not
+			    checked */
+			}
+        	|   	intent_attr
+        	|   	tok_OPTIONAL
+			{
+			    current_optional_attr = TRUE;
+			}
+        	|   	tok_PROTECTED
+			{
+			    /* Fortran 2010 attribute is parsed but not
+			    checked */
+			}
+        	|   	tok_VOLATILE
+			{
+			    /* Fortran 2010 attribute is parsed but not
+			    checked */
+			}
 		;
 
 
@@ -2592,6 +2613,9 @@ generic_spec    :   symbolic_name
         |   tok_OPERATOR '(' operator ')'
         |   tok_ASSIGNMENT '(' '=' ')'
         |   defined_io_generic_spec
+		{
+	        /* Fortran 2010 feature which is parsed but not checked */
+		}
         ;
 
 operator    :   tok_power | '*' | '/' | '+' | '-' | tok_concat 
@@ -2642,6 +2666,9 @@ interface_handle    :   tok_INTERFACE
             }
         |   tok_ABSTRACT tok_INTERFACE
             {
+	        /* ABSTRACT is a Fortran 2010 attribute which is parsed
+		but not checked */
+
                 /* needed to simplify matching in pop_block */
                 $$ = $2;
                 generic_spec_allowed = TRUE;
@@ -2652,9 +2679,18 @@ procedure_stmt  :   procedure_stmt_handle non_empty_arg_list
         ;
 
 procedure_stmt_handle  :   tok_PROCEDURE 
+		{
+	        /* Fortran 2010 feature which is parsed but not checked */
+		}
         |   tok_PROCEDURE tok_double_colon 
+		{
+	        /* Fortran 2010 feature which is parsed but not checked */
+		}
         |   tok_MODULE tok_PROCEDURE 
         |   tok_MODULE tok_PROCEDURE tok_double_colon 
+		{
+	        /* Fortran 2010 feature which is parsed but not checked */
+		}
         ;
 
 end_interface_stmt   :   tok_ENDINTERFACE EOS
@@ -4513,6 +4549,16 @@ subr_arg	:	expr
 			  $$ = $3;
 			  $$.left_token = (Token *)NULL;
 			}
+		|	symbolic_name '=' expr
+			{
+			    /* Currently passing expr token to prevent
+			    unwanted error messages. Further work
+			    needs to be done for proper semantic
+			    checking.
+			    */
+
+			    $$ = $3;
+			}
 		;
 
 /* 72 */
@@ -4603,17 +4649,31 @@ fun_arg_list	:	/* empty */
 		|	nonempty_fun_arg_list
 		;
 
-nonempty_fun_arg_list:	expr
+nonempty_fun_arg_list:	fun_arg
 			{
 			    $$.next_token = append_token((Token*)NULL,&($1));
 			    $$.left_token = (Token *)NULL;
 			}
-		|	nonempty_fun_arg_list ',' expr
+		|	nonempty_fun_arg_list ',' fun_arg
 			{
 			    $$.next_token = append_token($1.next_token,&($3));
 			}
 
 		;
+
+fun_arg		:	expr
+		|	symbolic_name '=' expr
+			{
+			    /* Currently passing expr token to prevent
+			    unwanted error messages. Further work
+			    needs to be done for proper semantic
+			    checking.
+			    */
+
+			    $$ = $3;
+			}
+		;
+
 /* 74 not present: type checking not done at this level */
 
 /* 75 was constant_expr, but only used by PARAMETER and initializers */

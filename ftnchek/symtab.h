@@ -673,6 +673,7 @@ typedef struct lSymtEntry{
 	     sequence: 1,	/* has SEQUENCE attribute */
 	     intent_in: 1,	/* has IN attribute */
 	     intent_out: 1,	/* has OUT attribute */
+	     optional: 1,	/* has OPTIONAL attribute */
 	     invoked_as_func: 1, /* usage as f(x) was seen */
 	     defined_in_include: 1, /* to suppress some warnings if unused */
 	     defined_in_module: 1, /* imported via USE */
