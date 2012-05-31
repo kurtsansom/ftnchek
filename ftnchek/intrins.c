@@ -109,100 +109,278 @@ PRIVATE IntrinsInfo intrinsic[]={
 
 #define I_NONSTD (I_NONF77|I_NONF90)
 
-				/* Fortran 77 intrinsics */
-{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
-{"FLOAT",	1,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"SNGL",	1,	D,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG,NULL},
-{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG,NULL},
-{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_NOTARG,ii_ichar},
-{"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR,NULL},
-{"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DINT",	1,	D,	type_DP,	I_F77,NULL},
-{"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DNINT",	1,	D,	type_DP,	I_F77,NULL},
-{"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
-{"IDNINT",	1,	D,	type_INTEGER,	I_F77,NULL},
+/*
+13.11.1 Argument presence inquiry function
+PRESENT (A)                Argument presence
+*/
+
+/*
+13.11.2 Numeric functions
+ABS (A)                            Absolute value                                      
+AIMAG (Z)                          Imaginary part of a complex number          
+AINT (A [, KIND])                  Truncation to whole number                  
+ANINT (A [, KIND])                 Nearest whole number                        
+CEILING (A [, KIND])               Least integer greater than or equal to number  
+CMPLX (X [, Y, KIND])              Conversion to complex type                  
+CONJG (Z)                          Conjugate of a complex number                       
+DBLE (A)                           Conversion to double precision real type       
+DIM (X, Y)                         Positive difference                         
+DPROD (X, Y)                       Double precision real product                       
+FLOOR (A [, KIND])                 Greatest integer less than or equal to number  
+INT (A [, KIND])                   Conversion to integer type                  
+MAX (A1, A2 [, A3,...])            Maximum value                                       
+MIN (A1, A2 [, A3,...])            Minimum value                                       
+MOD (A, P)                         Remainder function                          
+MODULO (A, P)                      Modulo function                                     
+NINT (A [, KIND])                  Nearest integer                                     
+REAL (A [, KIND])                  Conversion to real type                             
+SIGN (A, B)                        Transfer of sign                            
+*/
+
 {"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R,ii_abs},
-{"IABS",	1,	I,	type_INTEGER,	I_F77,ii_abs},
-{"DABS",	1,	D,	type_DP,	I_F77,NULL},
-{"CABS",	1,	C,	type_REAL,	I_F77,NULL},
-{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77,ii_mod},
-{"AMOD",	2,	R,	type_REAL,	I_F77,NULL},
-{"DMOD",	2,	D,	type_DP,	I_F77,NULL},
-{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77,ii_sign},
-{"ISIGN",	2,	I,	type_INTEGER,	I_F77,ii_sign},
-{"DSIGN",	2,	D,	type_DP,	I_F77,NULL},
-{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77,ii_dim},
-{"IDIM",	2,	I,	type_INTEGER,	I_F77,ii_dim},
-{"DDIM",	2,	D,	type_DP,	I_F77,NULL},
-{"DPROD",	2,	R,	type_DP,	I_F77,NULL},
-{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_max},
-{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG,ii_max},
-{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
-{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_min},
-{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG,ii_min},
-{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
-{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_INQ,ii_len},
-{"INDEX",	2,	STR,	type_INTEGER,	I_F77,ii_index},
 {"AIMAG",	1,	C,	type_REAL,	I_F77,NULL},
+{"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+/*CEILING*/
+{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG,NULL},
 {"CONJG",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"DSQRT",	1,	D,	type_DP,	I_F77,NULL},
-{"CSQRT",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"DEXP",	1,	D,	type_DP,	I_F77,NULL},
-{"CEXP",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_NOTARG,NULL},
-{"ALOG",	1,	R,	type_REAL,	I_F77,NULL},
-{"DLOG",	1,	D,	type_DP,	I_F77,NULL},
-{"CLOG",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_NOTARG,NULL},
-{"ALOG10",	1,	R,	type_REAL,	I_F77,NULL},
-{"DLOG10",	1,	D,	type_DP,	I_F77,NULL},
-{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"DSIN",	1,	D,	type_DP,	I_F77,NULL},
-{"CSIN",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"DCOS",	1,	D,	type_DP,	I_F77,NULL},
-{"CCOS",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"TAN", 	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DTAN",	1,	D,	type_DP,	I_F77,NULL},
-{"ASIN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DASIN",	1,	D,	type_DP,	I_F77,NULL},
+{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG,NULL},
+{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77,ii_dim},
+{"DPROD",	2,	R,	type_DP,	I_F77,NULL},
+/*FLOOR*/
+{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
+{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_max},
+{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_min},
+{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77,ii_mod},
+/*MODULO*/
+{"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
+{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
+{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77,ii_sign},
+
+			/* Fortran 66 specifics that were removed in F90 */
+{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"AMOD",	2,	R,	type_REAL,	I_F77|I_NONF90,NULL},
+{"CABS",	1,	C,	type_REAL,	I_F77|I_NONF90,NULL},
+{"DABS",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DDIM",	2,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DINT",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"DMOD",	2,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DNINT",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DSIGN",	2,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"FLOAT",	1,	I,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"IABS",	1,	I,	type_INTEGER,	I_F77|I_NONF90,ii_abs},
+{"IDIM",	2,	I,	type_INTEGER,	I_F77|I_NONF90,ii_dim},
+{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"IDNINT",	1,	D,	type_INTEGER,	I_F77|I_NONF90,NULL},
+{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"ISIGN",	2,	I,	type_INTEGER,	I_F77|I_NONF90,ii_sign},
+{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,ii_max},
+{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,ii_min},
+{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NONF90|I_NOTARG,NULL},
+{"SNGL",	1,	D,	type_REAL,	I_F77|I_NONF90|I_NOTARG,NULL},
+
+/*
+13.11.3 Mathematical functions                         
+ACOS (X)                           Arccosine      
+ASIN (X)                           Arcsine                
+ATAN (X)                           Arctangent     
+ATAN2 (Y, X)                       Arctangent     
+COS (X)                            Cosine                 
+COSH (X)                           Hyperbolic cosine 
+EXP (X)                            Exponential       
+LOG (X)                            Natural logarithm       
+LOG10 (X)                          Common logarithm (base 10) 
+SIN (X)                            Sine                    
+SINH (X)                           Hyperbolic sine                 
+SQRT (X)                           Square root             
+TAN (X)                            Tangent                         
+TANH (X)                           Hyperbolic tangent         
+*/
+
 {"ACOS",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DACOS",	1,	D,	type_DP,	I_F77,NULL},
+{"ASIN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
 {"ATAN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DATAN",	1,	D,	type_DP,	I_F77,NULL},
 {"ATAN2",	2,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DATAN2",	2,	D,	type_DP,	I_F77,NULL},
-{"SINH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DSINH",	1,	D,	type_DP,	I_F77,NULL},
+{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
 {"COSH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DCOSH",	1,	D,	type_DP,	I_F77,NULL},
+{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_NOTARG,NULL},
+{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_NOTARG,NULL},
+{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"SINH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
+{"TAN", 	1,	R|D,	type_GENERIC,	I_F77,NULL},
 {"TANH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"DTANH",	1,	D,	type_DP,	I_F77,NULL},
+
+			/* Fortran 66 specifics that were removed in F90 */
+{"ALOG",	1,	R,	type_REAL,	I_F77|I_NONF90,NULL},
+{"ALOG10",	1,	R,	type_REAL,	I_F77|I_NONF90,NULL},
+{"CCOS",	1,	C,	type_COMPLEX,	I_F77|I_NONF90,NULL},
+{"CEXP",	1,	C,	type_COMPLEX,	I_F77|I_NONF90,NULL},
+{"CLOG",	1,	C,	type_COMPLEX,	I_F77|I_NONF90,NULL},
+{"CSIN",	1,	C,	type_COMPLEX,	I_F77|I_NONF90,NULL},
+{"CSQRT",	1,	C,	type_COMPLEX,	I_F77|I_NONF90,NULL},
+{"DACOS",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DASIN",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DATAN",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DATAN2",	2,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DCOS",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DCOSH",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DEXP",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DLOG",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DLOG10",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DSIN",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DSINH",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DSQRT",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DTAN",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+{"DTANH",	1,	D,	type_DP,	I_F77|I_NONF90,NULL},
+
+/*
+13.11.4 Character functions
+ACHAR (I)                          Character in given position
+                                      in ASCII collating sequence            
+ADJUSTL (STRING)                   Adjust left                                               
+ADJUSTR (STRING)                   Adjust right                                              
+CHAR (I [, KIND])                  Character in given position
+                                      in processor collating sequence  
+IACHAR (C)                         Position of a character                                           
+                                      in ASCII collating sequence                                    
+ICHAR (C)                          Position of a character
+                                      in processor collating sequence        
+INDEX (STRING, SUBSTRING [, BACK]) Starting position of a substring                          
+LEN_TRIM (STRING)                  Length without trailing blank characters                  
+LGE (STRING_A, STRING_B)           Lexically greater than or equal                                   
+LGT (STRING_A, STRING_B)           Lexically greater than                                            
+LLE (STRING_A, STRING_B)           Lexically less than or equal                              
+LLT (STRING_A, STRING_B)           Lexically less than                                       
+REPEAT (STRING, NCOPIES)           Repeated concatenation                                            
+SCAN (STRING, SET [, BACK])        Scan a string for a character in a set                            
+TRIM (STRING)                      Remove trailing blank characters                          
+VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string                  
+*/
+
+{"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR,NULL},
+{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_NOTARG,ii_ichar},
+{"INDEX",	2,	STR,	type_INTEGER,	I_F77,ii_index},
 {"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 
-				/* Intrinsics introduced in Fortran 90 */
-		/* Array and pointer inquiry functions */
-{"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_size},
+/*
+13.11.5 Character inquiry function                                   
+LEN (STRING)                       Length of a character entity
+*/
 
-		/* Array reduction functions*/
+{"LEN", 	1,	STR,	type_INTEGER,	I_F77|I_INQ,ii_len},
+
+/*
+13.11.6 Kind functions
+KIND (X)                           Kind type parameter value       
+SELECTED_INT_KIND (R)              Integer kind type parameter value, 
+                                      given range                          
+SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,         
+                                      given precision and range          
+*/
+
+/*
+13.11.7 Logical function
+LOGICAL (L [, KIND])               Convert between objects of type logical with
+                                      different kind type parameters
+
+*/
+
+/*
+13.11.8 Numeric inquiry functions
+DIGITS (X)                         Number of significant digits of the model  
+EPSILON (X)                        Number that is almost negligible        
+                                      compared to one                              
+HUGE (X)                           Largest number of the model             
+MAXEXPONENT (X)                    Maximum exponent of the model                   
+MINEXPONENT (X)                    Minimum exponent of the model              
+PRECISION (X)                      Decimal precision                 
+RADIX (X)                          Base of the model                 
+RANGE (X)                          Decimal exponent range                    
+TINY (X)                           Smallest positive number of the model
+*/
+
+/*
+13.11.9 Bit inquiry function
+BIT_SIZE (I)                       Number of bits of the model
+*/
+
+/*
+13.11.10 Bit manipulation functions
+BTEST (I, POS)                     Bit testing    
+IAND (I, J)                        Logical AND    
+IBCLR (I, POS)                     Clear bit      
+IBITS (I, POS, LEN)                Bit extraction         
+IBSET (I, POS)                     Set bit                
+IEOR (I, J)                        Exclusive OR   
+IOR (I, J)                         Inclusive OR   
+ISHFT (I, SHIFT)                   Logical shift          
+ISHFTC (I, SHIFT [, SIZE])         Circular shift         
+NOT (I)                            Logical complement
+*/
+
+{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_ELEM,NULL},
+{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_ELEM,NULL},
+{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+
+/*
+13.11.11 Transfer function 
+TRANSFER (SOURCE, MOLD [, SIZE])   Treat first argument as if
+                                      of type of second argument
+*/
+
+/*
+13.11.12 Floating-point manipulation functions
+EXPONENT (X)                       Exponent part of a model number           
+FRACTION (X)                       Fractional part of a number       
+NEAREST (X, S)                     Nearest different processor number in
+                                      given direction                      
+RRSPACING (X)                      Reciprocal of the relative spacing          
+                                   of model numbers near given number          
+SCALE (X, I)                       Multiply a real by its base to an integer power
+SET_EXPONENT (X, I)                Set exponent part of a number                       
+SPACING (X)                        Absolute spacing of model numbers near given   
+                                   number                                         
+*/
+
+/*
+13.11.13 Vector and matrix multiply functions
+DOT_PRODUCT (VECTOR_A, VECTOR_B)   Dot product of two rank-one arrays 
+MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication              
+*/
+
+/*
+13.11.14 Array reduction functions
+ALL (MASK [, DIM])                 True if all values are true      
+ANY (MASK [, DIM])                 True if any value is true        
+COUNT (MASK [, DIM])               Number of true elements in an array 
+MAXVAL (ARRAY, DIM [, MASK])       Maximum value in an array        
+  or MAXVAL (ARRAY [, MASK])                                        
+MINVAL (ARRAY, DIM [, MASK])       Minimum value in an array        
+  or MINVAL (ARRAY [, MASK])                                        
+PRODUCT (ARRAY, DIM [, MASK])      Product of array elements           
+  or PRODUCT (ARRAY [, MASK])
+SUM (ARRAY, DIM [, MASK])          Sum of array elements
+  or SUM (ARRAY [, MASK])
+*/
 	/* Note: ordering of array,mask,dim args not enforced.  For type_GENERIC
 	   result will be type of first argument.
 	 */
@@ -214,23 +392,75 @@ PRIVATE IntrinsInfo intrinsic[]={
 {"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
 {"SUM",		I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
 
+/*
+13.11.15 Array inquiry functions
+ALLOCATED (ARRAY)                  Array allocation status                  
+LBOUND (ARRAY [, DIM])             Lower dimension bounds of an array  
+SHAPE (SOURCE)                     Shape of an array or scalar      
+SIZE (ARRAY [, DIM])               Total number of elements in an array
+UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array  
+*/
 
+{"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
+{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_size},
+
+/*
+13.11.16 Array construction functions
+MERGE (TSOURCE, FSOURCE, MASK)     Merge under mask                      
+PACK (ARRAY, MASK [, VECTOR])      Pack an array into an array of rank one       
+                                      under a mask                               
+SPREAD (SOURCE, DIM, NCOPIES)      Replicates array by adding a dimension        
+UNPACK (VECTOR, MASK, FIELD)       Unpack an array of rank one into an array
+                                      under a mask                             
+*/
+
+/*
+13.11.17 Array reshape function
+RESHAPE (SOURCE, SHAPE[, PAD, ORDER]) Reshape an array
+*/
+
+/*
+13.11.18 Array manipulation functions
+CSHIFT (ARRAY, SHIFT [, DIM])      Circular shift
+EOSHIFT (ARRAY, SHIFT [, BOUNDARY, DIM]) End-off shift
+TRANSPOSE (MATRIX)                 Transpose of an array of rank two
+*/
+
+/*
+13.11.19 Array location functions
+MAXLOC (ARRAY, DIM [, MASK])       Location of a maximum value in an array
+  or MAXLOC (ARRAY [, MASK])
+MINLOC (ARRAY, DIM [, MASK])       Location of a minimum value in an array
+  or MINLOC (ARRAY [, MASK])
+
+*/
+
+/*
+13.11.20 Pointer association status functions
+ASSOCIATED (POINTER [, TARGET])    Association status inquiry or comparison
+NULL ([MOLD])                      Returns disassociated pointer
+*/
+
+{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
 {"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
+
+/*
+13.12 Intrinsic subroutines
+CPU_TIME (TIME)                    Obtain processor time                       
+DATE_AND_TIME ([DATE, TIME,        Obtain date and time                
+  ZONE, VALUES])                                                       
+MVBITS (FROM, FROMPOS,             Copies bits from one integer to another
+  LEN, TO, TOPOS)                                                      
+RANDOM_NUMBER (HARVEST)            Returns pseudorandom number         
+RANDOM_SEED ([SIZE, PUT, GET])     Initializes or restarts the         
+                                   pseudorandom number generator               
+SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock      
+  COUNT_RATE, COUNT_MAX])
+*/
+
 {"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_NONF77},
 {"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_NONF77},
 
-		/* Bit test & Shift operations */
-{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_ELEM,NULL},
-{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_ELEM,NULL},
 
 				/* Nonstandard intrinsics */
 
@@ -324,8 +554,6 @@ PRIVATE IntrinsInfo intrinsic[]={
 	   handled by check_intrins_args().  Remarks are placed by
 	   these cases.
 	 */
-
-
 
 		/* Address-of function */
 {"LOC",		1,I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_EXTRA,NULL},
