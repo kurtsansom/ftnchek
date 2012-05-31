@@ -109,50 +109,57 @@ PRIVATE IntrinsInfo intrinsic[]={
 
 #define I_NONSTD (I_NONF77|I_NONF90)
 
+  /* Standard intrinsic functions.  Except for CPU_TIME added in F95,
+     all are the same in F90 and F95.  The section numbers used here
+     are those of F95; for F90 section numbers replace 13.11 by 13.10
+     and 13.12 by 13.11. */
+
 /*
 13.11.1 Argument presence inquiry function
 PRESENT (A)                Argument presence
 */
 
+{"PRESENT",	1,	ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
+
 /*
 13.11.2 Numeric functions
-ABS (A)                            Absolute value                                      
-AIMAG (Z)                          Imaginary part of a complex number          
-AINT (A [, KIND])                  Truncation to whole number                  
-ANINT (A [, KIND])                 Nearest whole number                        
-CEILING (A [, KIND])               Least integer greater than or equal to number  
-CMPLX (X [, Y, KIND])              Conversion to complex type                  
-CONJG (Z)                          Conjugate of a complex number                       
-DBLE (A)                           Conversion to double precision real type       
-DIM (X, Y)                         Positive difference                         
-DPROD (X, Y)                       Double precision real product                       
-FLOOR (A [, KIND])                 Greatest integer less than or equal to number  
-INT (A [, KIND])                   Conversion to integer type                  
-MAX (A1, A2 [, A3,...])            Maximum value                                       
-MIN (A1, A2 [, A3,...])            Minimum value                                       
-MOD (A, P)                         Remainder function                          
-MODULO (A, P)                      Modulo function                                     
-NINT (A [, KIND])                  Nearest integer                                     
-REAL (A [, KIND])                  Conversion to real type                             
-SIGN (A, B)                        Transfer of sign                            
+ABS (A)                            Absolute value
+AIMAG (Z)                          Imaginary part of a complex number
+AINT (A [, KIND])                  Truncation to whole number
+ANINT (A [, KIND])                 Nearest whole number
+CEILING (A [, KIND])               Least integer greater than or equal to number
+CMPLX (X [, Y, KIND])              Conversion to complex type
+CONJG (Z)                          Conjugate of a complex number
+DBLE (A)                           Conversion to double precision real type
+DIM (X, Y)                         Positive difference
+DPROD (X, Y)                       Double precision real product
+FLOOR (A [, KIND])                 Greatest integer less than or equal to number
+INT (A [, KIND])                   Conversion to integer type
+MAX (A1, A2 [, A3,...])            Maximum value
+MIN (A1, A2 [, A3,...])            Minimum value
+MOD (A, P)                         Remainder function
+MODULO (A, P)                      Modulo function
+NINT (A [, KIND])                  Nearest integer
+REAL (A [, KIND])                  Conversion to real type
+SIGN (A, B)                        Transfer of sign
 */
 
 {"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R,ii_abs},
 {"AIMAG",	1,	C,	type_REAL,	I_F77,NULL},
 {"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
 {"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-/*CEILING*/
+{"CEILING",	1,	R|D,	type_INTEGER,	I_NONF77,NULL},
 {"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG,NULL},
 {"CONJG",	1,	C,	type_COMPLEX,	I_F77,NULL},
 {"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG,NULL},
 {"DIM",		2,	I|R|D,	type_GENERIC,	I_F77,ii_dim},
 {"DPROD",	2,	R,	type_DP,	I_F77,NULL},
-/*FLOOR*/
+{"FLOOR",	1,	R|D,	type_INTEGER,	I_NONF77,NULL},
 {"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
 {"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_max},
 {"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_min},
 {"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77,ii_mod},
-/*MODULO*/
+{"MODULO",	2,	I|R|D,	type_GENERIC,	I_NONF77,NULL},
 {"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
 {"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
 {"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77,ii_sign},
@@ -186,21 +193,21 @@ SIGN (A, B)                        Transfer of sign
 {"SNGL",	1,	D,	type_REAL,	I_F77|I_NOTARG,NULL},
 
 /*
-13.11.3 Mathematical functions                         
-ACOS (X)                           Arccosine      
-ASIN (X)                           Arcsine                
-ATAN (X)                           Arctangent     
-ATAN2 (Y, X)                       Arctangent     
-COS (X)                            Cosine                 
-COSH (X)                           Hyperbolic cosine 
-EXP (X)                            Exponential       
-LOG (X)                            Natural logarithm       
-LOG10 (X)                          Common logarithm (base 10) 
-SIN (X)                            Sine                    
-SINH (X)                           Hyperbolic sine                 
-SQRT (X)                           Square root             
-TAN (X)                            Tangent                         
-TANH (X)                           Hyperbolic tangent         
+13.11.3 Mathematical functions
+ACOS (X)                           Arccosine
+ASIN (X)                           Arcsine
+ATAN (X)                           Arctangent
+ATAN2 (Y, X)                       Arctangent
+COS (X)                            Cosine
+COSH (X)                           Hyperbolic cosine
+EXP (X)                            Exponential
+LOG (X)                            Natural logarithm
+LOG10 (X)                          Common logarithm (base 10)
+SIN (X)                            Sine
+SINH (X)                           Hyperbolic sine
+SQRT (X)                           Square root
+TAN (X)                            Tangent
+TANH (X)                           Hyperbolic tangent
 */
 
 {"ACOS",	1,	R|D,	type_GENERIC,	I_F77,NULL},
@@ -244,25 +251,25 @@ TANH (X)                           Hyperbolic tangent
 /*
 13.11.4 Character functions
 ACHAR (I)                          Character in given position
-                                      in ASCII collating sequence            
-ADJUSTL (STRING)                   Adjust left                                               
-ADJUSTR (STRING)                   Adjust right                                              
+                                      in ASCII collating sequence
+ADJUSTL (STRING)                   Adjust left
+ADJUSTR (STRING)                   Adjust right
 CHAR (I [, KIND])                  Character in given position
-                                      in processor collating sequence  
-IACHAR (C)                         Position of a character                                           
-                                      in ASCII collating sequence                                    
+                                      in processor collating sequence
+IACHAR (C)                         Position of a character
+                                      in ASCII collating sequence
 ICHAR (C)                          Position of a character
-                                      in processor collating sequence        
-INDEX (STRING, SUBSTRING [, BACK]) Starting position of a substring                          
-LEN_TRIM (STRING)                  Length without trailing blank characters                  
-LGE (STRING_A, STRING_B)           Lexically greater than or equal                                   
-LGT (STRING_A, STRING_B)           Lexically greater than                                            
-LLE (STRING_A, STRING_B)           Lexically less than or equal                              
-LLT (STRING_A, STRING_B)           Lexically less than                                       
-REPEAT (STRING, NCOPIES)           Repeated concatenation                                            
-SCAN (STRING, SET [, BACK])        Scan a string for a character in a set                            
-TRIM (STRING)                      Remove trailing blank characters                          
-VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string                  
+                                      in processor collating sequence
+INDEX (STRING, SUBSTRING [, BACK]) Starting position of a substring
+LEN_TRIM (STRING)                  Length without trailing blank characters
+LGE (STRING_A, STRING_B)           Lexically greater than or equal
+LGT (STRING_A, STRING_B)           Lexically greater than
+LLE (STRING_A, STRING_B)           Lexically less than or equal
+LLT (STRING_A, STRING_B)           Lexically less than
+REPEAT (STRING, NCOPIES)           Repeated concatenation
+SCAN (STRING, SET [, BACK])        Scan a string for a character in a set
+TRIM (STRING)                      Remove trailing blank characters
+VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 */
 
 {"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR,NULL},
@@ -274,7 +281,7 @@ VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 
 /*
-13.11.5 Character inquiry function                                   
+13.11.5 Character inquiry function
 LEN (STRING)                       Length of a character entity
 */
 
@@ -282,33 +289,45 @@ LEN (STRING)                       Length of a character entity
 
 /*
 13.11.6 Kind functions
-KIND (X)                           Kind type parameter value       
-SELECTED_INT_KIND (R)              Integer kind type parameter value, 
-                                      given range                          
-SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,         
-                                      given precision and range          
+KIND (X)                           Kind type parameter value
+SELECTED_INT_KIND (R)              Integer kind type parameter value,
+                                      given range
+SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
+                                      given precision and range
 */
+
+{"KIND",	1,	ANY,	type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"SELECTED_INT_KIND",1,	I,	type_INTEGER,	I_NONF77,NULL},
+{"SELECTED_REAL_KIND",I_1or2,I,	type_INTEGER,	I_NONF77,NULL},
 
 /*
 13.11.7 Logical function
 LOGICAL (L [, KIND])               Convert between objects of type logical with
                                       different kind type parameters
-
 */
 
 /*
 13.11.8 Numeric inquiry functions
-DIGITS (X)                         Number of significant digits of the model  
-EPSILON (X)                        Number that is almost negligible        
-                                      compared to one                              
-HUGE (X)                           Largest number of the model             
-MAXEXPONENT (X)                    Maximum exponent of the model                   
-MINEXPONENT (X)                    Minimum exponent of the model              
-PRECISION (X)                      Decimal precision                 
-RADIX (X)                          Base of the model                 
-RANGE (X)                          Decimal exponent range                    
+DIGITS (X)                         Number of significant digits of the model
+EPSILON (X)                        Number that is almost negligible
+                                      compared to one
+HUGE (X)                           Largest number of the model
+MAXEXPONENT (X)                    Maximum exponent of the model
+MINEXPONENT (X)                    Minimum exponent of the model
+PRECISION (X)                      Decimal precision
+RADIX (X)                          Base of the model
+RANGE (X)                          Decimal exponent range
 TINY (X)                           Smallest positive number of the model
 */
+{"DIGITS",	1,	I|R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"EPSILON",	1,	R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
+{"HUGE",	1,	I|R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
+{"MAXEXPONENT",	1,	R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"MINEXPONENT",	1,	R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"PRECISION",	1,	R|D|C|Z,type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"RADIX",	1,	I|R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"RANGE",	1,	I|R|D|C|Z,type_INTEGER,	I_NONF77|I_INQ,NULL},
+{"TINY",	1,	R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
 
 /*
 13.11.9 Bit inquiry function
@@ -317,15 +336,15 @@ BIT_SIZE (I)                       Number of bits of the model
 
 /*
 13.11.10 Bit manipulation functions
-BTEST (I, POS)                     Bit testing    
-IAND (I, J)                        Logical AND    
-IBCLR (I, POS)                     Clear bit      
-IBITS (I, POS, LEN)                Bit extraction         
-IBSET (I, POS)                     Set bit                
-IEOR (I, J)                        Exclusive OR   
-IOR (I, J)                         Inclusive OR   
-ISHFT (I, SHIFT)                   Logical shift          
-ISHFTC (I, SHIFT [, SIZE])         Circular shift         
+BTEST (I, POS)                     Bit testing
+IAND (I, J)                        Logical AND
+IBCLR (I, POS)                     Clear bit
+IBITS (I, POS, LEN)                Bit extraction
+IBSET (I, POS)                     Set bit
+IEOR (I, J)                        Exclusive OR
+IOR (I, J)                         Inclusive OR
+ISHFT (I, SHIFT)                   Logical shift
+ISHFTC (I, SHIFT [, SIZE])         Circular shift
 NOT (I)                            Logical complement
 */
 
@@ -342,41 +361,41 @@ NOT (I)                            Logical complement
 {"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
 
 /*
-13.11.11 Transfer function 
+13.11.11 Transfer function
 TRANSFER (SOURCE, MOLD [, SIZE])   Treat first argument as if
                                       of type of second argument
 */
 
 /*
 13.11.12 Floating-point manipulation functions
-EXPONENT (X)                       Exponent part of a model number           
-FRACTION (X)                       Fractional part of a number       
+EXPONENT (X)                       Exponent part of a model number
+FRACTION (X)                       Fractional part of a number
 NEAREST (X, S)                     Nearest different processor number in
-                                      given direction                      
-RRSPACING (X)                      Reciprocal of the relative spacing          
-                                   of model numbers near given number          
+                                      given direction
+RRSPACING (X)                      Reciprocal of the relative spacing
+                                   of model numbers near given number
 SCALE (X, I)                       Multiply a real by its base to an integer power
-SET_EXPONENT (X, I)                Set exponent part of a number                       
-SPACING (X)                        Absolute spacing of model numbers near given   
-                                   number                                         
+SET_EXPONENT (X, I)                Set exponent part of a number
+SPACING (X)                        Absolute spacing of model numbers near given
+                                   number
 */
 
 /*
 13.11.13 Vector and matrix multiply functions
-DOT_PRODUCT (VECTOR_A, VECTOR_B)   Dot product of two rank-one arrays 
-MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication              
+DOT_PRODUCT (VECTOR_A, VECTOR_B)   Dot product of two rank-one arrays
+MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication
 */
 
 /*
 13.11.14 Array reduction functions
-ALL (MASK [, DIM])                 True if all values are true      
-ANY (MASK [, DIM])                 True if any value is true        
-COUNT (MASK [, DIM])               Number of true elements in an array 
-MAXVAL (ARRAY, DIM [, MASK])       Maximum value in an array        
-  or MAXVAL (ARRAY [, MASK])                                        
-MINVAL (ARRAY, DIM [, MASK])       Minimum value in an array        
-  or MINVAL (ARRAY [, MASK])                                        
-PRODUCT (ARRAY, DIM [, MASK])      Product of array elements           
+ALL (MASK [, DIM])                 True if all values are true
+ANY (MASK [, DIM])                 True if any value is true
+COUNT (MASK [, DIM])               Number of true elements in an array
+MAXVAL (ARRAY, DIM [, MASK])       Maximum value in an array
+  or MAXVAL (ARRAY [, MASK])
+MINVAL (ARRAY, DIM [, MASK])       Minimum value in an array
+  or MINVAL (ARRAY [, MASK])
+PRODUCT (ARRAY, DIM [, MASK])      Product of array elements
   or PRODUCT (ARRAY [, MASK])
 SUM (ARRAY, DIM [, MASK])          Sum of array elements
   or SUM (ARRAY [, MASK])
@@ -394,11 +413,11 @@ SUM (ARRAY, DIM [, MASK])          Sum of array elements
 
 /*
 13.11.15 Array inquiry functions
-ALLOCATED (ARRAY)                  Array allocation status                  
-LBOUND (ARRAY [, DIM])             Lower dimension bounds of an array  
-SHAPE (SOURCE)                     Shape of an array or scalar      
+ALLOCATED (ARRAY)                  Array allocation status
+LBOUND (ARRAY [, DIM])             Lower dimension bounds of an array
+SHAPE (SOURCE)                     Shape of an array or scalar
 SIZE (ARRAY [, DIM])               Total number of elements in an array
-UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array  
+UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array
 */
 
 {"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
@@ -406,12 +425,12 @@ UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array
 
 /*
 13.11.16 Array construction functions
-MERGE (TSOURCE, FSOURCE, MASK)     Merge under mask                      
-PACK (ARRAY, MASK [, VECTOR])      Pack an array into an array of rank one       
-                                      under a mask                               
-SPREAD (SOURCE, DIM, NCOPIES)      Replicates array by adding a dimension        
+MERGE (TSOURCE, FSOURCE, MASK)     Merge under mask
+PACK (ARRAY, MASK [, VECTOR])      Pack an array into an array of rank one
+                                      under a mask
+SPREAD (SOURCE, DIM, NCOPIES)      Replicates array by adding a dimension
 UNPACK (VECTOR, MASK, FIELD)       Unpack an array of rank one into an array
-                                      under a mask                             
+                                      under a mask
 */
 
 /*
@@ -446,15 +465,15 @@ NULL ([MOLD])                      Returns disassociated pointer
 
 /*
 13.12 Intrinsic subroutines
-CPU_TIME (TIME)                    Obtain processor time                       
-DATE_AND_TIME ([DATE, TIME,        Obtain date and time                
-  ZONE, VALUES])                                                       
+CPU_TIME (TIME)                    Obtain processor time
+DATE_AND_TIME ([DATE, TIME,        Obtain date and time
+  ZONE, VALUES])
 MVBITS (FROM, FROMPOS,             Copies bits from one integer to another
-  LEN, TO, TOPOS)                                                      
-RANDOM_NUMBER (HARVEST)            Returns pseudorandom number         
-RANDOM_SEED ([SIZE, PUT, GET])     Initializes or restarts the         
-                                   pseudorandom number generator               
-SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock      
+  LEN, TO, TOPOS)
+RANDOM_NUMBER (HARVEST)            Returns pseudorandom number
+RANDOM_SEED ([SIZE, PUT, GET])     Initializes or restarts the
+                                   pseudorandom number generator
+SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
   COUNT_RATE, COUNT_MAX])
 */
 
@@ -773,7 +792,7 @@ find_intrinsic(s)
 	       ((intrinsic[i].intrins_flags&I_EXTRA) && intrinsic_set_extra) ||
 	       ((intrinsic[i].intrins_flags&I_UNIX) && intrinsic_set_unix) ||
 	       ((intrinsic[i].intrins_flags&I_VMS) && intrinsic_set_vms)
-	      ) 
+	      )
 #endif
 	      ) {
 
