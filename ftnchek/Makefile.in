@@ -277,6 +277,8 @@ CONFIGURED_FILES = makefile.generic dcl2inc.awk dcl2inc make_blockmatch.pl \
 		grep -v '^[ 	]*$$' > $@
 
 #=======================================================================
+default: @DEFAULT_TARGET@
+
 all:	prog manpage
 
 # N.B. dcl2inc is also a prog but it is made by configure.  A generic
@@ -292,7 +294,7 @@ manpage: ftnchek$(manext)
 #  Development version includes debugging machinery not normally used.  It
 #  evaluates some floating-point expressions including sqrt, so needs math lib.
 devel: tags TAGS
-	$(MAKE) prog DEVEL_CFLAGS='-DDEVELOPMENT' LDLIBS='$(LDLIBS) -lm'
+	$(MAKE) prog DEVEL_CFLAGS='-DDEVELOPMENT' DEBUG_FLAGS='-g -Wall -ansi' LDLIBS='$(LDLIBS) -lm'
 
 check: prog
 	cd $(TESTDIR); $(MAKE) NAWK="$(NAWK)" -s precheck

@@ -45,6 +45,7 @@ MAKE		= @MAKE@ FTNCHEK=$(FTNCHEK) OKAY=$(OKAY) VARY=$(VARY)
 
 CP              = @CP@
 GREP		= @GREP@
+MKDIR		= @MKDIR@
 MV		= @MV@
 PRINTENV	= @PRINTENV@
 RM		= @RM@
@@ -693,7 +694,7 @@ dosokay: doshelp dosinclude doswildcard
 
 # this target creates DOS Okay dir if it does not exist
 $(DOSOKAY):
-	-mkdir $(DOSOKAY)
+	-$(MKDIR) $(DOSOKAY)
 
 doshelp: $(DOSOKAY) $(DOSOKAY)/help.fcl $(DOSOKAY)/help.fcx
 
