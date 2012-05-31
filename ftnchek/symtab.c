@@ -511,6 +511,8 @@ check_intrins_args(id, arg)
 	 || (numargs == I_1or2 && (args_given != 1 && args_given != 2))
 			/* numargs == -2: 2 or more */
 	 || (numargs == I_2up && (args_given < 2))
+			/* 1 2 or 3 arguments allowed */
+	 || (numargs == I_1to3 && (args_given < 1 || args_given > 3))
 			/* 0 or 1 argument allowed */
 	 || (numargs == I_0or1 && (args_given != 0 && args_given != 1)) ){
 		LINENO_t linenum;

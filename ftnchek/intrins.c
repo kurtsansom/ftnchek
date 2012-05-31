@@ -75,9 +75,9 @@ PROTO(PRIVATE int ii_len,( Token *args ));
 PROTO(PRIVATE int ii_max,( Token *args ));
 PROTO(PRIVATE int ii_min,( Token *args ));
 PROTO(PRIVATE int ii_mod,( Token *args ));
-PROTO(PRIVATE int ii_sign,( Token *args ));
 PROTO(PRIVATE int ii_null,( Token *args ));
-
+PROTO(PRIVATE int ii_sign,( Token *args ));
+PROTO(PRIVATE int ii_size,( Token *args ));
 
 
 PRIVATE IntrinsInfo intrinsic[]={
@@ -101,10 +101,15 @@ PRIVATE IntrinsInfo intrinsic[]={
 		  I_EXTRA indicates common nonstd function
 		  I_VMS indicates VMS-specific function
 		  I_UNIX indicates UNIX-specific function
+		  I_EVAL specifies to run handler even if result not integer
+		  I_PTR function returns a pointer
+		  I_ELEM function is elemental (currently flag not used)
+		  I_XFRM function is transformational (currently not used)
 	 */
 
 #define I_NONSTD (I_NONF77|I_NONF90)
 
+				/* Fortran 77 intrinsics */
 {"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
 {"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
 {"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NOTARG,NULL},
@@ -190,16 +195,45 @@ PRIVATE IntrinsInfo intrinsic[]={
 {"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
-				/* NULL( [mold] ) for nullifying pointers */
-{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
-                /* associated intrinsic statement to check association of
-                 * pointers
-                 */
-{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-                /* allocated intrinsic statement to check allocation of
-                 * pointers
-                 */
+
+				/* Intrinsics introduced in Fortran 90 */
+		/* Array and pointer inquiry functions */
 {"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
+{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
+{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_size},
+
+		/* Array reduction functions*/
+	/* Note: ordering of array,mask,dim args not enforced.  For type_GENERIC
+	   result will be type of first argument.
+	 */
+{"ALL",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"ANY",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"COUNT",	I_1or2,	I|L,	type_INTEGER,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"MAXVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"MINVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"SUM",		I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+
+
+{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
+{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_NONF77},
+{"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_NONF77},
+
+		/* Bit test & Shift operations */
+{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_ELEM,NULL},
+{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_ELEM,NULL},
+
+				/* Nonstandard intrinsics */
+
 		/* DOUBLE COMPLEX intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.
@@ -292,18 +326,6 @@ PRIVATE IntrinsInfo intrinsic[]={
 	 */
 
 
-		/* Bit test & Shift operations: these follow Mil. Std. 1753 */
-{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_EXTRA,NULL},
-{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
-{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_EXTRA,NULL},
-{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_EXTRA,NULL},
 
 		/* Address-of function */
 {"LOC",		1,I|R|D|C|Z|L|STR,type_INTEGER,	I_NONSTD|I_EXTRA,NULL},
@@ -817,4 +839,41 @@ ii_null(Token *args)		/* NULL( [mold] ) */
   /* Override default copying of EVALUATED_EXPR from args to result */
   make_false(EVALUATED_EXPR,args->TOK_flags);
   return 0;
+}
+
+PRIVATE int
+ii_size(Token *args)		/* SIZE( array, [dim] ) */
+{
+  Token *array=args->next_token;
+  Token *dim = NULL;
+  array_dim_t array_dim;
+  int result=0;
+
+  if( array != NULL )
+    dim = array->next_token;
+
+  if( is_true(ARRAY_EXPR,args->TOK_flags) ) {
+      /* Here if dim is provided, we should access shape of array to
+	 get size of the the given dimension.  Since shape is not
+	 stored, do the right thing only if dim absent, otherwise set
+	 result size to unknown.
+       */
+    array_dim = array->array_dim;
+    if( array_size_is_unknown(array_dim) || dim != NULL ) {
+      make_false(PARAMETER_EXPR,args->TOK_flags);
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+      result = size_UNKNOWN;
+    }
+    else {
+      make_true(PARAMETER_EXPR,args->TOK_flags);
+      make_true(EVALUATED_EXPR,args->TOK_flags);
+      result = array_size(array_dim);
+    }
+  }
+  else {
+    syntax_error(array->line_num,array->col_num,
+		 "array-valued argument expected");
+  }
+
+  return result;
 }

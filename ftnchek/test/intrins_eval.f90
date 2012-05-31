@@ -21,6 +21,8 @@ program intrins_eval
   double complex :: dc = (3.14d0,1.414d0)
   real :: r
   double precision :: d
+  integer, dimension(10) :: a
+  integer, dimension(2*size(a)) :: b
 ! Test that return value of CHAR(n) is size 1.
   c2 = char(46) // char(47) // char(48) ! truncation warning
 ! Test that REAL(intg) returns real
@@ -45,4 +47,6 @@ program intrins_eval
   d = abs(dc)                   ! OK
   d = imag(dc)                  ! OK
   d = real(dc)                  ! OK
+! Test evaluation of size intrinsic
+  a = b                         ! array size mismatch
 end program intrins_eval
