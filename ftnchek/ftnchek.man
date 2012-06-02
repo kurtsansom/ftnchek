@@ -871,7 +871,7 @@ If \fIlist\fP is omitted, \fB\-calltree\fP is equivalent to
 \fB\-calltree=none\fP.
 By default no call graph is printed.
 .PP
-If the -mkhtml option is invoked \fIand\fP tree is the applied
+If the \fB\-mkhtml\fP option is invoked \fIand\fP tree is the applied
 calltree option, a file named \fCCallTree.html\fR, will also be produced
 depicting the tree in HTML format.  This file is useful as a starting
 point for browsing the HTML files describing each component of the
@@ -5035,7 +5035,15 @@ United Technologies Research Center.
 John C. Bollinger of Indiana University added the parser syntax for
 the \fCSELECT CASE\fR construct.
 Robert Landrito added the parser syntax for F90 pointer-related features.
-Additional features will be added as time permits.
+Gaurav Gautam of HCL Technologies, Noida India, contributed code for
+support of F90 pointers and allocatable arrays.
+.PP
+A special acknowledgement is due to the U.S. Department of Defense
+High Performance Computing Modernization Program, which funded a
+year-long graduate assistantship to upgrade \fBftnchek\fP to support Fortran 95.
+The upgrade would not have happened without this support.
+Karma Shrestha performed the implementation of most of the new syntax.
+.PP
 As of Version 2.5, the name was changed from \fBforchek\fP to \fBftnchek\fP,
 to avoid confusion with a
 similar program named \fBforcheck\fP,
@@ -5067,7 +5075,9 @@ Bob Wells of Oxford University
 were extremely helpful as alpha testers.
 We also thank Jack Dongarra for putting
 \fBftnchek\fP into the \fCnetlib\fR
-library of publicly available software.
+library of publicly available software,
+and Mark Brown of the University of Edinburgh for acting as
+the \fBftnchek\fP package maintainer for Debian.
 \}
 .\" The above brace is the end of the .if !\nb at section "BUGS"
 .\" The following section is included in the blurb.
