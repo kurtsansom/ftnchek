@@ -64,7 +64,7 @@ PROTO(PRIVATE void report_type,( const Token *t ));
 PROTO(PRIVATE int int_power,( int x, int n ));
 PROTO(PRIVATE int array_section_size,(Token *id, int dim, Token *bounds));
 PROTO(PRIVATE void check_array_conformance,(Token *term1, Token *term2,
-		    int op_line_num, int op_col_num));
+		    Token *result, int op_line_num, int op_col_num));
 
 
 	/* shorthand for datatypes.  must match those in symtab.h */
@@ -614,7 +614,7 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 
     /* Arrays combined in expr must have conformable shapes */
 
-    check_array_conformance(term1,term2,op->line_num,op->col_num);
+    check_array_conformance(term1,term2,result,op->line_num,op->col_num);
 
 			/* If either term is an identifier, set use flag */
     if(is_true(ID_EXPR,term1->TOK_flags))
@@ -812,7 +812,7 @@ unexpr_type(op,term1,result)
  */
 
 PRIVATE
-void check_array_conformance(Token *term1, Token *term2,
+void check_array_conformance(Token *term1, Token *term2, Token *result,
      int op_line_num, int op_col_num)
 {
     if( is_true(ARRAY_EXPR, term1->TOK_flags) &&
@@ -851,6 +851,18 @@ void check_array_conformance(Token *term1, Token *term2,
 	}
       }
     }
+    if( result != NULL ) {	/* evaluate result array_dim  */
+      /* This will be right if arrays are conformable, moot if they are not. */
+      if( is_true(ARRAY_EXPR, term1->TOK_flags) ) {
+	make_true(ARRAY_EXPR, result->TOK_flags);
+	result->array_dim = term1->array_dim;
+      }
+      else {
+	copy_flag(ARRAY_EXPR,result->TOK_flags,term2->TOK_flags);
+	result->array_dim = term2->array_dim;
+      }
+    }
+      
 }
 
 	/* this routine checks type and size match in assignment statements
@@ -899,7 +911,7 @@ assignment_stmt_type(term1,equals,term2)
 	report_type(term1);
       }
       else {
-	  check_array_conformance(term1, term2,
+	  check_array_conformance(term1, term2, (Token*)NULL,
 		equals_line_num, equals_col_num);
       }
     }
@@ -933,7 +945,7 @@ assignment_stmt_type(term1,equals,term2)
 	      }
 	    }
 	    else {
-	      check_array_conformance(term1, term2,
+	      check_array_conformance(term1, term2,(Token *)NULL,
 		    equals_line_num, equals_col_num);
 		
 	      if(result_type >= W) {		/* W result */
@@ -1261,12 +1273,23 @@ func_ref_expr(id,args,result)
       else
 	make_false(TARGET_EXPR,result->TOK_flags);
 
+      /* ELEMENTAL function result gets array shape of its argument(s) */
+      if(symt->elemental) {
+	/* THIS IS NOT RIGHT: need to go thru list to get max array_dim */
+	result->array_dim = args->next_token->array_dim;
+	copy_flag(ARRAY_EXPR,result->TOK_flags,args->next_token->TOK_flags);
+      }
+      else {			/* non-ELEMENTAL: use declared shape */
+	result->array_dim = symt->array_dim;
+      }
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {
 (void)fprintf(list_fd,"\n%sFunction %s() = %s",
 symt->intrinsic?"Intrinsic ":"",
 symt->name,sized_typename(rettype,retsize));
+ (void)fprintf(list_fd," dims %d size %ld",
+    array_dims(result->array_dim),array_size(result->array_dim));
 }
 #endif
 

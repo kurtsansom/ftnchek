@@ -71,11 +71,14 @@ PROTO(PRIVATE int ii_abs,( Token *args ));
 PROTO(PRIVATE int ii_dim,( Token *args ));
 PROTO(PRIVATE int ii_ichar,( Token *args ));
 PROTO(PRIVATE int ii_index,( Token *args ));
+PROTO(PRIVATE int ii_kind,( Token *args ));
 PROTO(PRIVATE int ii_len,( Token *args ));
 PROTO(PRIVATE int ii_max,( Token *args ));
 PROTO(PRIVATE int ii_min,( Token *args ));
 PROTO(PRIVATE int ii_mod,( Token *args ));
 PROTO(PRIVATE int ii_null,( Token *args ));
+PROTO(PRIVATE int ii_selected_int_kind,( Token *args ));
+PROTO(PRIVATE int ii_selected_real_kind,( Token *args ));
 PROTO(PRIVATE int ii_sign,( Token *args ));
 PROTO(PRIVATE int ii_size,( Token *args ));
 
@@ -103,16 +106,15 @@ PRIVATE IntrinsInfo intrinsic[]={
 		  I_UNIX indicates UNIX-specific function
 		  I_EVAL specifies to run handler even if result not integer
 		  I_PTR function returns a pointer
-		  I_ELEM function is elemental (currently flag not used)
+		  I_ELEM function is elemental
 		  I_XFRM function is transformational (currently not used)
 	 */
 
 #define I_NONSTD (I_NONF77|I_NONF90)
 
-  /* Standard intrinsic functions.  Except for CPU_TIME added in F95,
-     all are the same in F90 and F95.  The section numbers used here
-     are those of F95; for F90 section numbers replace 13.11 by 13.10
-     and 13.12 by 13.11. */
+  /* Standard intrinsic functions.  Those marked with * were added in
+     F95.  The section numbers used here are those of F95; for F90
+     section numbers replace 13.11 by 13.10 and 13.12 by 13.11. */
 
 /*
 13.11.1 Argument presence inquiry function
@@ -144,7 +146,7 @@ REAL (A [, KIND])                  Conversion to real type
 SIGN (A, B)                        Transfer of sign
 */
 
-{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R,ii_abs},
+{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R|I_ELEM,ii_abs},
 {"AIMAG",	1,	C,	type_REAL,	I_F77,NULL},
 {"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
 {"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
@@ -156,8 +158,8 @@ SIGN (A, B)                        Transfer of sign
 {"DPROD",	2,	R,	type_DP,	I_F77,NULL},
 {"FLOOR",	1,	R|D,	type_INTEGER,	I_NONF77,NULL},
 {"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_max},
-{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG,ii_min},
+{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_ELEM,ii_max},
+{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_ELEM,ii_min},
 {"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77,ii_mod},
 {"MODULO",	2,	I|R|D,	type_GENERIC,	I_NONF77,NULL},
 {"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
@@ -296,9 +298,9 @@ SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
                                       given precision and range
 */
 
-{"KIND",	1,	ANY,	type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"SELECTED_INT_KIND",1,	I,	type_INTEGER,	I_NONF77,NULL},
-{"SELECTED_REAL_KIND",I_1or2,I,	type_INTEGER,	I_NONF77,NULL},
+{"KIND",	1,	ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_kind},
+{"SELECTED_INT_KIND",1,	I,	type_INTEGER,	I_NONF77,ii_selected_int_kind},
+{"SELECTED_REAL_KIND",I_1or2,I,	type_INTEGER,	I_NONF77,ii_selected_real_kind},
 
 /*
 13.11.7 Logical function
@@ -451,21 +453,20 @@ MAXLOC (ARRAY, DIM [, MASK])       Location of a maximum value in an array
   or MAXLOC (ARRAY [, MASK])
 MINLOC (ARRAY, DIM [, MASK])       Location of a minimum value in an array
   or MINLOC (ARRAY [, MASK])
-
 */
 
 /*
 13.11.20 Pointer association status functions
 ASSOCIATED (POINTER [, TARGET])    Association status inquiry or comparison
-NULL ([MOLD])                      Returns disassociated pointer
+NULL ([MOLD])                    * Returns disassociated pointer
 */
 
 {"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
+{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_NONF90|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
 
 /*
 13.12 Intrinsic subroutines
-CPU_TIME (TIME)                    Obtain processor time
+CPU_TIME (TIME)                  * Obtain processor time
 DATE_AND_TIME ([DATE, TIME,        Obtain date and time
   ZONE, VALUES])
 MVBITS (FROM, FROMPOS,             Copies bits from one integer to another
@@ -833,6 +834,14 @@ kwd_hash(s)
 }
 
 
+/* Intrinsic function evaluation routines.  These are run if arguments
+   are EVALUATED_EXPRs or function is an inquiry function.  Note that
+   for inquiry functions or functions requiring more than one argument
+   it is possible (on erroneous code) to have too few or no arguments,
+   so those handlers need to check.  Argument type may also be
+   incorrect.  (Checking of argument number and type is done elsewhere
+   and does not prevent invoking the routine.)
+ */
 
 PRIVATE int
 #if HAVE_STDC
@@ -1027,7 +1036,7 @@ ii_len(args)		/* LEN(string) */
 
 		/* Set the PARAMETER_EXPR flag since LEN of string does
 		   not require contents to be known */
-  if( t->TOK_type == type_STRING && (val = t->size) > 0 ) {
+  if( t != NULL && t->TOK_type == type_STRING && (val = t->size) > 0 ) {
     make_true(PARAMETER_EXPR,args->TOK_flags);
     make_true(EVALUATED_EXPR,args->TOK_flags);
     result = val;
@@ -1091,36 +1100,101 @@ ii_null(Token *args)		/* NULL( [mold] ) */
 PRIVATE int
 ii_size(Token *args)		/* SIZE( array, [dim] ) */
 {
-  Token *array=args->next_token;
-  Token *dim = NULL;
+  Token *array, *dim;
   array_dim_t array_dim;
-  int result=0;
+  int result=size_UNKNOWN;
 
-  if( array != NULL )
-    dim = array->next_token;
+  array = args->next_token;
+  if(array != NULL) { 		/* ensure arg is present */
 
-  if( is_true(ARRAY_EXPR,args->TOK_flags) ) {
+    dim = array->next_token;	/* this may be null */
+
+    if( is_true(ARRAY_EXPR,args->TOK_flags) ) {
       /* Here if dim is provided, we should access shape of array to
 	 get size of the the given dimension.  Since shape is not
 	 stored, do the right thing only if dim absent, otherwise set
 	 result size to unknown.
        */
-    array_dim = array->array_dim;
-    if( array_size_is_unknown(array_dim) || dim != NULL ) {
-      make_false(PARAMETER_EXPR,args->TOK_flags);
-      make_false(EVALUATED_EXPR,args->TOK_flags);
-      result = size_UNKNOWN;
+      array_dim = array->array_dim;
+      if( array_size_is_unknown(array_dim) || dim != NULL ) {
+	make_false(PARAMETER_EXPR,args->TOK_flags);
+	make_false(EVALUATED_EXPR,args->TOK_flags);
+	result = size_UNKNOWN;
+      }
+      else {
+	make_true(PARAMETER_EXPR,args->TOK_flags);
+	make_true(EVALUATED_EXPR,args->TOK_flags);
+	result = array_size(array_dim);
+      }
     }
     else {
-      make_true(PARAMETER_EXPR,args->TOK_flags);
-      make_true(EVALUATED_EXPR,args->TOK_flags);
-      result = array_size(array_dim);
+      syntax_error(array->line_num,array->col_num,
+		   "array-valued argument expected");
     }
   }
+  return result;
+}
+
+/* Kind functions */
+PRIVATE int
+ii_kind( Token *args )
+{
+  make_true(PARAMETER_EXPR,args->TOK_flags);
+  make_true(EVALUATED_EXPR,args->TOK_flags);
+  if( args->next_token != NULL ) {
+  /* return args->next_token->kind */
+    return default_kind(datatype_of(args->next_token->TOK_type));
+  }
   else {
-    syntax_error(array->line_num,array->col_num,
-		 "array-valued argument expected");
+    return 0;
+  }
+}
+
+PRIVATE int
+ii_selected_int_kind( Token *args )
+{
+  Token *range = args->next_token;
+  int kind = kind_DEFAULT_INTEGER;
+
+  if(range != NULL && range->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    kind = selected_int_kind( int_expr_value(range) );
+    make_true(PARAMETER_EXPR,args->TOK_flags);
+    make_true(EVALUATED_EXPR,args->TOK_flags);
   }
 
-  return result;
+  return kind;
+}
+
+/* This needs to be rewritten when call-by-name is supported, to
+   distinguish one-arg cases of P or R. */
+PRIVATE int
+ii_selected_real_kind( Token *args )
+{
+  Token *precision, *range;
+  int kind = kind_DEFAULT_REAL;
+
+  precision = args->next_token;
+  if( precision != NULL ) {	   /* make sure one arg is present */
+    range = precision->next_token; /* may be null */
+
+    if( precision->TOK_type != type_INTEGER ||/* wrong arg type: message given elswr */
+	( range != NULL && range->TOK_type != type_INTEGER ) ) {
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      if( range != NULL ) {		/* (P,R) form */
+	kind = selected_real_kind_p_r(int_expr_value(precision),int_expr_value(range));
+      }
+      else {			/* (P) form */
+	kind = selected_real_kind_p( int_expr_value(precision) );
+      }
+      make_true(PARAMETER_EXPR,args->TOK_flags);
+      make_true(EVALUATED_EXPR,args->TOK_flags);
+    }
+  }
+
+  return kind;
 }

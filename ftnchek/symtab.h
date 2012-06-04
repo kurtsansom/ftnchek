@@ -126,6 +126,18 @@ this Software without prior written authorization from the author.
 #define type_CQUAD type_COMPLEX
 #define size_CQUAD (8*type_size[type_REAL])
 
+/* Internally defined kind numbers are designed to be in a distinct
+   space from user-defined ones, and distinct from each other if
+   defined differently.  They are negative.  The default kinds are the
+   negative of their respective type numbers.  The selected int and
+   real kinds are coded so that the type and the selected range and
+   precision can be recovered.  See selected_int_kind() et al for details  */
+#define kind_DEFAULT_INTEGER (-type_INTEGER)
+#define kind_DEFAULT_REAL (-type_REAL)
+#define kind_DEFAULT_DP (-type_DP)
+#define kind_DEFAULT_LOGICAL (-type_LOGICAL)
+#define kind_DEFAULT_CHARACTER (-type_STRING)
+
 				/* tests for elementary vs derived type */
 #define is_elementary_type(t) ((unsigned)(t) < MIN_DTYPE_ID)
 #define is_derived_type(t) ((unsigned)(t) >= MIN_DTYPE_ID)
@@ -223,6 +235,15 @@ typedef unsigned char BYTE;
 			/* Define int big enough for class/type field */
 
 typedef unsigned long type_t;
+
+/* Define int big enough for encoded kinds which can be -10^8, need 4 bytes. */
+#if (SIZEOF_INT >= 4)
+typedef int kind_t;
+#else
+#if (SIZEOF_LONG >= 4)
+typedef long kind_t;
+#endif
+#endif
 
 /* eventually we should go over to this */
 #if 0
@@ -1175,6 +1196,16 @@ PROTO(char* typespec, ( int t, int has_size, long size,
 				 */
 		/* Maximum length of a typespec() result.  */
 #define MAX_TYPESPEC (4+4+6*sizeof(long))
+
+/* Routines to set and retrieve info about kind numbers */
+PROTO(kind_t default_kind,(int type));
+PROTO(kind_t selected_int_kind,( int range ));
+PROTO(kind_t selected_real_kind_r,( int range ));
+PROTO(kind_t selected_real_kind_p,( int precision ));
+PROTO(kind_t selected_real_kind_p_r,( int precision, int range ));
+PROTO(int kind_type,(kind_t kind));
+PROTO(int kind_range,(kind_t kind));
+PROTO(int kind_precision,(kind_t kind));
 
 				/* in symtab.c (formerly hash.c) */
 PROTO(unsigned long hash,( const char *s ));

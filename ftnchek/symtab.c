@@ -114,7 +114,6 @@ this Software without prior written authorization from the author.
 #endif
 
 
-
 PROTO(PRIVATE void call_external,( Lsymtab *symt, Token *id, Token *arg ));
 PROTO(PRIVATE void check_intrins_args,( Token *id, Token *arg ));
 PROTO(PRIVATE void check_stmt_function_args,( const Lsymtab *symt, Token *id, Token *arg ));
@@ -309,6 +308,9 @@ call_func(id,arg)	/* Process function invocation */
 		symt->info.intrins_info = defn;
 		if( defn->intrins_flags&I_PTR ) { /* returns a pointer */
 		  symt->pointer = TRUE;
+		}
+		if( defn->intrins_flags&I_ELEM ) { /* is elemental */
+		  symt->elemental = TRUE;
 		}
 	}
 
@@ -3249,6 +3251,207 @@ do_nullify(id)		/* Process NULLIFY statement */
   next_id = next_id->next_token;
   }
 }/*do_nullify*/
+
+
+/* Routines to calculate internal kind parameters for
+   selected_int_kind and selected_real_kind.  We use a scheme that
+   ensures no internal kind parameters match explicit numeric kind
+   parameters while allowing independent kind parameter declarations
+   using SELECTED_KIND intrinsics to match.  To keep int and real
+   kinds distinct, int kinds are odd and real kinds even.
+   For range == 0 and precision == 0 return kind_DEFAULT.
+ */
+
+/* Set default kind for given type.  For complex types, kind is the
+   kind of the component reals.  For others, kind is negative of
+   type number. */
+kind_t
+default_kind(int type)
+{
+  kind_t kind;
+  printf("type=%d ",type);
+  switch(type)
+    {
+    case type_COMPLEX:
+      kind = kind_DEFAULT_REAL;
+      break;
+    case type_DCOMPLEX:
+      kind = kind_DEFAULT_DP;
+      break;
+    case type_INTEGER:
+    case type_REAL:
+    case type_DP:
+    case type_LOGICAL:
+    case type_STRING:
+      kind = -type;
+      break;
+    default:			/* bogus: non-kindable type */
+      kind = 0;
+      break;
+    }
+  return kind;
+}
+
+/* -k = (R+1)*R_factor + (P+1)*P_factor + int?1:0, for P+R > 0.
+   For uniqueness require P+1 < R_factor/P_factor.
+   IEEE 754 quad precision has precision 34 digits and range 4932.  Our
+   limits on P and R must allow these, but we peg very large values to
+   prevent overflow.
+ */
+#define R_factor (10000)
+#define P_factor (10)		/* 2*P_factor must exceed max abs default kind no. */
+#define MAX_P ((R_factor/P_factor)-2) /* so (P+1)*P_factor < R_factor */
+#define MAX_R (9999)      /* limit to ensure max kind does not overflow */
+
+
+/* F2010 specifies a minimum range of 5 digits for default integer
+ * type.  It recommends a minimum range of 37 and a precision of at
+ * least 6 digits for default real kind.  If user specifies range
+ * and/or precision within these values, yield default kind.
+ * Otherwise encode in internal form.
+ */
+#define DEFAULT_INT_R (5)
+#define DEFAULT_REAL_R (37)
+#define DEFAULT_REAL_P (6)
+
+kind_t
+selected_int_kind( int range ) 
+{
+  kind_t kind;
+
+  /* enforce sane values */
+  if( range < 0 ) range = 0;
+  if( range > MAX_R ) range = MAX_R;
+
+  if( range <= DEFAULT_INT_R )
+    kind = kind_DEFAULT_INTEGER;
+  else
+    kind = -((range+1)*R_factor+1);
+
+  return kind;
+  
+}
+
+
+kind_t
+selected_real_kind_r( int range ) 
+{
+  kind_t kind;
+
+  /* enforce sane values */
+  if( range < 0 ) range = 0;
+  if( range > MAX_R ) range = MAX_R;
+
+  if( range <= DEFAULT_REAL_R )
+    kind = kind_DEFAULT_REAL;
+  else
+    kind = -((range+1)*R_factor);
+
+  return kind;
+  
+}
+
+kind_t
+selected_real_kind_p( int precision )
+{
+  kind_t kind;
+
+  /* enforce sane values */
+  if( precision < 0 ) precision = 0;
+  if( precision > MAX_P ) precision = MAX_P;
+
+  if( precision <= DEFAULT_REAL_P )
+    kind = kind_DEFAULT_REAL;
+  else
+    kind = -((precision+1)*P_factor);
+
+  return kind;
+}
+
+kind_t
+selected_real_kind_p_r( int precision, int range ) /* SELECTED_REAL_KIND(P,R) */
+{
+  kind_t kind;
+
+  /* enforce sane values */
+  if( range < 0 ) range = 0;
+  if( range > MAX_R ) range = MAX_R;
+  if( precision < 0 ) precision = 0;
+  if( precision > MAX_P ) precision = MAX_P;
+
+  if( range <= DEFAULT_REAL_R  && precision <= DEFAULT_REAL_P )
+    kind = kind_DEFAULT_REAL;
+  else
+    kind = -((range+1)*R_factor + (precision+1)*P_factor);
+
+  return kind;
+}
+
+/* Return data type of the given kind parameter. */
+int kind_type( kind_t kind )
+{
+  if( kind >= 0 ) {		/* user-defined value */
+    return type_UNDECL;			/* unknown type */
+  }
+  else {
+    kind = -kind;		/* get absolute value */
+    if( kind < P_factor ) {	/* a default kind */
+      return kind;		/* default kind = -type */
+    }
+    else {			/* a selected int or real kind */
+      if( kind%2 == 1 )		/* integer kinds are odd */
+	return type_INTEGER;
+      else
+	return type_REAL;
+    }
+  }
+}
+
+/* Return range of the given kind parameter.  If range was not
+   specified, value of -1 is returned. */
+int
+kind_range(kind_t kind)
+{
+  if( kind >= 0 ) {		/* user-defined value */
+    return 0;
+  }
+  else {
+    kind = -kind;		/* get absolute value */
+    if( kind < P_factor ) {	/* a default kind */
+      return 0;
+    }
+    else {
+      return (kind/R_factor)-1;	/* decode range */
+    }
+  }
+}
+
+/* Return precision of the given kind parameter.  If precision was not
+   specified, value of -1 is returned. */
+int
+kind_precision(kind_t kind)
+{
+  if( kind >= 0 ) {		/* user-defined value */
+    return 0;
+  }
+  else {
+    kind = -kind;		/* get absolute value */
+    if( kind < P_factor ) {	/* a default kind */
+      return 0;
+    }
+    else {
+      return (kind%R_factor)/P_factor-1; /* decode precision */
+    }
+  }
+}
+
+#undef R_factor
+#undef P_factor
+#undef MAX_P
+#undef MAX_R
+#undef DEFAULT_INT_R
+#undef DEFAULT_REAL_R
+#undef DEFAULT_REAL_P
 
 	/* Routine to provide a string with type followed by one of: "",
 	   "*n" where n is the declared size of an item, "(l)" where
