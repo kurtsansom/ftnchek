@@ -134,6 +134,7 @@ PROTO( void advance,( void ));
 PROTO( int looking_at_cplx,( void ));
 PROTO( int looking_at_keywd,( int token_class ));
 PROTO( int looking_at_relop,( void ));
+PROTO( int looking_at_string,( void ));
 PROTO( int looking_at_implicit_list,( void ));
 
 				/* defined in forlex.c */

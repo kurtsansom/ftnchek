@@ -324,6 +324,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_power	/*   **   */
 %token tok_concat	/*   //   */
 %token tok_double_colon /*   ::   */
+%token tok_underscore	/* special underscore to avoid s/r conflicts */
 %token tok_lparen	/* special left paren to avoid s/r conflicts */
 %token tok_rightarrow   /*   =>   */
 %token tok_l_ac_delimiter	/*   (/   */
@@ -798,17 +799,14 @@ end_subprog_token:	tok_ENDBLOCKDATA
 		|	tok_ENDSUBROUTINE
 		;
 
-include_stmt	:	tok_INCLUDE tok_string EOS
+include_stmt	:	tok_INCLUDE char_literal_const EOS
  			{
-#ifdef ALLOW_INCLUDE
+			  /* Named constant not allowed in the kind
+			     parameter of the character literal */
 			  if(f77_include) {
 			      nonstandard($1.line_num,$1.col_num,0,0);
 			  }
  			  open_include_file($2.value.string,$1.line_num);
-#else
-			  syntax_error($1.line_num,$1.col_num,
-				"statement not permitted");
-#endif
  			}
  		;
 
@@ -4152,14 +4150,16 @@ type_output_stmt:	tok_TYPE type_format_id EOS
  */
 
 type_format_id: '*'
-		|	literal_const
-			{
-			  if( $1.TOK_type == type_pack(class_VAR,type_INTEGER) ) {
-			    ref_label(&($1),LAB_IO);
-			  }
-			}
+		|	type_format_literal_const
 		;
 
+
+type_format_literal_const: tok_integer_const
+			{
+				ref_label(&($1),LAB_IO);
+			}
+		|	tok_string
+		;
 
 /* 47 */
 control_info_list:	control_info_item
@@ -5022,7 +5022,7 @@ ac_implied_do	:	'(' ac_value_list ',' implied_do_control ')'
 				   holleriths, and logical constants */
 literal_const	:	numeric_const
 			    /* (class, size set in numeric_const productions) */
-		|	tok_string
+		|	char_literal_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_STRING);
 			    /* (size is set in get_string) */
@@ -5036,19 +5036,23 @@ literal_const	:	numeric_const
 				"hollerith constant may not be portable");
 			    }
 			}
-		|	tok_logical_const
+		|	tok_logical_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
 			}
 		;
 
-numeric_const	:	tok_integer_const
+numeric_const	:	numeric_literal_const
+		|	complex_const
+		;
+
+numeric_literal_const:	tok_integer_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_INTEGER);
 			    $$.size = size_DEFAULT;
 			}
-		|	tok_real_const
+		|	tok_real_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_REAL);
 			    $$.size = size_DEFAULT;
@@ -5067,17 +5071,133 @@ numeric_const	:	tok_integer_const
                               msg_tail(": quad precision constant");
                             }
 			}
-		|	tok_complex_const
+		;
+
+complex_const	:	tok_lparen signed_numeric_literal_const ',' signed_numeric_literal_const ')'
 			{
-			    $$.TOK_type = type_pack(class_VAR,type_COMPLEX);
-			    $$.size = size_DEFAULT;
-			}
-		|	tok_dcomplex_const
-			{
-			    $$.TOK_type = type_pack(class_VAR,type_DCOMPLEX);
-			    $$.size = size_DEFAULT;
+			    int real_type, imag_type;
+			    int token_class, final_type, final_size;
+
+			    /* datatype is stored in tclass as
+			     * token class.
+			     */
+			    real_type = $2.tclass;
+			    imag_type = $4.tclass; 
+
+
+			    if( real_type == tok_integer_const )
+				real_type = tok_real_const;
+			    if( imag_type == tok_integer_const )
+				imag_type = tok_real_const;
+			    token_class = tok_complex_const;
+			    final_type = type_COMPLEX;
+			    final_size = size_DEFAULT;
+
+			    /* now promote if either part is higher */
+			    if( real_type == tok_dp_const ||
+				imag_type == tok_dp_const ) {
+				token_class = tok_dcomplex_const;
+				final_type = type_DCOMPLEX;
+				/* F77 disallows d.p. complex.  We don't
+				 * however warn about quad complex.  It
+				 * is warned separately under quad consts. */
+				if(f77_double_complex) {
+				  warning($1.line_num,$1.col_num,
+			    	    "nonstandard double precision complex constant");
+				}
+			    }
+			    if( real_type == tok_quad_const ||
+				imag_type == tok_quad_const ) {
+				final_type = type_COMPLEX;
+				final_size = size_QUAD;
+			    }
+
+			    $$ = $2;	/* save value of real part only */
+			    $$.tclass = token_class;
+			    $$.TOK_type = type_pack(class_VAR,final_type);
+			    $$.size = final_size;
+
+			    /* Reconstitute entire complex constant string in
+			       source text for error messages.  (Do
+			       not save as a tree.)
+			    */
+			    $$.src_text = new_src_text_alloc( 3 +
+			    			strlen($2.src_text) + 
+						strlen($4.src_text) + 1 );
+			    strcpy($$.src_text, $1.src_text);
+			    strcat($$.src_text, $2.src_text);
+			    strcat($$.src_text, $3.src_text);
+			    strcat($$.src_text, $4.src_text);
+			    strcat($$.src_text, $5.src_text);
 			}
 		;
+
+
+signed_numeric_literal_const: numeric_literal_const
+		|	 '+' numeric_literal_const
+			{
+			    $$ = $2;
+
+			    /* create src_text field for the numeric
+			       constant token which will include
+			       the plus sign
+			    */
+			    $$.src_text = new_src_text_alloc( 2 + 
+			    			strlen($2.src_text) );
+			    strcpy($$.src_text, $1.src_text);
+			    strcat($$.src_text, $2.src_text);
+			}
+		|	 '-' numeric_literal_const
+			{
+			    $$ = $2;
+			    $$.value.dbl = -($$.value.dbl);
+
+			    /* create src_text field for the numeric
+			       constant token which will include
+			       the minus sign
+			    */
+			    $$.src_text = new_src_text_alloc( 2 + 
+			    			strlen($2.src_text) );
+			    strcpy($$.src_text, $1.src_text);
+			    strcat($$.src_text, $2.src_text);
+			}
+		;
+
+char_literal_const:	char_kind_param tok_string
+			{
+			    $$ = $2;
+			}
+		;
+
+char_kind_param	:	kind_param tok_underscore
+			{
+			    /* used in character constants */
+			}
+		|
+			{
+			    /* empty production */
+			}
+		;
+
+non_char_kind_param:	'_' kind_param
+			{
+			    /* used in numeric and logical constants */
+			}
+		|
+			{
+			    /* empty production */
+			}
+		;
+
+kind_param	:	tok_integer_const
+	   		{
+			    /* has to be nonnegative integer */
+			}
+	   	|	tok_identifier
+			{
+			    /* has to be scalar nonnegative integer */
+			}
+	   	;
 
 /* 77 */
 integer_expr	:	/* integer */ arith_expr
@@ -5459,7 +5579,7 @@ data_constant	:	numeric_const
 			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
 			}
-   		|	tok_string
+   		|	char_literal_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_STRING);
 			    $$.size = size_DEFAULT;

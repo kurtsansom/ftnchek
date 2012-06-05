@@ -1083,6 +1083,33 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
     return FALSE;
 
 }
+		/* Routine called when an identifier is being taken,
+		 * and an underscore is seen.  It checks if the next
+		 * thing up is a character literal constant, in which
+		 * case the identifier (without the underscore) is a
+		 * kind parameter and the underscore is punctuation. */
+int
+looking_at_string(VOID)
+{
+    int c;
+    srcPosn pos;
+
+
+    if( next_char != EOS &&	/* Looking at next line already */
+	curr_srcLine != (srcLine *)NULL )
+    {
+      pos.Line = next_srcLine; /* starting position of lookahead text */
+      pos.idx = next_index;
+
+      while( (c=pos.Line->line[pos.idx]) != '\0' && isspace(c))
+	stepPosn(&pos);
+    }
+
+    /* If next nonblank thing is a quote mark then we have a hit. */
+
+    return ( c == '\'' || c == '"' );
+}
+
 
 		/* This routine is called for an IMPLICIT statement if the
 		   type keyword is followed by a left parenthesis, and

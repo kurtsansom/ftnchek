@@ -319,6 +319,11 @@ yylex(VOID)
 		else
 			get_number(&token);     /* Numeric or hollerith const */
 	}
+	else if(curr_char == '_') {
+			/* Underscore character not allowed as initial char
+			 * of identifier; instead get it as punctuation */
+			get_punctuation(&token);
+	}
 	else if(isidletter(curr_char)) {
 		if(implicit_letter_flag)
 			get_letter(&token);	/* letter in IMPLICIT list */
@@ -1585,6 +1590,14 @@ get_punctuation(token)
                 advance();
 		src_text_buf[src_text_len++] = curr_char;
 	}
+	/* Underscore followed by quote char must be for kind
+	 * parameter on a character literal.  Return special
+	 * underscore to avoid shift/reduce conflict.
+	 */
+	else if(  curr_char == '_' &&
+	         (next_char == '\'' || next_char == '"' ) ) {
+		token->tclass = tok_underscore;
+	}
 	/* Catch closing > of variable format here so it taken as
 	   delimiter not f90 relops.   Note that inside_format is
 	   turned off while scanning the expr inside < > so we use
@@ -1611,8 +1624,7 @@ get_punctuation(token)
 	      || prev_token_class == tok_relop
 	      || prev_token_class == tok_power )
 	     && looking_at_cplx()) {
-		get_complex_const(token);
-		return;
+		token->tclass = tok_lparen;
 	}
 	else {
 			/* Provide special left parenthesis to avoid s/r
@@ -1644,7 +1656,7 @@ if(debug_lexer) {
 		(void)fprintf(list_fd,"\n\t\t\tEOS");
 	else {
 		(void)fprintf(list_fd,"\nPunctuation:\t\t");
-		if(token->tclass == tok_lparen)
+		if(token->tclass == tok_lparen || token->tclass == tok_underscore)
 		    (void)fprintf(list_fd,"special ");
 		(void)fprintf(list_fd,"%s",token->src_text);
 	}

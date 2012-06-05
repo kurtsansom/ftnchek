@@ -287,6 +287,12 @@ get_identifier(token)
 
 			/* This loop gets  letter [letter|digit]* forms */
 	while(isidletter(curr_char) || isadigit(curr_char)) {
+
+		/* Underscore at end of identifier indicates it is a kind
+		 * parameter if next thing is a string.  Don't include. */
+	  if(curr_char == '_' && looking_at_string() )
+	     break;
+
 	  c = makeupper(curr_char); /* Get the next char of id */
 	  if(src_text_len < MAX_SRC_TEXT)
 	    src_text_buf[src_text_len++] = (int)makeupper(curr_char);
@@ -494,7 +500,8 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 				 */
 
 	if(( ((pretty_no_space || (free_form && f90_freeform_space))
-		 && (isidletter(preceding_c) || isadigit(preceding_c) ||
+	      && ((isidletter(preceding_c) && prev_token_class != '_') ||
+		   isadigit(preceding_c) ||
 		     kwd_not_separated)
 	      && !(prev_token_class==tok_ELSE && keywd_class==tok_IF) )
 	  || ((pretty_extra_space || (free_form && f90_freeform_space))
