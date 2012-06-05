@@ -763,6 +763,10 @@ unexpr_type(op,term1,result)
     copy_flag(PARAMETER_EXPR,result->TOK_flags,term1->TOK_flags);
     copy_flag(DIM_BOUND_EXPR,result->TOK_flags,term1->TOK_flags);
 
+	    /* Propagate array property */
+    copy_flag(ARRAY_EXPR,result->TOK_flags,term1->TOK_flags);
+    result->array_dim = term1->array_dim;
+
 		/* Remember if integer division was used */
     if(result_type == type_INTEGER)
 	    copy_flag(INT_QUOTIENT_EXPR,result->TOK_flags,term1->TOK_flags);
