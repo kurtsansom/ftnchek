@@ -108,6 +108,11 @@ PROTO( PRIVATE int is_keyword,( int i ));
 		   it is the length of the first moiety.  END BLOCK DATA
 		   is the only 3-word keyword, and the implementation happens
 		   to check its "END" based on ENDSUBROUTINE's split_pos so OK.
+		   ELSE is always parsed as a separate keyword even if
+		   followed by IF or WHERE, because ELSE may be
+		   followed by a construct name, which messes up the
+		   mechanism for match of the longer keyword.  (Cannot
+		   set NA flag.)
 		 */
 PRIVATE struct {
 	char name[sizeof(LONGEST_KEYWORD)];
@@ -147,6 +152,9 @@ PRIVATE struct {
 #if 0	/* ELSEIF not lexed: lexes ELSE and IF separately */
 {"ELSEIF",	tok_ELSEIF,	IK | NI | EK | MP | NA,		4},
 #endif
+#if 0	/* ELSEWHERE not lexed: lexes ELSE and WHERE separately */
+{"ELSEWHERE",	tok_ELSEWHERE,	IK | NI | EK | NP,	 	4},
+#endif
 {"END",		tok_END,	IK | NP | NI | NA,		0},
 {"ENDBLOCKDATA",tok_ENDBLOCKDATA,IK | NP | NI | EK,		8},
 {"ENDDO",	tok_ENDDO,	IK | NP | NI | EK,		3},
@@ -159,6 +167,7 @@ PRIVATE struct {
 {"ENDSELECT",	tok_ENDSELECT,	IK | NP | NI | EK,		3},
 {"ENDSUBROUTINE",tok_ENDSUBROUTINE, IK | NP | NI | EK,		3},
 {"ENDTYPE",	tok_ENDTYPE,	IK | NP | NI | EK,		3},
+{"ENDWHERE",	tok_ENDWHERE,	IK | NP | NI | EK,		3},
 {"ENTRY",	tok_ENTRY,	IK | NP | NI | EK,		0},
 {"EQUIVALENCE",	tok_EQUIVALENCE,IK | NI | EK | MP | NA,		0},
 {"EXIT",	tok_EXIT,	IK | NP | EK,			0},
@@ -217,6 +226,7 @@ PRIVATE struct {
 {"TYPE",	tok_TYPE,	IK | NI | EK | TY,		0},
 {"USE",		tok_USE,	IK | NP | NI | EK, 		0},
 {"VOLATILE",	tok_VOLATILE,	IK | NI,			0},
+{"WHERE",	tok_WHERE,	IK | NI | EK | CN,		0},
 {"WHILE",	tok_WHILE,	NI | EK | MP | NA,		0},
 {"WRITE",	tok_WRITE,	IK | EK | MP | NA | GN,		0},
 };
@@ -260,6 +270,7 @@ get_identifier(token)
 	    keywd_class;/* Class number returned by is_keyword */
 	unsigned klen;	/* Length of id read so far (after keyword test) */
 	int possible_keyword;
+	int else_then_space = FALSE; /* Flag for ELSEWHERE with space */
 
 	token->tclass = tok_identifier;
 	keywd_class = FALSE;
@@ -284,6 +295,11 @@ get_identifier(token)
 			/* set stmt class in case is_keyword not invoked */
 	if(initial_flag && !in_attrbased_typedecl)
 	  curr_stmt_class = tok_identifier;
+
+			/* Check if ELSE is followed by a space. */
+	if (prev_token_class == tok_ELSE && iswhitespace(prev_char)) {
+	    else_then_space = TRUE;
+	}
 
 			/* This loop gets  letter [letter|digit]* forms */
 	while(isidletter(curr_char) || isadigit(curr_char)) {
@@ -492,6 +508,10 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 	    has_embedded_space = (has_embedded_space && (kwd_split_pos != split_pos));
 	}
 
+		/* Catch ELSE WHERE to flag embedded space. */
+	has_embedded_space = (has_embedded_space ||
+			      (else_then_space && keywd_class == tok_WHERE));
+
 				/* Check identifiers for being juxtaposed
 				   to keywords or having internal space.
 				   Keywords are warned about if they are
@@ -503,16 +523,20 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 	      && ((isidletter(preceding_c) && prev_token_class != '_') ||
 		   isadigit(preceding_c) ||
 		     kwd_not_separated)
-	      && !(prev_token_class==tok_ELSE && keywd_class==tok_IF) )
+	      && !(prev_token_class==tok_ELSE &&
+		   (keywd_class==tok_IF || (!has_embedded_space && keywd_class==tok_WHERE))) )
 	  || ((pretty_extra_space || (free_form && f90_freeform_space))
-		   && has_embedded_space) ) ) {
+		   && (has_embedded_space) ) ) ) {
 	    if(token->tclass==tok_identifier || token->tclass==tok_array_identifier) {
 	      space_violation(token->line_num,token->col_num,"identifier");
 	      msg_tail(hashtab[token->value.integer].name);
 	    }
 	    else {
 	      space_violation(token->line_num,token->col_num,"keyword");
-	      msg_tail(keywords[keytab_index[keywd_class-keytab_offset]].name);
+	      if (prev_token_class == tok_ELSE && keywd_class == tok_WHERE)
+		  msg_tail("ELSEWHERE");
+	      else
+		  msg_tail(keywords[keytab_index[keywd_class-keytab_offset]].name);
 	    }
 	  if(has_embedded_space)
 	    msg_tail("has embedded space");
@@ -821,10 +845,18 @@ char *
 keytok_name(int tclass)
 {
     int i;
+
     for(i=0; i<NUM_KEYWORDS; i++) {
 	if( keywords[i].tclass == tclass ) {
 	    return keywords[i].name;
 	}
     }
+
+    /* tok_ELSEWHERE is used in blockmatch so we need to provide its
+     * name, although it is not lexed as a keyword.
+     */
+    if( tclass == tok_ELSEWHERE )
+      return "ELSEWHERE";
+
     return "noname";		/* not in the list */
 }

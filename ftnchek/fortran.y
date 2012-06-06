@@ -358,6 +358,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_DOWHILE
 %token tok_ELEMENTAL 
 %token tok_ELSE
+%token tok_ELSEWHERE /* not lexed but substituted by grammar */
 %token tok_END
 %token tok_ENDBLOCKDATA
 %token tok_ENDDO
@@ -370,6 +371,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_ENDSELECT
 %token tok_ENDSUBROUTINE
 %token tok_ENDTYPE
+%token tok_ENDWHERE
 %token tok_ENTRY
 %token tok_EQUIVALENCE
 %token tok_EXTENDS
@@ -426,6 +428,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_TYPE
 %token tok_USE
 %token tok_VOLATILE
+%token tok_WHERE
 %token tok_WHILE
 %token tok_WRITE
 
@@ -988,6 +991,7 @@ nontransfer_stmt:	assignment_stmt
                 |       allocate_stmt
                 |       deallocate_stmt
                 |       nullify_stmt
+                |       where_stmt
 		;
 
 io_stmt:		read_stmt
@@ -1062,6 +1066,19 @@ restricted_stmt:		/* Disallowed in logical IF */
 			    prev_goto = goto_flag = FALSE;
 			    make_true(NOT_DO_TERMINAL_STMT,$$.TOK_flags);
 			}
+		|	where_construct_stmt
+			{
+			    push_block(&($1),tok_WHERE,construct,curr_stmt_name,NO_LABEL);
+			}
+		|	elsewhere_stmt
+			{
+			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+			    push_block(&($1),tok_WHERE,construct,curr_stmt_name,NO_LABEL);
+			}
+		|	end_where_stmt
+			{
+			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+			}
 		;
 
 restricted_nontransfer_stmt:
@@ -1112,12 +1129,12 @@ restricted_nontransfer_stmt:
 else_or_endif_stmt:	else_if_stmt
 			{
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-			    push_block(&($1),$1.tclass,construct,curr_stmt_name,NO_LABEL);
+			    push_block(&($1),tok_IF,construct,curr_stmt_name,NO_LABEL);
 			}
 		|	else_stmt
 			{
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-			    push_block(&($1),$1.tclass,construct,curr_stmt_name,NO_LABEL);
+			    push_block(&($1),tok_IF,construct,curr_stmt_name,NO_LABEL);
 			}
 		|	end_if_stmt
 			{
@@ -1128,12 +1145,12 @@ else_or_endif_stmt:	else_if_stmt
 case_or_endselect_stmt:	case_stmt
 			{
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
-			    push_block(&($1),$1.tclass,construct,curr_stmt_name,NO_LABEL);
+			    push_block(&($1),tok_SELECTCASE,construct,curr_stmt_name,NO_LABEL);
 			}
 		|	case_default_stmt
 			{
 			    pop_block(&($1),tok_CASE,curr_stmt_name,NO_LABEL);
-			    push_block(&($1),tok_CASE,construct,curr_stmt_name,NO_LABEL);
+			    push_block(&($1),tok_SELECTCASE,construct,curr_stmt_name,NO_LABEL);
 			}
 		|	end_select_stmt
 			{
@@ -3347,6 +3364,76 @@ nullify_item_list:	nullify_item
 nullify_item	:	data_object
 		;
 
+			    /* where_handle can only be of the form
+			       tok_WHERE
+			    */
+where_stmt	:	where_handle '(' log_expr ')' assignment_stmt
+	   		{
+			    if(is_true(ID_EXPR,$3.TOK_flags)){
+				use_variable(&($3));
+			    }
+			}
+	   	;
+
+where_construct_stmt:	where_handle '(' log_expr ')' EOS
+	   		{
+			    if(is_true(ID_EXPR,$3.TOK_flags)){
+				use_variable(&($3));
+			    }
+			}
+		    ;
+
+where_handle	:	tok_WHERE
+	     		{
+			    curr_stmt_name = (char *)NULL;
+			}
+	     	|	construct_spec tok_WHERE
+			{
+			    /* make check fails if
+			       construct_name ':' is used instead
+			    */
+			}
+		;
+
+elsewhere_stmt	:	elsewhere_handle EOS
+			{
+			    /* To allow construct names to match
+			       when there are nested where constructs.
+			    */
+			    curr_stmt_name = get_curr_block_name();
+			}
+	        |	elsewhere_handle tok_identifier
+			{
+			    curr_stmt_name = hashtab[$2.value.integer].name;
+			}
+		;
+
+elsewhere_handle:	tok_ELSE tok_WHERE
+			{
+			    /* To match where construct block */
+			    $$.tclass = tok_ELSEWHERE;
+			}
+		|	tok_ELSE tok_WHERE '(' log_expr ')'
+			{
+			    if(is_true(ID_EXPR,$4.TOK_flags)){
+				use_variable(&($4));
+			    }
+			    /* To match where construct block */
+			    $$.tclass = tok_ELSEWHERE;
+			}
+		;
+
+end_where_stmt	:	tok_ENDWHERE EOS
+	     		{
+			    curr_stmt_name = (char *)NULL;
+			}
+		|	tok_ENDWHERE tok_identifier
+			{
+			    curr_stmt_name = hashtab[$2.value.integer].name;
+			}
+		;
+
+
 /* 26 */
 save_stmt	:	tok_SAVE EOS
 			{
@@ -3700,6 +3787,7 @@ f77_if_handle	:	tok_IF '(' {complex_const_allowed = TRUE;}  expr ')'
 else_if_stmt	:	tok_ELSE tok_IF '(' {complex_const_allowed = TRUE;} expr ')'
 			{
 			    int t=datatype_of($5.TOK_type);
+
 			    if(t != type_LOGICAL && t != type_ERROR)
 				syntax_error($5.line_num,$5.col_num,
 					  "logical expression required");
@@ -3709,7 +3797,6 @@ else_if_stmt	:	tok_ELSE tok_IF '(' {complex_const_allowed = TRUE;} expr ')'
 			    }
 
 			    complex_const_allowed = FALSE;
-
 			    initial_flag = TRUE;
 			}
 			else_if_then
@@ -6548,11 +6635,12 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
     */
 
 				/* ELSE and ELSE IF masquerade here as IF,
-				   and CASE and CASEDEFAULT as SELECT, to
-				   simplify match code in pop_block. */
-    block_stack[block_depth].sclass = 
-      ((stmt_class == tok_ELSE)? tok_IF:
-       ((stmt_class == tok_CASE)? tok_SELECTCASE: stmt_class));
+				   and CASE and CASEDEFAULT as SELECTCASE,
+				   and ELSEWHERE as WHERE, to
+				   simplify match code in pop_block. This
+				   masquerading is done in action code above.
+				*/
+    block_stack[block_depth].sclass = stmt_class;
     block_stack[block_depth].name = name;
     block_stack[block_depth].label = label;
     block_stack[block_depth].first_line = t->line_num;
