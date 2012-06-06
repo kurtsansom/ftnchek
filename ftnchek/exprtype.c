@@ -819,6 +819,8 @@ PRIVATE
 void check_array_conformance(Token *term1, Token *term2, Token *result,
      int op_line_num, int op_col_num)
 {
+    int conformance_ok = TRUE;
+
     if( is_true(ARRAY_EXPR, term1->TOK_flags) &&
 	is_true(ARRAY_EXPR, term2->TOK_flags) ) {
       long array1_size = array_size(term1->array_dim);
@@ -836,6 +838,7 @@ void check_array_conformance(Token *term1, Token *term2, Token *result,
 	  msg_tail(ulongtostr((unsigned long)array1_dims));
 	  msg_tail("and");
 	  msg_tail(ulongtostr((unsigned long)array2_dims));
+	  conformance_ok = FALSE;
 	}
 
 	else {		/* rank match OK: check shape */
@@ -850,23 +853,57 @@ void check_array_conformance(Token *term1, Token *term2, Token *result,
 	      msg_tail(ulongtostr((unsigned long)array1_size));
 	      msg_tail("and");
 	      msg_tail(ulongtostr((unsigned long)array2_size));
+	      conformance_ok = FALSE;
 	    }
 	  }
 	}
       }
     }
     if( result != NULL ) {	/* evaluate result array_dim  */
-      /* This will be right if arrays are conformable, moot if they are not. */
-      if( is_true(ARRAY_EXPR, term1->TOK_flags) ) {
-	make_true(ARRAY_EXPR, result->TOK_flags);
-	result->array_dim = term1->array_dim;
+      if( conformance_ok ) {
+	if( is_true(ARRAY_EXPR, term1->TOK_flags) ) {
+	  make_true(ARRAY_EXPR, result->TOK_flags);
+	  result->array_dim = term1->array_dim;
+	}
+	else {
+	  copy_flag(ARRAY_EXPR,result->TOK_flags,term2->TOK_flags);
+	  result->array_dim = term2->array_dim;
+	}
       }
-      else {
-	copy_flag(ARRAY_EXPR,result->TOK_flags,term2->TOK_flags);
-	result->array_dim = term2->array_dim;
+      else {			/* to avoid error cascades, reset to scalar */
+	make_false(ARRAY_EXPR, result->TOK_flags);
+	result->array_dim = array_dim_info(0,0);
       }
     }
       
+}
+
+/* Routine to check conformance of elemental procedure args.  It
+   updates the array_dim field of the args handle to be the conformed
+   arrayness of the list.
+ */
+void
+check_elemental_args(Token *id, Token *args)
+{
+  Token *curr_arg, *next_arg;
+  array_dim_t result_array_dim;
+
+  if( args == NULL || (curr_arg = args->next_token) == NULL )
+    return;			/* no args given */
+
+			/* Array dim info is stored in args handle.
+			   Initialize with info from first arg.
+			 */
+  args->array_dim = curr_arg->array_dim;
+
+  while( (next_arg = curr_arg->next_token) != NULL ) {
+    /* Check array conformance of this pair of args.  Routine updates
+       array_dim info stored in args handle.
+     */
+    check_array_conformance(curr_arg, next_arg, args,
+		  next_arg->line_num, next_arg->col_num);
+    curr_arg = next_arg;
+  }
 }
 
 	/* this routine checks type and size match in assignment statements
@@ -1279,8 +1316,7 @@ func_ref_expr(id,args,result)
 
       /* ELEMENTAL function result gets array shape of its argument(s) */
       if(symt->elemental) {
-	/* THIS IS NOT RIGHT: need to go thru list to get max array_dim */
-	result->array_dim = args->next_token->array_dim;
+	result->array_dim = args->array_dim;
 	copy_flag(ARRAY_EXPR,result->TOK_flags,args->next_token->TOK_flags);
       }
       else {			/* non-ELEMENTAL: use declared shape */

@@ -381,6 +381,13 @@ call_func(id,arg)	/* Process function invocation */
       }
     }
 
+    /* For elemental function, args must be conformable.  Result takes
+       shape of array args.
+     */
+    if( symt->elemental ) {
+      check_elemental_args(id,arg);
+    }
+
     if(! symt->used_flag) { /* record first line where used */
 	symt->line_used = id->line_num;
 	symt->file_used = inctable_index;
@@ -474,6 +481,13 @@ call_subr(id,arg)	/* Process call statements */
 	}
 			/* store arg list in local table */
 	call_external(symt,id,arg);
+    }
+
+    /* For elemental function, args must be conformable.  Result takes
+       shape of array args.
+     */
+    if( symt->elemental ) {
+      check_elemental_args(id,arg);
     }
 
     if(! symt->used_flag) { /* record first line where used */
@@ -572,6 +586,7 @@ check_intrins_args(id, arg)
 
 	}/* end arg != NULL */
 }/* check_intrins_args */
+
 
 
 PRIVATE

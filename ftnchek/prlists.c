@@ -262,6 +262,9 @@ else {
 			    gsymt->internal_entry = TRUE;
 			    gsymt->link.prog_unit = curr_gsymt;
 			  }
+			  /* copy attributes to global table */
+			  gsymt->elemental = loc_symtab[i].elemental;
+			  gsymt->pure = loc_symtab[i].pure;
 
 			  /* Resolve accessibility of module subprog: it
 			    is private if so declared or else if not

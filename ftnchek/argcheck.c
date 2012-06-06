@@ -252,6 +252,8 @@ arg_array_cmp(name,args1,args2)
 
 		 /* Check arrayness of args only if defn exists */
 	if(argcheck_arrayness && args1->is_defn ) {
+	    int has_array_arg = FALSE; /* for checking INTENT(OUT) args of elemental */
+	    int array_arg_index = -1;
 	    cmp_error_count = 0;
 	    for (i=0; i<n; i++) {
 			/* Skip if class or datatype mismatch.  This
@@ -261,6 +263,12 @@ arg_array_cmp(name,args1,args2)
 	      if(datatype_of(a2[i].type) != type_HOLLERITH &&
 		 storage_class_of(a1[i].type) == class_VAR &&
 		 storage_class_of(a2[i].type) == class_VAR) {
+
+		if( a2[i].array_var ) {
+		  has_array_arg = TRUE; /* keep track of seeing array args */
+		  if( array_arg_index == -1 )
+		    array_arg_index = i; /* remember where first occurrence */
+		}
 
 		if( a1[i].array_var ) {	/* I. Dummy arg is array */
 		    if( a2[i].array_var ) {
@@ -357,14 +365,16 @@ arg_array_cmp(name,args1,args2)
 			}
 			else {
 					/*   B. Actual arg is whole array */
-					/*	Warn in all cases */
+					/*	Warn except if elemental */
 
+			 if( !args1->prog_unit->elemental ) {
 			  if(argcmp_error_head(
 				   name,args1,"argument arrayness mismatch"))
 			    break;
 
 			  arg_error_report(args1,"Dummy arg",i,"is scalar");
 			  arg_error_report(args2,"Actual arg",i,"is whole array");
+			 }
 
 			}/* end case II.B. */
 		    }
@@ -377,6 +387,29 @@ arg_array_cmp(name,args1,args2)
 
 	      } /* end if class_VAR */
 	    }/* end for (i=0; i<n; i++) */
+
+	    /* Check whether elemental procedure has scalar actual arg
+	       for INTENT(OUT) dummy arg when some arg is array. */
+	    if( args1->prog_unit->elemental && has_array_arg ) {
+	      for (i=0; i<n; i++) {
+		if(datatype_of(a2[i].type) != type_HOLLERITH && /* stuff disallowed */
+		   storage_class_of(a1[i].type) == class_VAR && /* in elemental */
+		   storage_class_of(a2[i].type) == class_VAR) { /* but check anyway */
+		  if( a1[i].intent_out && !a2[i].array_var ) {
+		    if(argcmp_error_head(
+			     name,args1,"argument arrayness mismatch"))
+		      break;
+		    arg_error_report(args1,"Elemental procedure dummy argument",i,
+				     "is INTENT(OUT)");
+		    arg_error_report(args2,"Actual arg",i,"is scalar");
+		    arg_error_report(args2,"But another actual arg",array_arg_index,
+				     "is array");
+		    break;	/* one warning is sufficient */
+		  }
+		}
+	      }
+	    }
+
 	}/* if( args1->is_defn ) */
 
 

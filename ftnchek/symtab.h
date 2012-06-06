@@ -579,8 +579,7 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 				/* macro to identify particular functions */
 #define INTRINS_ID(flags) ((flags)&I_ID)
 
-		/* Various properties of intrinsics*/
-#define I_F77 		0x00	/* Standard intrinsic (no flag: placeholder) */
+		/* Various properties of intrinsics */
 #define I_NONF77	0x10	/* Nonstandard */
 #define I_MIXED_ARGS	0x20	/* Has mixed arg types */
 #define I_NONPURE	0x40	/* Arg need not be set when called */
@@ -593,12 +592,12 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_VMS		0x2000 	/* VMS systems only */
 #define I_UNIX		0x4000 	/* Unix systems only */
 #define I_NONF90	0x8000 	/* Not in F90 standard */
-#define I_EVAL		0x10000 /* Always evaluate */
-#define I_PTR		0x20000 /* Returns a pointer */
-#define I_ELEM		0x40000	/* Elemental (acts elementwise on arrays) */
-#define I_XFRM		0x80000	/* Transformational */
+#define I_NONF95	0x10000	/* Not in F95 standard */
+#define I_EVAL		0x20000 /* Always evaluate */
+#define I_PTR		0x40000 /* Returns a pointer */
+#define I_ELEM		0x80000	/* Elemental (acts elementwise on arrays) */
 
-				/* Define flag type big enough for 17 bits */
+			/* Define flag type big enough for 6 hex digits */
 #if (SIZEOF_SHORT > 2)
 typedef unsigned short intrins_flags_t;
 #else
@@ -744,7 +743,9 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     used_this_file: 1,
 	     set_this_file: 1,
 	     invoked_as_func_this_file: 1,
-	     declared_external_this_file: 1;
+	     declared_external_this_file: 1,
+	     elemental : 1, 	/* ELEMENTAL subprogram */
+	     pure : 1; 		/* PURE subprogram */
 } Gsymtab;
 
 
@@ -1067,6 +1068,7 @@ PROTO(void assignment_stmt_type,( Token *term1, Token *equals, Token *term2 ));
 PROTO(void binexpr_type,( Token *term1, Token *op, Token *term2, Token
 		  *result ));
 PROTO(void check_initializer_type, ( Token *assignee_list, Token *equals, Token *expr_list));
+PROTO(void check_elemental_args,( Token *id, Token *arg ));
 PROTO(void func_ref_expr,( Token *id, Token *args, Token *result ));
 PROTO(void primary_id_expr,( Token *id, Token *primary ));
 PROTO(void stmt_fun_arg_cmp,( const Lsymtab *symt, const Token *d_arg, const Token *a_arg ));

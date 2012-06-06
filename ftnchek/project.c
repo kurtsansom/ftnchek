@@ -518,11 +518,11 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 		  gsymt->set_this_file,
 		  gsymt->invoked_as_func_this_file,
 		  gsymt->declared_external_this_file,
-		  /* N.B. library_prog_unit included here but is not restored */
 		  gsymt->library_prog_unit,
-		  0,	/* Flags for possible future use */
-		  0,
-		  0);
+		  /* next flag values only apply to defn */
+		  gsymt->elemental,
+		  gsymt->pure,
+		  0);	/* Flags for possible future use */
 	  NEXTLINE;
 	  alist_out(gsymt,fd,do_defns);
 }
@@ -694,7 +694,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 	}
 	WRITE_NUM(" cndx",arg[i].common_index);
 	WRITE_NUM(" same",arg[i].same_as);
-	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d %d",
 		arg[i].is_lvalue,
 		arg[i].set_flag,
 		arg[i].assigned_flag,
@@ -702,7 +702,9 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 		arg[i].array_var,
 		arg[i].array_element,
 		arg[i].declared_external,
-		arg[i].active_do_var);
+		arg[i].active_do_var,
+		arg[i].intent_in,
+		arg[i].intent_out);
 	NEXTLINE;
       }
       }/* end if ! proj_trim_calls ...*/
@@ -1443,7 +1445,9 @@ arg_info_in(fd,filename,is_defn,item_list)
 	      id_invoked,
 	      id_declared,
 	      id_library_prog_unit,
-	      future1,future2,future3;
+	      id_elemental,
+	      id_pure,
+	      future1;
 
     unsigned h;
     Gsymtab *gsymt, *prog_unit;
@@ -1468,7 +1472,9 @@ arg_info_in(fd,filename,is_defn,item_list)
 		arg_array_var,
 		arg_array_element,
 		arg_declared_external,
-		arg_active_do_var;
+		arg_active_do_var,
+		arg_intent_in,
+		arg_intent_out;
     char *local_name;
     int in_list;
 
@@ -1485,7 +1491,9 @@ arg_info_in(fd,filename,is_defn,item_list)
 	      &id_invoked,
 	      &id_declared,
 	      &id_library_prog_unit,
-	      &future1,&future2,&future3) != 8) READ_ERROR;
+	      &id_elemental,
+	      &id_pure,
+	      &future1) != 8) READ_ERROR;
     NEXTLINE;
 
     local_name = id_name;
@@ -1543,6 +1551,10 @@ id_name,id_class,id_type);
       gsymt->invoked_as_func = TRUE;
     if(id_declared)
       gsymt->declared_external = TRUE;
+    if(id_elemental)
+      gsymt->elemental = TRUE;
+    if(id_pure)
+      gsymt->pure = TRUE;
 
   }
 
@@ -1591,6 +1603,8 @@ id_name,id_class,id_type);
       symt->size = alist_size;
       symt->line_declared = alist_line;
       symt->file_declared = inctable_index;	/* WRONG */
+      symt->elemental = id_elemental;
+      symt->pure = id_pure;
     }
 
 		/* Find current program unit in symtab. If not there, make
@@ -1719,7 +1733,7 @@ id_name,id_class,id_type);
 	READ_STR(" cblk",arg_common_block);
 	READ_LONG(" cndx",arg_common_index);
 	READ_NUM(" same",arg_same_as);
-	if(fscanf(fd," flags %d %d %d %d %d %d %d %d",
+	if(fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d",
 		&arg_is_lvalue,
 		&arg_set_flag,
 		&arg_assigned_flag,
@@ -1727,7 +1741,9 @@ id_name,id_class,id_type);
 		&arg_array_var,
 		&arg_array_element,
 		&arg_declared_external,
-		&arg_active_do_var) != 8) READ_ERROR;
+		&arg_active_do_var,
+		&arg_intent_in,
+		&arg_intent_out) != 10) READ_ERROR;
 
 	mapped_arg_type = map_type(arg_type);
 
@@ -1774,6 +1790,8 @@ id_name,id_class,id_type);
 	alist[iarg].array_element = arg_array_element;
 	alist[iarg].declared_external = arg_declared_external;
 	alist[iarg].active_do_var = arg_active_do_var;
+	alist[iarg].intent_in = arg_intent_in;
+	alist[iarg].intent_out = arg_intent_out;
    } /* end if new module */
 	NEXTLINE;
 #ifdef DEBUG_PROJECT

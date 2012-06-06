@@ -91,7 +91,7 @@ PRIVATE IntrinsInfo intrinsic[]={
 
 	   Flags: I_F77 if it is in Table 5 p. 15-24, I_NONF77 otherwise
 		  I_NONF90 if it is not in Chap 13 of F90 standard
-		  I_NONSTD = I_NONF77|I_NONF90 for convenience
+		  I_NONSTD = I_NONF77|I_NONF90|I_NONF95|I_NONF10
 		  I_MIXED_ARGS if arguments are not all of same type.
 		  I_NONPURE if function arg may be modified (eg RAND).
 		  I_INQ if function is inquiry about arg (eg LEN, ASSOCIATED)
@@ -107,12 +107,15 @@ PRIVATE IntrinsInfo intrinsic[]={
 		  I_EVAL specifies to run handler even if result not integer
 		  I_PTR function returns a pointer
 		  I_ELEM function is elemental
-		  I_XFRM function is transformational (currently not used)
 	 */
 
-#define I_NONSTD (I_NONF77|I_NONF90)
+#define I_NONSTD (I_NONF77|I_NONF90|I_NONF95)
+  /* define shorthands for different standards */
+#define I_F77 		0x00	/* Standard intrinsic (no flag: placeholder) */
+#define I_F90 (I_NONF77)  		/* introduced in F90 */
+#define I_F95 (I_NONF77|I_NONF90)	/* introduced in F95 */
 
-  /* Standard intrinsic functions.  Those marked with * were added in
+  /* Standard intrinsic functions.  Those marked with 5 were added in
      F95.  The section numbers used here are those of F95; for F90
      section numbers replace 13.11 by 13.10 and 13.12 by 13.11. */
 
@@ -121,7 +124,7 @@ PRIVATE IntrinsInfo intrinsic[]={
 PRESENT (A)                Argument presence
 */
 
-{"PRESENT",	1,	ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
+{"PRESENT",	1,	ANY,	type_LOGICAL,	I_F90|I_INQ,NULL},
 
 /*
 13.11.2 Numeric functions
@@ -146,53 +149,53 @@ REAL (A [, KIND])                  Conversion to real type
 SIGN (A, B)                        Transfer of sign
 */
 
-{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_C_TO_R|I_ELEM,ii_abs},
-{"AIMAG",	1,	C,	type_REAL,	I_F77,NULL},
-{"AINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"ANINT",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"CEILING",	1,	R|D,	type_INTEGER,	I_NONF77,NULL},
-{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_NOTARG,NULL},
-{"CONJG",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_NOTARG,NULL},
-{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77,ii_dim},
-{"DPROD",	2,	R,	type_DP,	I_F77,NULL},
-{"FLOOR",	1,	R|D,	type_INTEGER,	I_NONF77,NULL},
-{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_ELEM,ii_max},
-{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_NOTARG|I_ELEM,ii_min},
-{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77,ii_mod},
-{"MODULO",	2,	I|R|D,	type_GENERIC,	I_NONF77,NULL},
-{"NINT",	1,	R|D,	type_INTEGER,	I_F77,NULL},
-{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
-{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77,ii_sign},
+{"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_ELEM|I_C_TO_R,ii_abs},
+{"AIMAG",	1,	C,	type_REAL,	I_F77|I_ELEM,NULL},
+{"AINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"ANINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"CEILING",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"CONJG",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"DIM",		2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_dim},
+{"DPROD",	2,	R,	type_DP,	I_F77|I_ELEM,NULL},
+{"FLOOR",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_max},
+{"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_min},
+{"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_mod},
+{"MODULO",	2,	I|R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
+{"NINT",	1,	R|D,	type_INTEGER,	I_F77|I_ELEM,NULL},
+{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_ELEM|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
+{"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_sign},
 
 			/* Fortran 66 specific versions */
-{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"AMOD",	2,	R,	type_REAL,	I_F77,NULL},
-{"CABS",	1,	C,	type_REAL,	I_F77,NULL},
-{"DABS",	1,	D,	type_DP,	I_F77,NULL},
-{"DDIM",	2,	D,	type_DP,	I_F77,NULL},
-{"DINT",	1,	D,	type_DP,	I_F77,NULL},
-{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
-{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_NOTARG,NULL},
-{"DMOD",	2,	D,	type_DP,	I_F77,NULL},
-{"DNINT",	1,	D,	type_DP,	I_F77,NULL},
-{"DSIGN",	2,	D,	type_DP,	I_F77,NULL},
-{"FLOAT",	1,	I,	type_REAL,	I_F77|I_NOTARG,NULL},
-{"IABS",	1,	I,	type_INTEGER,	I_F77,ii_abs},
-{"IDIM",	2,	I,	type_INTEGER,	I_F77,ii_dim},
-{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"IDNINT",	1,	D,	type_INTEGER,	I_F77,NULL},
-{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"ISIGN",	2,	I,	type_INTEGER,	I_F77,ii_sign},
-{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG,ii_max},
-{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_NOTARG,ii_min},
-{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_NOTARG,NULL},
-{"SNGL",	1,	D,	type_REAL,	I_F77|I_NOTARG,NULL},
+{"AMAX0",	I_2up,	I,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"AMAX1",	I_2up,	R,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"AMIN0",	I_2up,	I,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"AMIN1",	I_2up,	R,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"AMOD",	2,	R,	type_REAL,	I_F77|I_ELEM,NULL},
+{"CABS",	1,	C,	type_REAL,	I_F77|I_ELEM,NULL},
+{"DABS",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DDIM",	2,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DINT",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DMAX1",	I_2up,	D,	type_DP,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"DMIN1",	I_2up,	D,	type_DP,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"DMOD",	2,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DNINT",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DSIGN",	2,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"FLOAT",	1,	I,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"IABS",	1,	I,	type_INTEGER,	I_F77|I_ELEM,ii_abs},
+{"IDIM",	2,	I,	type_INTEGER,	I_F77|I_ELEM,ii_dim},
+{"IDINT",	1,	D,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"IDNINT",	1,	D,	type_INTEGER,	I_F77|I_ELEM,NULL},
+{"IFIX",	1,	R,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"ISIGN",	2,	I,	type_INTEGER,	I_F77|I_ELEM,ii_sign},
+{"MAX0",	I_2up,	I,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_max},
+{"MAX1",	I_2up,	R,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"MIN0",	I_2up,	I,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_min},
+{"MIN1",	I_2up,	R,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"SNGL",	1,	D,	type_REAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 
 /*
 13.11.3 Mathematical functions
@@ -212,43 +215,43 @@ TAN (X)                            Tangent
 TANH (X)                           Hyperbolic tangent
 */
 
-{"ACOS",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"ASIN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"ATAN",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"ATAN2",	2,	R|D,	type_GENERIC,	I_F77,NULL},
-{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"COSH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_NOTARG,NULL},
-{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_NOTARG,NULL},
-{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"SINH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77,NULL},
-{"TAN", 	1,	R|D,	type_GENERIC,	I_F77,NULL},
-{"TANH",	1,	R|D,	type_GENERIC,	I_F77,NULL},
+{"ACOS",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"ASIN",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"ATAN",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"ATAN2",	2,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"COS", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_ELEM,NULL},
+{"COSH",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"EXP",		1,	R|D|C|Z,type_GENERIC,	I_F77|I_ELEM,NULL},
+{"LOG", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"LOG10",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"SIN", 	1,	R|D|C|Z,type_GENERIC,	I_F77|I_ELEM,NULL},
+{"SINH",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"SQRT",	1,	R|D|C|Z,type_GENERIC,	I_F77|I_ELEM,NULL},
+{"TAN", 	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
+{"TANH",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
 
 			/* Fortran 66 specific versions */
-{"ALOG",	1,	R,	type_REAL,	I_F77,NULL},
-{"ALOG10",	1,	R,	type_REAL,	I_F77,NULL},
-{"CCOS",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"CEXP",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"CLOG",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"CSIN",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"CSQRT",	1,	C,	type_COMPLEX,	I_F77,NULL},
-{"DACOS",	1,	D,	type_DP,	I_F77,NULL},
-{"DASIN",	1,	D,	type_DP,	I_F77,NULL},
-{"DATAN",	1,	D,	type_DP,	I_F77,NULL},
-{"DATAN2",	2,	D,	type_DP,	I_F77,NULL},
-{"DCOS",	1,	D,	type_DP,	I_F77,NULL},
-{"DCOSH",	1,	D,	type_DP,	I_F77,NULL},
-{"DEXP",	1,	D,	type_DP,	I_F77,NULL},
-{"DLOG",	1,	D,	type_DP,	I_F77,NULL},
-{"DLOG10",	1,	D,	type_DP,	I_F77,NULL},
-{"DSIN",	1,	D,	type_DP,	I_F77,NULL},
-{"DSINH",	1,	D,	type_DP,	I_F77,NULL},
-{"DSQRT",	1,	D,	type_DP,	I_F77,NULL},
-{"DTAN",	1,	D,	type_DP,	I_F77,NULL},
-{"DTANH",	1,	D,	type_DP,	I_F77,NULL},
+{"ALOG",	1,	R,	type_REAL,	I_F77|I_ELEM,NULL},
+{"ALOG10",	1,	R,	type_REAL,	I_F77|I_ELEM,NULL},
+{"CCOS",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"CEXP",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"CLOG",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"CSIN",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"CSQRT",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
+{"DACOS",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DASIN",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DATAN",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DATAN2",	2,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DCOS",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DCOSH",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DEXP",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DLOG",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DLOG10",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DSIN",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DSINH",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DSQRT",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DTAN",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
+{"DTANH",	1,	D,	type_DP,	I_F77|I_ELEM,NULL},
 
 /*
 13.11.4 Character functions
@@ -274,13 +277,13 @@ TRIM (STRING)                      Remove trailing blank characters
 VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 */
 
-{"CHAR",	1,	I,	type_STRING,	I_F77|I_NOTARG|I_CHAR,NULL},
-{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_NOTARG,ii_ichar},
-{"INDEX",	2,	STR,	type_INTEGER,	I_F77,ii_index},
-{"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
-{"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
-{"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
-{"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_NOTARG,NULL},
+{"CHAR",	1,	I,	type_STRING,	I_F77|I_ELEM|I_NOTARG|I_CHAR,NULL},
+{"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_ichar},
+{"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_ELEM,ii_index},
+{"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 
 /*
 13.11.5 Character inquiry function
@@ -298,9 +301,9 @@ SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
                                       given precision and range
 */
 
-{"KIND",	1,	ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_kind},
-{"SELECTED_INT_KIND",1,	I,	type_INTEGER,	I_NONF77,ii_selected_int_kind},
-{"SELECTED_REAL_KIND",I_1or2,I,	type_INTEGER,	I_NONF77,ii_selected_real_kind},
+{"KIND",	1,	ANY,	type_INTEGER,	I_F90|I_INQ,ii_kind},
+{"SELECTED_INT_KIND",1,	I,	type_INTEGER,	I_F90,ii_selected_int_kind},
+{"SELECTED_REAL_KIND",I_1or2,I,	type_INTEGER,	I_F90,ii_selected_real_kind},
 
 /*
 13.11.7 Logical function
@@ -321,15 +324,15 @@ RADIX (X)                          Base of the model
 RANGE (X)                          Decimal exponent range
 TINY (X)                           Smallest positive number of the model
 */
-{"DIGITS",	1,	I|R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"EPSILON",	1,	R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
-{"HUGE",	1,	I|R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
-{"MAXEXPONENT",	1,	R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"MINEXPONENT",	1,	R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"PRECISION",	1,	R|D|C|Z,type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"RADIX",	1,	I|R|D,	type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"RANGE",	1,	I|R|D|C|Z,type_INTEGER,	I_NONF77|I_INQ,NULL},
-{"TINY",	1,	R|D,	type_GENERIC,	I_NONF77|I_INQ,NULL},
+{"DIGITS",	1,	I|R|D,	type_INTEGER,	I_F90|I_INQ,NULL},
+{"EPSILON",	1,	R|D,	type_GENERIC,	I_F90|I_INQ,NULL},
+{"HUGE",	1,	I|R|D,	type_GENERIC,	I_F90|I_INQ,NULL},
+{"MAXEXPONENT",	1,	R|D,	type_INTEGER,	I_F90|I_INQ,NULL},
+{"MINEXPONENT",	1,	R|D,	type_INTEGER,	I_F90|I_INQ,NULL},
+{"PRECISION",	1,	R|D|C|Z,type_INTEGER,	I_F90|I_INQ,NULL},
+{"RADIX",	1,	I|R|D,	type_INTEGER,	I_F90|I_INQ,NULL},
+{"RANGE",	1,	I|R|D|C|Z,type_INTEGER,	I_F90|I_INQ,NULL},
+{"TINY",	1,	R|D,	type_GENERIC,	I_F90|I_INQ,NULL},
 
 /*
 13.11.9 Bit inquiry function
@@ -350,17 +353,17 @@ ISHFTC (I, SHIFT [, SIZE])         Circular shift
 NOT (I)                            Logical complement
 */
 
-{"BTEST",	2,	I,	type_LOGICAL,	I_NONF77|I_ELEM,NULL},
-{"IAND",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBCLR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBITS",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IBSET",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IEOR",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"IOR",		2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"ISHFT",	2,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"ISHFTC",	3,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
-{"MVBITS",	5,	I,	type_SUBROUTINE,I_NONF77|I_ELEM,NULL},
-{"NOT",		1,	I,	type_INTEGER,	I_NONF77|I_ELEM,NULL},
+{"BTEST",	2,	I,	type_LOGICAL,	I_F90|I_ELEM,NULL},
+{"IAND",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"IBCLR",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"IBITS",	3,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"IBSET",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"IEOR",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"IOR",		2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"ISHFT",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"ISHFTC",	3,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"MVBITS",	5,	I,	type_SUBROUTINE,I_F90|I_ELEM,NULL},
+{"NOT",		1,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 
 /*
 13.11.11 Transfer function
@@ -405,13 +408,13 @@ SUM (ARRAY, DIM [, MASK])          Sum of array elements
 	/* Note: ordering of array,mask,dim args not enforced.  For type_GENERIC
 	   result will be type of first argument.
 	 */
-{"ALL",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"ANY",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"COUNT",	I_1or2,	I|L,	type_INTEGER,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"MAXVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"MINVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
-{"SUM",		I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_NONF77|I_XFRM,NULL},
+{"ALL",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_F90,NULL},
+{"ANY",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_F90,NULL},
+{"COUNT",	I_1or2,	I|L,	type_INTEGER,	I_MIXED_ARGS|I_F90,NULL},
+{"MAXVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
+{"MINVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
+{"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
+{"SUM",		I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
 
 /*
 13.11.15 Array inquiry functions
@@ -422,8 +425,8 @@ SIZE (ARRAY [, DIM])               Total number of elements in an array
 UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array
 */
 
-{"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_NONF77|I_INQ,ii_size},
+{"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_F90|I_INQ,NULL},
+{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_F90|I_INQ,ii_size},
 
 /*
 13.11.16 Array construction functions
@@ -458,15 +461,15 @@ MINLOC (ARRAY, DIM [, MASK])       Location of a minimum value in an array
 /*
 13.11.20 Pointer association status functions
 ASSOCIATED (POINTER [, TARGET])    Association status inquiry or comparison
-NULL ([MOLD])                    * Returns disassociated pointer
+NULL ([MOLD])                    5 Returns disassociated pointer
 */
 
-{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_NONF77|I_INQ,NULL},
-{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_NONF77|I_NONF90|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
+{"ASSOCIATED",  I_1or2, ANY,	type_LOGICAL,	I_F90|I_INQ,NULL},
+{"NULL",	I_0or1,	ANY,	type_GENERIC,	I_F95|I_INQ|I_EVAL|I_PTR|I_NULL,ii_null},
 
 /*
 13.12 Intrinsic subroutines
-CPU_TIME (TIME)                  * Obtain processor time
+CPU_TIME (TIME)                  5 Obtain processor time
 DATE_AND_TIME ([DATE, TIME,        Obtain date and time
   ZONE, VALUES])
 MVBITS (FROM, FROMPOS,             Copies bits from one integer to another
@@ -478,33 +481,41 @@ SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
   COUNT_RATE, COUNT_MAX])
 */
 
-{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_NONF77},
-{"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_NONF77},
+{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_F90},
+{"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_F90},
 
 
 				/* Nonstandard intrinsics */
+
+/* Nonstandard double and quad precision intrinsics are given the
+   I_ELEM flag where their standard counterparts are elementary (which
+   is all of them).  Since these are nonstandard, the Fortran standard
+   does not specify whether they are elementary or not.  Presumably if
+   a Fortran 90 compiler implements them, it will make them elementary
+   if they can be.
+ */
 
 		/* DOUBLE COMPLEX intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.
 		 */
-{"DCMPLX",	I_1or2,	I|R|D|C|Z,type_DCOMPLEX,I_NONSTD|I_NOTARG,NULL},
-{"DCONJG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"DIMAG",	1,	Z,	type_DP,	I_NONSTD,NULL},
-{"IMAG",	1,	C|Z,	type_GENERIC,	I_NONSTD|I_NOTARG|I_C_TO_R,NULL},
-{"DREAL",	1,	Z,	type_DP,	I_NONSTD,NULL},
-{"CDABS",	1,	Z,	type_DP,	I_NONSTD,NULL},
-{"ZABS",	1,	Z,	type_DP,	I_NONSTD,NULL},
-{"CDSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"ZSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"CDEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"ZEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"CDLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"ZLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"CDSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"ZSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"CDCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
-{"ZCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD,NULL},
+{"DCMPLX",	I_1or2,	I|R|D|C|Z,type_DCOMPLEX,I_NONSTD|I_ELEM|I_NOTARG,NULL},
+{"DCONJG",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"DIMAG",	1,	Z,	type_DP,	I_NONSTD|I_ELEM,NULL},
+{"IMAG",	1,	C|Z,	type_GENERIC,	I_NONSTD|I_ELEM|I_NOTARG|I_C_TO_R,NULL},
+{"DREAL",	1,	Z,	type_DP,	I_NONSTD|I_ELEM,NULL},
+{"CDABS",	1,	Z,	type_DP,	I_NONSTD|I_ELEM,NULL},
+{"ZABS",	1,	Z,	type_DP,	I_NONSTD|I_ELEM,NULL},
+{"CDSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"ZSQRT",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"CDEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"ZEXP",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"CDLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"ZLOG",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"CDSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"ZSIN",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"CDCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
+{"ZCOS",	1,	Z,	type_DCOMPLEX,	I_NONSTD|I_ELEM,NULL},
 
 		/* DFLOAT has been available in almost all Fortran
                    implementations for decades, but curiously, was
@@ -516,53 +527,53 @@ SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
                    will incorrectly type it as REAL instead of DOUBLE
                    PRECISION. -- NHFB */
 
-{"DFLOAT",	1,	I,	type_DP,	I_NONSTD,NULL},
+{"DFLOAT",	1,	I,	type_DP,	I_NONSTD|I_ELEM,NULL},
 
 		/* Quad precision intrinsics are included regardless
 		   of -intrinsics option, since they are essential
 		   to support of this datatype.  (Actually most of
 		   them are better handled by generics.)
 		 */
-{"IQINT",	1,	R,	type_INTEGER,	I_NONSTD|I_NOTARG|I_QARG,NULL},
-{"SNGLQ",	1,	R,	type_REAL,	I_NONSTD|I_NOTARG|I_QARG,NULL},
-{"QREAL",	1,	C,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
-{"DBLEQ",	1,	R,	type_DP,	I_NONSTD|I_NOTARG|I_QARG,NULL},
-{"QFLOAT",	1,	I,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
-{"QEXTD",	1,	D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
-{"QEXT",	1,	I|R|D,	type_QUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
-{"QCMPLX",	I_1or2,	I|R|D|C|Z,type_CQUAD,	I_NONSTD|I_NOTARG|I_QUAD,NULL},
-{"QINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QNINT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"IQNINT",	1,	R,	type_INTEGER,	I_NONSTD|I_QARG,NULL},
-{"QABS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQABS",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QMOD",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QSIGN",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QDIM",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QPROD",	2,	D,	type_QUAD,	I_NONSTD|I_QUAD,NULL},
-{"QMAX1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
-{"QMIN1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_NOTARG|I_QARG|I_QUAD,NULL},
-{"QIMAG",	1,	C,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QCONJG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QSQRT",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQSQRT",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QEXP",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQEXP",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QLOG",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQLOG",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QLOG10",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQSIN",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"CQCOS",	1,	C,	type_CQUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QTAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QARSIN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QARCOS",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QATAN",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QATAN2",	2,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QSINH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QCOSH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
-{"QTANH",	1,	R,	type_QUAD,	I_NONSTD|I_QARG|I_QUAD,NULL},
+{"IQINT",	1,	R,	type_INTEGER,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG,NULL},
+{"SNGLQ",	1,	R,	type_REAL,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG,NULL},
+{"QREAL",	1,	C,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"DBLEQ",	1,	R,	type_DP,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG,NULL},
+{"QFLOAT",	1,	I,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QUAD,NULL},
+{"QEXTD",	1,	D,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QUAD,NULL},
+{"QEXT",	1,	I|R|D,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QUAD,NULL},
+{"QCMPLX",	I_1or2,	I|R|D|C|Z,type_CQUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QUAD,NULL},
+{"QINT",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QNINT",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"IQNINT",	1,	R,	type_INTEGER,	I_NONSTD|I_ELEM|I_QARG,NULL},
+{"QABS",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQABS",	1,	C,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QMOD",	2,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QSIGN",	2,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QDIM",	2,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QPROD",	2,	D,	type_QUAD,	I_NONSTD|I_ELEM|I_QUAD,NULL},
+{"QMAX1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"QMIN1",	I_2up,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_NOTARG|I_QARG|I_QUAD,NULL},
+{"QIMAG",	1,	C,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QCONJG",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QSQRT",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQSQRT",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QEXP",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQEXP",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QLOG",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQLOG",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QLOG10",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QSIN",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQSIN",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QCOS",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"CQCOS",	1,	C,	type_CQUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QTAN",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QARSIN",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QARCOS",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QATAN",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QATAN2",	2,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QSINH",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QCOSH",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
+{"QTANH",	1,	R,	type_QUAD,	I_NONSTD|I_ELEM|I_QARG|I_QUAD,NULL},
 
 #ifdef EXTRA_INTRINSICS
 
