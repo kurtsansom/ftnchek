@@ -296,7 +296,7 @@ manpage: ftnchek$(manext)
 devel: tags TAGS
 	$(MAKE) prog DEVEL_CFLAGS='-DDEVELOPMENT' DEBUG_FLAGS='-g -Wall -ansi' LDLIBS='$(LDLIBS) -lm'
 
-check: prog
+check: default
 	cd $(TESTDIR); $(MAKE) NAWK="$(NAWK)" -s precheck
 	cd $(TESTDIR); $(MAKE) NAWK="$(NAWK)" -i -s check
 
@@ -376,8 +376,19 @@ fortran.c: fortran.y
 		false ; \
 	fi
 
+# In case tokdefs.h does not exist, make might complain no rule exists
+# to make it.  There is no dependency here so it won't make it unless
+# it does not exist.  The rule for fortran.c will always re-make it if
+# there is a change in the token definitions.
+tokdefs.h:
+	$(MAKE) fortran.c
+
 # If tokdefs.h changes, update the lookup table used by block-balancing code.
-block_match.h: tokdefs.h make_blockmatch.pl.in
+# The dependency on make_blockmatch.pl is not present in the non-devel
+# Makefile because make_blockmatch.pl is always made new by configure, and
+# users may not have Perl to run it.  The devel version of Makefile has to
+# have it in case of substantive changes to make_blockmatch.pl.
+block_match.h: tokdefs.h @BLOCKMATCH_DEP@
 	./make_blockmatch.pl > block_match.h
 
 # This target makes an enum type for doing reverse lookup in the iokeywords table.

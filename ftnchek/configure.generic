@@ -77,6 +77,8 @@ Subst(){
 	    -e 's%@YACC@%bison%' \
 	    -e 's%@YACC_NAME@%bison%' \
 	    -e 's%@YFLAGS@%-y%' \
+	    -e 's%@DEFAULT_TARGET@%all%' \
+	    -e 's%@BLOCKMATCH_DEP@%%' \
 	    -e 's%@ZIP@%zip%' \
 	    -e 's%@HAVE_UNISTD_H@%0%' \
 	    -e 's%@HAVE_STDLIB_H@%1%' \
