@@ -478,7 +478,6 @@ typedef union {		/* InfoUnion: misc info about symtab entry */
 	     struct TLHead *toklist;  /* ptr to token list */
 	     struct IInfo *intrins_info;/* ptr to intrinsic func info */
 	     struct PInfo *param;	/* parameter information field */
-	     short type_id;	/* id of derived type */
 } InfoUnion;
 
 typedef struct {	/* ArgListElement: holds subprog argument data */

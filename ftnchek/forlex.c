@@ -212,8 +212,6 @@ make_illegal_char(s)
 PROTO(PRIVATE void closeup,( void ));
 
 
-PROTO(PRIVATE void get_complex_const,( Token *token ));
-
 #ifdef ALLOW_UNIX_CPP
 PROTO(PRIVATE void get_cpp_directive,( void ));
 #endif
@@ -1194,18 +1192,8 @@ else
 	  --src_text_len;
 
 	token->tclass = datatype;
-				/* If this is part of complex const,
-				   do not store src_text but arrange
-				   so debugging works. */
-	if(!getting_complex_const) {
-	  token->src_text = new_src_text(src_text_buf,src_text_len);
-	}
-#ifdef DEBUG_FORLEX
-	  else {
-	    src_text_buf[src_text_len] = '\0';
-	    token->src_text = src_text_buf;
-	  }
-#endif
+
+	token->src_text = new_src_text(src_text_buf,src_text_len);
 
 	if( free_form && (pretty_extra_space || f90_freeform_space)
 	     && has_embedded_space ) {
@@ -1260,153 +1248,6 @@ if(debug_lexer)
 
 } /* get_number */
 
-     /* get_complex_constant reads an entity of the form (num,num)
-      where num is any [signed] numeric constant.  It will only be
-      called when looking_at() has guaranteed that there is one there.
-      The token receives the real part as a number.  The imaginary part
-      is not stored.  Whitespace is allowed between ( and num, around
-      the comma, and between num and ) but not within num. */
-
-PRIVATE void
-#if HAVE_STDC
-get_complex_const(Token *token)
-#else /* K&R style */
-get_complex_const(token)
-	Token *token;
-#endif /* HAVE_STDC */
-{
-	Token imag_part;	/* temporary to hold imag part */
-#ifdef DEBUG_FORLEX
-	double sign=(DBLVAL)1;
-#endif
-	int dble_size=FALSE;	/* flag to set if parts are D floats */
-	int imag_dble_size;	/* if imaginary part D float */
-	LINENO_t comma_line_num;
-	COLNO_t comma_col_num;
-	getting_complex_const = TRUE;
-	initial_flag = FALSE;
-
-
-
-	bi_advance();	/* skip over the initial paren (already stored) */
-
-
-	if(curr_char == '+' || curr_char == '-') {
-#ifdef DEBUG_FORLEX
-	  if(curr_char == '-') sign = (DBLVAL)(-1);
-#endif
-	  if(src_text_len < MAX_SRC_TEXT)
-	    src_text_buf[src_text_len++] = curr_char;
-
-	  bi_advance();
-	}
-
-#ifdef DEBUG_FORLEX
-if(debug_lexer){
-(void)fprintf(list_fd,"\nComplex const:(");
-if(sign < 0.0) (void)fprintf(list_fd," -");
-}
-#endif
-	closeup_saw_whitespace = FALSE; 
-	get_number(token);
-	switch((short)token->tclass) {
-	   case tok_integer_const:
-#ifdef DEBUG_FORLEX
-if(debug_lexer)
-		token->value.dbl = sign*(double)token->value.integer;
-else
-#endif
-		token->value.dbl = (DBLVAL)0;
-		break;
-	   case tok_dp_const:
-		dble_size=TRUE;
-			/*FALLTHRU*/
-	   case tok_real_const:
-#ifdef DEBUG_FORLEX
-if(debug_lexer)
-		token->value.dbl = sign*token->value.dbl;
-else
-#endif
-		token->value.dbl = (DBLVAL)0;
-		break;
-	}
-
-	while(iswhitespace(curr_char))
-	  advance();
-
-
-	comma_line_num = line_num;
-	comma_col_num = col_num;
-
-	if(src_text_len < MAX_SRC_TEXT)
-	  src_text_buf[src_text_len++] = curr_char;
-	if(next_char == ' ' || next_char == '\t') /* preserve space after , */
-	  if(src_text_len < MAX_SRC_TEXT)
-	    src_text_buf[src_text_len++] = ' ';
-
-	bi_advance();		/* skip over the comma */
-
-	if(curr_char == '+' || curr_char == '-') {
-#ifdef DEBUG_FORLEX
-	     if(curr_char == '-') sign = (DBLVAL)(-1);
-#endif
-	     if(src_text_len < MAX_SRC_TEXT)
-		src_text_buf[src_text_len++] = curr_char;
-
-	     bi_advance();
-	}
-#ifdef DEBUG_FORLEX
-if(debug_lexer){
-(void)fprintf(list_fd,"\n,");
-if(sign < 0.0) (void)fprintf(list_fd," -");
-}
-#endif
-	closeup_saw_whitespace = FALSE; 
-		/* Initialize imag_part token fields. */
-	zero_struct(&imag_part,sizeof(imag_part));
-	imag_part.line_num = line_num;
-	imag_part.col_num = col_num;
-	get_number(&imag_part);
-	imag_dble_size = (imag_part.tclass == tok_dp_const);
-
-	if(dble_size != imag_dble_size) {
-	    warning(comma_line_num,comma_col_num,
-		  "different precision in real and imaginary parts");
-	}
-	else if(f77_double_complex) {
-	  if(dble_size)
-	    warning(token->line_num,token->col_num,
-		  "nonstandard double precision complex constant");
-	}
-
-	dble_size = (dble_size || imag_dble_size);
-
-	while(iswhitespace(curr_char))
-	   advance();
-
-
-	if(src_text_len < MAX_SRC_TEXT)
-	  src_text_buf[src_text_len++] = curr_char;
-
-	advance();	/* skip over final paren */
-
-	if(dble_size)
-	  token->tclass = tok_dcomplex_const;
-	else
-	  token->tclass = tok_complex_const;
-
-	token->src_text = new_src_text(src_text_buf,src_text_len);
-
-#ifdef DEBUG_FORLEX
-if(debug_lexer) {
-(void)fprintf(list_fd,"\n\t\t\tsource text=%s",
-	      token->src_text);
-(void)fprintf(list_fd,"\n)");
-}
-#endif
-
-	getting_complex_const = FALSE;
-}
 
 #ifdef ALLOW_TYPELESS_CONSTANTS
 		/* Routine to get constants of the forms:

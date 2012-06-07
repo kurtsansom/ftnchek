@@ -886,7 +886,6 @@ void
 check_elemental_args(Token *id, Token *args)
 {
   Token *curr_arg, *next_arg;
-  array_dim_t result_array_dim;
 
   if( args == NULL || (curr_arg = args->next_token) == NULL )
     return;			/* no args given */
