@@ -25,8 +25,11 @@ autoconf installation.  (You must have autoconf installed.)  E.g.
 compatible with some sh scripts.  It may be necessary (via sudo) to
 change the link to point to "bash".
 
-3. At this point configure should work.
-  $ ./configure
+3. At this point configure should work.  Since you plan to do
+development work, you should use the developer version of the
+Makefile, which is specified by --enable-devel.  (This by default
+builds the "devel" target, which turns on some debugging features.)
+  $ ./configure --enable-devel
 
 4. Now build the executable.  First run of "make" will fail out due to
 tokdefs.h being created new.  This is normal.  Re-run.
@@ -37,10 +40,7 @@ tokdefs.h being created new.  This is normal.  Re-run.
 users can use "make check" to test that their build works correctly.
 You should use it to make sure you do not introduce new bugs.  But no
 test/Okay files are under revision control, so the first "make check"
-will create them new.  (If there is a distribution tarball based on
-the current revision, you can compare the results to the test/Okay
-that is there.  Otherwise you just have to trust that they are
-correct.)
+will create them new.  You just have to trust that they are correct.
   $ make check
 
 
