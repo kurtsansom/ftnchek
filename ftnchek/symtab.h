@@ -115,6 +115,10 @@ this Software without prior written authorization from the author.
 #define size_DEFAULT	(0L)	/* code for standard numeric sizes */
 #define size_ADJUSTABLE	(-1L)	/* codes for special char string lengths */
 #define size_UNKNOWN	(-2L)
+ /* for now we don't differentiate the following */
+#define size_ASSUMED_SIZE size_UNKNOWN	/* A([lb:]*) */
+#define size_ASSUMED_SHAPE size_UNKNOWN /* A([lb]:) */
+#define size_DEFERRED size_UNKNOWN	/* A(:) */
 
 			/* Defns for support of quad precision.  It is
 			   implemented as REAL*4n, not a genuine type of
@@ -934,8 +938,9 @@ typedef struct PSpace {
 #define array_dims(DIM_INFO) ((DIM_INFO).dims)
 				/* get no. of elements */
 #define array_size(DIM_INFO) ((DIM_INFO).size)
-				/* test if no. of elements is unknown */
-#define array_size_is_unknown(DIM_INFO) ((DIM_INFO).size == size_UNKNOWN)
+				/* test if no. of elements is unknown.  This
+				   includes size_UNKNOWN and size_ALLOCATABLE */
+#define array_size_is_unknown(DIM_INFO) ((DIM_INFO).size < 0)
 				/* create info field of given dims&size */
 #define array_dim_info(DIM,SIZE) ((array_dim_t){(SIZE),(DIM)})
 				/* create info field for unknown size */

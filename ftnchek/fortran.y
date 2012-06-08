@@ -1766,7 +1766,12 @@ dim_bound_list	:	dim_bound_item      /* token class = no. of dimensions,
 		|	dim_bound_list ',' dim_bound_item
 			{
 			     $$.TOK_dims = $1.TOK_dims + 1; /* one more dimension */
-			     $$.TOK_elts = $1.TOK_elts * $3.TOK_elts;
+			     if( $1.TOK_elts < 0 )
+				 $$.TOK_elts = $1.TOK_elts; /* propagate unknown size */
+			     else if( $3.TOK_elts < 0 )
+				 $$.TOK_elts = $3.TOK_elts;
+			     else	/* both known */
+			         $$.TOK_elts = $1.TOK_elts * $3.TOK_elts;
 			     $$.next_token = append_token($1.next_token,&($3));
 			}
 		;
@@ -1777,7 +1782,7 @@ dim_bound_item	:	dim_bound_expr
 				 && is_true(EVALUATED_EXPR,$1.TOK_flags) )
 				$$.TOK_elts = $1.value.integer;
 			      else
-				$$.TOK_elts = 0;
+				$$.TOK_elts = size_UNKNOWN;
 			}
 		|	dim_bound_expr ':' dim_bound_expr
 			{	/* avoid getting 0 - 0 + 1 = 1 if bounds nonconstant */
@@ -1787,20 +1792,25 @@ dim_bound_item	:	dim_bound_expr
 				 && is_true(EVALUATED_EXPR,$3.TOK_flags) )
 				$$.TOK_elts = $3.value.integer - $1.value.integer + 1;
 			      else
-				$$.TOK_elts = 0;
+				$$.TOK_elts = size_UNKNOWN;
 
 			      $$.left_token = add_tree_node(&($2),&($1),&($3));
 			}
 		|	'*'
 			{
-			     $$.TOK_elts = 0;
+			     $$.TOK_elts = size_ASSUMED_SIZE;
 			     $$.left_token = (Token *)NULL;
 			}
 		|	dim_bound_expr ':' '*'
 			{
-			     $$.TOK_elts = 0;
+			     $$.TOK_elts = size_ASSUMED_SIZE;
 			     $3.left_token = (Token *)NULL;
 			     $$.left_token = add_tree_node(&($2),&($1),&($3));
+			}
+		|	dim_bound_expr ':'
+			{
+			     $$.TOK_elts = size_ASSUMED_SHAPE;
+			     $$.left_token = add_tree_node(&($2),&($1),(Token*)NULL);
 			}
                 |       ':'
 			{
@@ -1808,6 +1818,7 @@ dim_bound_item	:	dim_bound_expr
 				  nonstandard($1.line_num,$1.col_num,0,0);
 				  msg_tail(": deferred-shape array spec");
 			     }
+			     $$.TOK_elts = size_DEFERRED;
 			}
 		;
 
