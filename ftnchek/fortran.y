@@ -171,6 +171,8 @@ PRIVATE int
     inside_function=FALSE,	/* is inside a function */
     contains_sect=FALSE,	/* for contains block */
     interface_block=FALSE,	/* for interface block */
+    in_forall_construct=FALSE,	/* for FORALL construct */
+    in_where_construct=FALSE,	/* for WHERE construct */
     sequence_dtype=FALSE,	/* for derived types with SEQUENCE attr */
     private_dtype=FALSE;	/* for derived types with PRIVATE attr */
 /*----------------------------------------------------*/
@@ -363,6 +365,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_ENDBLOCKDATA
 %token tok_ENDDO
 %token tok_ENDFILE
+%token tok_ENDFORALL
 %token tok_ENDFUNCTION
 %token tok_ENDIF
 %token tok_ENDINTERFACE
@@ -377,6 +380,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_EXTENDS
 %token tok_EXTERNAL
 %token tok_EXIT
+%token tok_FORALL
 %token tok_FORMAT
 %token tok_FUNCTION
 %token tok_GOTO
@@ -992,7 +996,8 @@ nontransfer_stmt:	assignment_stmt
                 |       deallocate_stmt
                 |       nullify_stmt
                 |       where_stmt
-		;
+                |       forall_stmt
+                ;
 
 io_stmt:		read_stmt
 			{
@@ -1069,6 +1074,7 @@ restricted_stmt:		/* Disallowed in logical IF */
 		|	where_construct_stmt
 			{
 			    push_block(&($1),tok_WHERE,construct,curr_stmt_name,NO_LABEL);
+			    in_where_construct = TRUE;
 			}
 		|	elsewhere_stmt
 			{
@@ -1078,6 +1084,44 @@ restricted_stmt:		/* Disallowed in logical IF */
 		|	end_where_stmt
 			{
 			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+			    /* WHERE constructs can only have WHERE
+			     constructs nested within them.  Therefore
+			     it is sufficient to test whether the
+			     enclosing block is not a WHERE construct
+			     to know we are no longer inside a WHERE
+			     construct */
+			    if (get_curr_block_class() != tok_WHERE)
+				in_where_construct = FALSE;
+			}
+		|	forall_construct_stmt
+			{
+			    push_block(&($1),tok_FORALL,construct,curr_stmt_name,NO_LABEL);
+			    in_forall_construct = TRUE;
+			}
+		|	end_forall_stmt
+			{
+			    process_forall_construct(&($1));
+			    END_processing(&($$));
+
+			    pop_loc_scope();
+			    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
+			    /* FORALL constructs can only have FORALL
+			     constructs and WHERE constructs nested
+			     within.  Since any WHERE construct cannot
+			     contain a FORALL and must be closed by
+			     the time the END FORALL is reached, it is
+			     sufficient to test whether the enclosing
+			     block is not a FORALL construct to know
+			     we are no longer inside a FORALL construct
+
+			     Note that FORALL index variables have
+			     local scope within a FORALL
+			     construct. Since they are popped by
+			     pop_loc_scope, their forall_var flags do
+			     not need to be turned off as is done for
+			     active_do_var.  */
+			    if (get_curr_block_class() != tok_FORALL)
+				in_forall_construct = FALSE;
 			}
 		;
 
@@ -3433,6 +3477,59 @@ end_where_stmt	:	tok_ENDWHERE EOS
 			}
 		;
 
+forall_stmt	:	forall_handle forall_header assignment_stmt
+	     		{
+			    process_forall_construct(&($3));
+			    pop_loc_scope();
+			}
+	    	;
+
+forall_construct_stmt:	forall_handle forall_header EOS 
+		     ;
+
+forall_handle	:	tok_FORALL
+	     		{
+			    curr_stmt_name = (char *)NULL;
+			    push_loc_scope();
+			}
+	      	|	construct_spec tok_FORALL
+	     		{
+			    push_loc_scope();
+			}
+	      	;
+
+forall_header	:	'(' forall_triplet_list ')'
+	      	|	'(' forall_triplet_list ',' log_expr ')'
+			{
+			    if(is_true(ID_EXPR,$4.TOK_flags)){
+				use_variable(&($4));
+			    }
+			}
+	      	;
+
+forall_triplet_list:	forall_triplet
+		   |	forall_triplet_list ',' forall_triplet
+		   ;
+
+forall_triplet	:	tok_identifier '=' forall_subscript_list
+	       		{
+			    def_forall_index(&($1));
+			}
+	       	;
+
+forall_subscript_list:	bounds_expr ':' bounds_expr
+		     |	bounds_expr ':' bounds_expr ':' bounds_expr
+		     ;
+
+end_forall_stmt	:	tok_ENDFORALL EOS
+	     		{
+			    curr_stmt_name = (char *)NULL;
+			}
+		|	tok_ENDFORALL tok_identifier
+			{
+			    curr_stmt_name = hashtab[$2.value.integer].name;
+			}
+		;
 
 /* 26 */
 save_stmt	:	tok_SAVE EOS
@@ -6769,6 +6866,7 @@ void block_stack_top_swap()
   block_stack[block_depth-2] = temp;
 }
 
+/* Used as a hook for DDD */
 PRIVATE void check_token(Token *id)
 {
 }

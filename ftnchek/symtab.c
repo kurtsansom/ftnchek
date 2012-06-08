@@ -2900,10 +2900,15 @@ use_lvalue(id)	/* handles scalar lvalue */
 			 */
 	if(symt->active_do_var) {
 	  if(usage_do_var_modified) {
-	      syntax_error(id->line_num,id->col_num,
-		      "active DO index is modified");
+	      syntax_error(id->line_num,id->col_num, "active");
+	      msg_tail(symt->forall_var ? "FORALL" : "DO");
+	      msg_tail("index is modified");
 	  }
 	}
+	/* else, if inside a FORALL we should warn that forall index
+	   isn't being used.
+	 */
+
 			/* check for intent.  Ok to assign to target
 			   of intent(in) pointer.
 			 */
@@ -3499,6 +3504,58 @@ typespec(t,has_size, size, has_len, len)
     }
     
     return buf;
+}
+
+/* Index variables in subscript lists of FORALL constructs have to be
+ * defined as INTEGER and already set.  They piggyback on the
+ * active_do_var mechanism to catch illicit modification within the
+ * loop.  They also have their own flag forall_var so error messages
+ * can say the right thing.
+ */
+void def_forall_index(Token *t)
+{
+    int h=t->value.integer;
+    Lsymtab *symt = hashtab[h].loc_symtab;
+
+    if( symt == NULL || !in_curr_scope(symt) ) {
+	symt = install_local(h,type_INTEGER,class_VAR);
+
+	/* flags to initiate and enable messages */
+	symt->set_flag = TRUE; 
+	symt->active_do_var = TRUE;
+	symt->forall_var = TRUE;
+    }
+    else {
+	syntax_error(t->line_num,t->col_num,"Index Variable already used");
+    }
+}
+
+/* The local scope of FORALL construct is scanned for any scalars that are
+ * not FORALL index variables and moved out of the scope.
+ */
+void process_forall_construct(Token *t)
+{
+    int i;
+
+    for (i = curr_scope_bottom; i < loc_symtab_top; i++) {
+	/* Upon encountering a variable declared (implicitly) in the
+	 * FORALL scope that is not a FORALL index variable, move it
+	 * to enclosing scope.  Such variables will normally be
+	 * erroneous, but warnings about them will be given elsewhere,
+	 * e.g. used before set.
+	 */
+	if (!loc_symtab[i].forall_var){
+	    move_outside_scope(&loc_symtab[i]);
+	}
+	else {
+	    if( !loc_symtab[i].used_flag ) {
+		warning(t->line_num,NO_COL_NUM,
+			"FORALL index variable");
+		msg_tail(loc_symtab[i].name);
+		msg_tail("not used in construct");
+	    }
+	}
+    }
 }
 
 

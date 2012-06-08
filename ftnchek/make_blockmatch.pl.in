@@ -19,7 +19,10 @@
       'ENDBLOCKDATA' => 'BLOCKDATA',
       'ENDMODULE' => 'MODULE',
       'ENDTYPE' => 'TYPE',
-      'ENDINTERFACE' => 'INTERFACE'
+      'ENDINTERFACE' => 'INTERFACE',
+      'ELSEWHERE' => 'WHERE',
+      'ENDWHERE' => 'WHERE',
+      'ENDFORALL' => 'FORALL'
 );
 
 

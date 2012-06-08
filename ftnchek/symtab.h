@@ -673,6 +673,7 @@ typedef struct lSymtEntry{
 	     is_current_prog_unit: 1, /* this symtab entry is the main prog unit */
 	     library_prog_unit: 1,	/* prog unit was processed in -library mode */
 	     active_do_var: 1,	/* variable is an active DO index */
+	     forall_var: 1,	/* variable is an active FORALL index */
 	     array_var: 1,	/* variable is dimensioned */
 	     common_var: 1,	/* variable is in common */
 	     entry_point: 1,	/* name of an entry point */
@@ -1090,6 +1091,7 @@ PROTO(char *keytok_name,(int tclass));
 			/* in fortran.y/fortran.c */
 PROTO(void check_seq_header,( Token *t ));
 PROTO(Token * append_token,( Token *tlist, Token *t ));
+PROTO(void process_forall_construct,(Token *t));
 
 			/* in prlocsym.c */
 PROTO(void print_loc_symbols,( void ));
@@ -1150,6 +1152,7 @@ PROTO(unsigned hash_lookup,( const char *s ));
 PROTO(Gsymtab* install_global,( int h, int datatype, int storage_class ));
 Lsymtab *install_local(int h, int datatype, int storage_class);
 PROTO(int int_expr_value,( Token *t ));
+PROTO(void def_forall_index, (Token *t));
 PROTO(char * new_global_string,( char *s ));
 PROTO(void free_textvec,( char **p ));
 PROTO(void mark_recursive, (int *is_recursive));
