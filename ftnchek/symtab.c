@@ -3230,7 +3230,7 @@ do_deallocate(id)		/* Process ALLOCATE statement */
                 }
                 else{
                    warning(next_id->line_num,next_id->col_num,
-                     "Deallocating an unallocated variable: ");
+                     "Deallocating a possibly unallocated variable: ");
 		   msg_expr_tree(next_id);
                 }
 

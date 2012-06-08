@@ -134,6 +134,9 @@ PRIVATE unsigned char assignment_type[NumT][NumT]={
 
 #define COMMA_LIST (opclass == ',') /* Flag to modify behavior of binexpr_type */
 
+#define AC_LIST (op->tsubclass == tok_l_ac_delimiter) /* Flag to distinguish array constructor
+						    * from intrinsic arg list */
+
 	/* Routine used in printing diagnostics: returns string "type" for
 	   unsized objects, "type*size" for explicitly sized things.  Due
 	   to use of local static variable, cannot be invoked twice in the
@@ -310,7 +313,11 @@ binexpr_type(term1,op,term2,result)
 	    if( result_type == E) {
 	      if(COMMA_LIST) {
 		syntax_error(op->line_num,op->col_num,
-		       "type mismatch between intrinsic function arguments:");
+			     "type mismatch between");
+		if( AC_LIST )
+			msg_tail("array constructor elements");
+		else
+			msg_tail("intrinsic function arguments:");
 		report_mismatch(term1,op,term2);
 	      }
 	      else if( misc_warn ) {
@@ -415,7 +422,11 @@ if(debug_latest)
 				/* Intrins args: size promotion illegal */
 	  if(COMMA_LIST && ls1 != ls2) {
 	      syntax_error(op->line_num,op->col_num,
-			 "precision mismatch in intrinsic argument list:");
+			   "precision mismatch in");
+	      if( AC_LIST )
+		      msg_tail("array constructor");
+	      else
+		      msg_tail("intrinsic argument list");
 	      report_mismatch(term1,op,term2);
 	  }
 				/* Give -port warning if e.g. plain I+I*2
@@ -426,7 +437,9 @@ if(debug_latest)
 	        && !is_true(CONST_EXPR,term2->TOK_flags))
 	    {
 	      nonportable(op->line_num,op->col_num,
-			  COMMA_LIST?"intrinsic argument list":"expr");
+			  COMMA_LIST?(AC_LIST?
+				      "array constructor":"intrinsic argument list"):
+			  "expr");
 	      msg_tail("mixes default and explicit");
 	      msg_tail((is_numeric_type(t1)&&is_numeric_type(t2))?
 			 "precision":"size");

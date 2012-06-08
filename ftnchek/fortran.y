@@ -5159,6 +5159,7 @@ ac_value_list	:	ac_value
 			    }
 
 			    $$.next_token = append_token($1.next_token,&($3));
+			    $2.tsubclass = tok_l_ac_delimiter; /* hint for warnings */
 			    binexpr_type(&($1),&($2),&($3),&($$));
 			}
 		;
