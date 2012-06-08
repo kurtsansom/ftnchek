@@ -997,8 +997,6 @@ get_letter(token)		/* Gets letter in IMPLICIT list */
    for a couple of extra digits for rounding. Used in -trunc warning. */
 #define REAL_SIGFIGS (local_wordsize==0? 8: (local_wordsize-1)*3)
 
-PRIVATE int getting_complex_const=FALSE;
-
 PRIVATE void
 #if HAVE_STDC
 get_number(Token *token)

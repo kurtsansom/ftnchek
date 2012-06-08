@@ -1341,13 +1341,24 @@ symt->name,sized_typename(rettype,retsize));
 				   defined and: result is integer or
 				   has always-evaluate flag; and the
 				   args are evaluated or function is
-				   inquiry.
+				   inquiry.  If result shape not same as arg,
+				   handler will be called to determine the
+				   new shape, and will do its
+				   own checking of EVALUATED_EXPR if need be.
 				 */
 	  if( (handler = defn->ii_handler) != NULL &&
-	      (rettype == type_INTEGER || defn->intrins_flags&I_EVAL) &&
-	      (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ) )
+	      ( ((rettype == type_INTEGER || defn->intrins_flags&I_EVAL) &&
+	       (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ))
+		|| defn->intrins_flags&I_ARRY ) )
 	    {
 		     result->value.integer = (*handler)(args);
+		     /* Array-valued intrinsic evaluators put array
+			info into args. */
+		     if( defn->intrins_flags&I_ARRY ) {
+				/* result may be array valued */
+		       copy_flag(ARRAY_EXPR,result->TOK_flags,args->TOK_flags);
+		       result->array_dim = args->array_dim;
+		     }
 				/* Evaluation routines can affect the flags */
 		     copy_flag(EVALUATED_EXPR,result->TOK_flags,args->TOK_flags);
 	    }

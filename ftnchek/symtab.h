@@ -571,6 +571,7 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_2up	(-2)		/* 2 or more arguments */
 #define I_0or1	(-3)		/* 0 or 1 argument */
 #define I_1to3	(-4)		/* 1, 2, or 3 arguments */
+#define I_1to4	(-5)		/* 1 to 4 arguments */
 
 			/* for intrins_flags field */
 
@@ -599,6 +600,7 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 #define I_EVAL		0x20000 /* Always evaluate */
 #define I_PTR		0x40000 /* Returns a pointer */
 #define I_ELEM		0x80000	/* Elemental (acts elementwise on arrays) */
+#define I_ARRY		0x100000/* Returns array result diff shape from arg */
 
 			/* Define flag type big enough for 6 hex digits */
 #if (SIZEOF_SHORT > 2)

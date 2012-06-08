@@ -72,16 +72,25 @@ PROTO(PRIVATE int ii_dim,( Token *args ));
 PROTO(PRIVATE int ii_ichar,( Token *args ));
 PROTO(PRIVATE int ii_index,( Token *args ));
 PROTO(PRIVATE int ii_kind,( Token *args ));
+PROTO(PRIVATE int ii_lbound,( Token *args ));
 PROTO(PRIVATE int ii_len,( Token *args ));
 PROTO(PRIVATE int ii_max,( Token *args ));
+PROTO(PRIVATE int ii_maxloc,( Token *args ));
+PROTO(PRIVATE int ii_merge,( Token *args ));
 PROTO(PRIVATE int ii_min,( Token *args ));
+PROTO(PRIVATE int ii_minloc,( Token *args ));
 PROTO(PRIVATE int ii_mod,( Token *args ));
 PROTO(PRIVATE int ii_null,( Token *args ));
+PROTO(PRIVATE int ii_pack,( Token *args ));
+PROTO(PRIVATE int ii_reshape,( Token *args ));
 PROTO(PRIVATE int ii_selected_int_kind,( Token *args ));
 PROTO(PRIVATE int ii_selected_real_kind,( Token *args ));
+PROTO(PRIVATE int ii_shape,( Token *args ));
 PROTO(PRIVATE int ii_sign,( Token *args ));
 PROTO(PRIVATE int ii_size,( Token *args ));
-
+PROTO(PRIVATE int ii_spread,( Token *args ));
+PROTO(PRIVATE int ii_ubound,( Token *args ));
+PROTO(PRIVATE int ii_unpack,( Token *args ));
 
 PRIVATE IntrinsInfo intrinsic[]={
 
@@ -107,6 +116,7 @@ PRIVATE IntrinsInfo intrinsic[]={
 		  I_EVAL specifies to run handler even if result not integer
 		  I_PTR function returns a pointer
 		  I_ELEM function is elemental
+		  I_ARRY yields array-valued result different shape from args
 	 */
 
 #define I_NONSTD (I_NONF77|I_NONF90|I_NONF95)
@@ -362,7 +372,6 @@ NOT (I)                            Logical complement
 {"IOR",		2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"ISHFT",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"ISHFTC",	3,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
-{"MVBITS",	5,	I,	type_SUBROUTINE,I_F90|I_ELEM,NULL},
 {"NOT",		1,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 
 /*
@@ -396,14 +405,10 @@ MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication
 ALL (MASK [, DIM])                 True if all values are true
 ANY (MASK [, DIM])                 True if any value is true
 COUNT (MASK [, DIM])               Number of true elements in an array
-MAXVAL (ARRAY, DIM [, MASK])       Maximum value in an array
-  or MAXVAL (ARRAY [, MASK])
-MINVAL (ARRAY, DIM [, MASK])       Minimum value in an array
-  or MINVAL (ARRAY [, MASK])
-PRODUCT (ARRAY, DIM [, MASK])      Product of array elements
-  or PRODUCT (ARRAY [, MASK])
-SUM (ARRAY, DIM [, MASK])          Sum of array elements
-  or SUM (ARRAY [, MASK])
+MAXVAL (ARRAY [, DIM] [, MASK])       Maximum value in an array
+MINVAL (ARRAY [, DIM] [, MASK])       Minimum value in an array
+PRODUCT (ARRAY [, DIM] [, MASK])      Product of array elements
+SUM (ARRAY [, DIM] [, MASK])          Sum of array elements
 */
 	/* Note: ordering of array,mask,dim args not enforced.  For type_GENERIC
 	   result will be type of first argument.
@@ -424,9 +429,11 @@ SHAPE (SOURCE)                     Shape of an array or scalar
 SIZE (ARRAY [, DIM])               Total number of elements in an array
 UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array
 */
-
 {"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_F90|I_INQ,NULL},
+{"LBOUND",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_lbound},
+{"SHAPE",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_shape},
 {"SIZE",	I_0or1, ANY,	type_INTEGER,	I_F90|I_INQ,ii_size},
+{"UBOUND",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_ubound},
 
 /*
 13.11.16 Array construction functions
@@ -437,11 +444,16 @@ SPREAD (SOURCE, DIM, NCOPIES)      Replicates array by adding a dimension
 UNPACK (VECTOR, MASK, FIELD)       Unpack an array of rank one into an array
                                       under a mask
 */
+{"MERGE",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_merge},
+{"PACK",	I_2up,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_pack},
+{"SPREAD",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_spread},
+{"UNPACK",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_unpack},
 
 /*
 13.11.17 Array reshape function
 RESHAPE (SOURCE, SHAPE[, PAD, ORDER]) Reshape an array
 */
+{"RESHAPE",	I_2up,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_reshape},
 
 /*
 13.11.18 Array manipulation functions
@@ -452,11 +464,11 @@ TRANSPOSE (MATRIX)                 Transpose of an array of rank two
 
 /*
 13.11.19 Array location functions
-MAXLOC (ARRAY, DIM [, MASK])       Location of a maximum value in an array
-  or MAXLOC (ARRAY [, MASK])
-MINLOC (ARRAY, DIM [, MASK])       Location of a minimum value in an array
-  or MINLOC (ARRAY [, MASK])
+MAXLOC (ARRAY [, DIM] [, MASK])       Location of a maximum value in an array
+MINLOC (ARRAY [, DIM] [, MASK])       Location of a minimum value in an array
 */
+{"MAXLOC",	I_1to3,	I|R|L,	type_INTEGER,	I_F90|I_ARRY|I_MIXED_ARGS,ii_maxloc},
+{"MINLOC",	I_1to3,	I|R|L,	type_INTEGER,	I_F90|I_ARRY|I_MIXED_ARGS,ii_minloc},
 
 /*
 13.11.20 Pointer association status functions
@@ -481,8 +493,11 @@ SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
   COUNT_RATE, COUNT_MAX])
 */
 
-{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_F90},
-{"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_F90},
+{"CPU_TIME",	1,	R,	type_SUBROUTINE,I_F95,NULL},
+{"DATE_AND_TIME",I_1to4,I|STR,	type_SUBROUTINE,I_F90|I_MIXED_ARGS,NULL},
+{"MVBITS",	5,	I,	type_SUBROUTINE,I_F90|I_ELEM,NULL},
+{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_F90,NULL},
+{"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_F90,NULL},
 
 
 				/* Nonstandard intrinsics */
@@ -845,13 +860,18 @@ kwd_hash(s)
 }
 
 
-/* Intrinsic function evaluation routines.  These are run if arguments
-   are EVALUATED_EXPRs or function is an inquiry function.  Note that
-   for inquiry functions or functions requiring more than one argument
-   it is possible (on erroneous code) to have too few or no arguments,
-   so those handlers need to check.  Argument type may also be
-   incorrect.  (Checking of argument number and type is done elsewhere
-   and does not prevent invoking the routine.)
+/* Intrinsic function evaluation routines.  Traditionally these were
+   run only if arguments are EVALUATED_EXPRs or function is an inquiry
+   function.  Now in order to do proper array shape checking in exprs,
+   those with I_ARRY flag are run in any case, to produce result of
+   new shape.  They need not produce a meaningful result value.
+
+   Note that for inquiry functions or functions requiring more than
+   one argument it is possible (on erroneous code) to have too few or
+   no arguments, so those handlers need to check.  Argument type may
+   also be incorrect.  (Checking of argument number and type is done
+   elsewhere and does not prevent invoking the routine.)
+
  */
 
 PRIVATE int
@@ -1109,7 +1129,231 @@ ii_null(Token *args)		/* NULL( [mold] ) */
 }
 
 PRIVATE int
-ii_size(Token *args)		/* SIZE( array, [dim] ) */
+ii_reshape(Token *args)  /* RESHAPE ( SOURCE, SHAPE [,PAD] [,ORDER] ) */
+
+{
+  Token *array, *shape;
+  int result = 0;
+
+			/* Ensure args present; error message given elsewhere */
+  if( (array = args->next_token) != NULL &&
+      (shape = array->next_token) != NULL ) {
+    /* Since array-valued results are not yet supported, we ignore PAD
+       and ORDER */
+    /* Both arguments must be arrays. Error message NOT given
+       elsewhere -- it should be. */
+    if( is_true(ARRAY_EXPR,array->TOK_flags) &&
+	is_true(ARRAY_EXPR,shape->TOK_flags) ) {
+      if( array_dims(shape->array_dim) != 1 ) {
+	syntax_error(shape->line_num, shape->col_num,
+		     "shape must be 1-dimensional array");
+      }
+      else {
+	make_true(ARRAY_EXPR,args->TOK_flags);
+      /* When storing of array valued parameters is supported, we
+	 should copy shape to array_dim.  For now, just record new
+	 number of dimensions, and total size same as before.
+       */
+	args->array_dim = array_dim_info(array_size(shape->array_dim), /* new dims */
+				       array_size(array->array_dim)); /* new size */
+	result = 0; /* if both source & shape are int constants this should be array-valued result */
+      }
+    }
+  }
+  return result;
+}
+
+
+PRIVATE int
+ii_merge( Token *args )  /* MERGE (TSOURCE, FSOURCE, MASK) */
+
+{
+  Token *tsource;
+  /* Result array properties are those of TSOURCE */
+  if( (tsource = args->next_token) != NULL ) {
+    copy_flag(ARRAY_EXPR,args->TOK_flags,tsource->TOK_flags);
+    args->array_dim = tsource->array_dim;
+  }
+  return 0;
+}
+
+PRIVATE int
+ii_pack( Token *args )		/* PACK (ARRAY, MASK [, VECTOR]) */
+{
+  /* IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
+     known shape results, which it will be in some cases.  Only dims
+     of result (always 1) will be correct. */
+  make_true(ARRAY_EXPR,args->TOK_flags);
+  args->array_dim = array_dim_info_unk_size(1);
+  return 0;
+}
+
+PRIVATE int
+ii_spread( Token *args )	/* SPREAD (SOURCE, DIM, NCOPIES) */
+{
+  Token *source;
+  if( (source = args->next_token) != NULL ) {
+  /* IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
+     known shape results, which it will be in some cases.  Only dims
+     of result (1+dims of SOURCE) will be correct. */
+    make_true(ARRAY_EXPR,args->TOK_flags);
+    args->array_dim = array_dim_info_unk_size(array_dims(source->array_dim)+1);
+  }
+  return 0;
+}
+
+PRIVATE int
+ii_unpack( Token *args )	/* UNPACK (VECTOR, MASK, FIELD) */
+{
+  Token *vector, *mask;
+  if( (vector=args->next_token) != NULL &&
+      (mask = vector->next_token) != NULL ) {
+    if(is_true(ARRAY_EXPR,mask->TOK_flags)) { /* should check all 3 */
+      make_true(ARRAY_EXPR,args->TOK_flags);
+      args->array_dim = mask->array_dim;
+    }
+  }
+
+  return 0;
+}
+
+PRIVATE int
+ii_shape(Token *args)		/* SHAPE( array ) */
+{
+  Token *array;
+  int result=size_UNKNOWN;
+
+  array = args->next_token;
+  if(array != NULL) { 		/* ensure arg is present */
+
+    /* When storing of constant array values is implemented, these flags
+       will be meaningful.  For now, they are bogus.
+     */
+    make_true(PARAMETER_EXPR,args->TOK_flags);
+    make_true(EVALUATED_EXPR,args->TOK_flags);
+
+    /* Result is a rank-one array of size equal to number of
+       dimensions of argument.  Scalar arg OK, gives dims 1 size 0 */
+    make_true(ARRAY_EXPR,args->TOK_flags);
+    args->array_dim = array_dim_info(1,array_dims(array->array_dim));
+		/* Here we should assign an array value equal to sizes
+		   of the dimensions of argument if known. */
+    result = 0;
+  }
+  return result;
+}
+
+PROTO(PRIVATE int ii_lubound,(Token *args, int lower));
+
+/* Routine to return lower or upper bound
+   array of argument, depending on value of lower=TRUE, FALSE rsptly.
+   Since array shapes are not stored, there is no difference at present.
+ */
+PRIVATE int
+ii_lubound(Token *args, int lower)
+{
+  Token *array, *dim;
+  int result=0;
+
+  array = args->next_token;
+  if(array != NULL) { 		/* ensure arg is present */
+    if( is_true(ARRAY_EXPR,args->TOK_flags) ) { /* arg must be array */
+    /* When storing of constant array values is implemented, these flags
+       will be meaningful.  For now, they are bogus.
+     */
+      make_true(PARAMETER_EXPR,args->TOK_flags);
+      make_true(EVALUATED_EXPR,args->TOK_flags);
+
+      dim = array->next_token;	/* this may be null */
+    
+      if( dim != NULL ) {
+	/* If DIM given, result is scalar. */
+	/* Here we should look up the size of dimension dim */
+	args->array_dim = array_dim_info(0,0);
+	result = 0;
+      }
+      else {
+    /* Result is a rank-one array of size equal to number of
+       dimensions of argument. */
+	make_true(ARRAY_EXPR,args->TOK_flags);
+	args->array_dim = array_dim_info(1,array_dims(array->array_dim));
+		/* Here we should assign an array value equal to lower bounds
+		   of the dimensions of argument if known. */
+	result = lower?0:0;	/* gratuitous use of lower so not unused */
+      }
+    }
+  }
+  return result;
+}
+
+PRIVATE int
+ii_lbound(Token *args)		/* LBOUND( array [,dim] ) */
+{
+  return ii_lubound(args, TRUE);
+}
+
+PRIVATE int
+ii_ubound(Token *args)		/* UBOUND( array [,dim] ) */
+{
+  return ii_lubound(args, FALSE);
+}
+
+/* Handler for minloc and maxloc.  Result will be same for both until
+   some day array-valued constants are stored, then sometimes it may
+   be evaluated.
+ */
+PROTO(PRIVATE int ii_minmaxloc,(Token *args, int min));
+
+PRIVATE int
+ii_minmaxloc(Token *args, int min)
+{
+  Token *array, *dim, *mask = (Token *)NULL;
+  int rank;
+  int result=0;
+  if( (array = args->next_token) != NULL ) { /* ensure array is present */
+
+    if( (dim = array->next_token) != NULL ) { /* DIM or MASK present */
+      if( datatype_of(dim->TOK_type) == type_LOGICAL ) { /* it is MASK */
+	mask = dim;
+	dim = mask->next_token;	/* get DIM */
+      }
+      if( dim != NULL ) {	/* we really do have DIM */
+	/* Result is of rank 1 less than array and shape of array with
+	   dimension dim omitted.  For now we just set size unknown. */
+	int dims = array_dims(array->array_dim);
+	if( dims > 1 ) {
+	  make_true(ARRAY_EXPR,args->TOK_flags);
+	  args->array_dim = array_dim_info_unk_size(dims-1);
+	}
+	else {
+	  args->array_dim = array_dim_info(0,0); /* reduced to scalar */
+	}
+      }
+      else {			/* dim absent: rank 1, size=rank of array */
+	make_true(ARRAY_EXPR,args->TOK_flags);
+	args->array_dim = array_dim_info(1,array_size(array->array_dim));
+      }
+      result = (min?0:0);	/* use min, unused for now */
+    }
+  }
+  return result;
+}
+
+PRIVATE int
+ii_minloc(Token *args)		/* MINLOC (ARRAY [, DIM] [, MASK]) */
+{
+  return ii_minmaxloc(args,TRUE);
+}
+
+PRIVATE int
+ii_maxloc(Token *args)		/* MAXLOC (ARRAY [, DIM] [, MASK]) */
+{
+  return ii_minmaxloc(args,FALSE);
+}
+
+
+PRIVATE int
+ii_size(Token *args)		/* SIZE( array [,dim] ) */
 {
   Token *array, *dim;
   array_dim_t array_dim;
@@ -1209,3 +1453,4 @@ ii_selected_real_kind( Token *args )
 
   return kind;
 }
+
