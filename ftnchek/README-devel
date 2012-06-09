@@ -44,5 +44,18 @@ will create them new.  You just have to trust that they are correct.
   $ make check
 
 
-At this point you are all set to proceed with development.
+6. At this point you are all set to proceed with development.  As long
+as you continue working in the same directory, you can keep up to date
+simply by using "svn update".  It is not necessary to repeat the above
+steps.  However, note that
+  if you see configure.in among the updated files, you need to re-run
+  autoconf to create the new configure script, and then you need to
+  re-run configure,
+and
+  if you see Makefile.in or test/Makefile.in among the updated files,
+  you need to re-run configure to create the new Makefiles.
+It's best to do "make clean" before "make" after re-running
+configure.
+
+
 
