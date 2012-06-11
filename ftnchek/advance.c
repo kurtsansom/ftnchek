@@ -103,6 +103,8 @@ PROTO(PRIVATE srcPosn skip_balanced_parens,( srcPosn pos ));
 
 PROTO(PRIVATE srcPosn skip_idletters,( srcPosn pos ));
 
+PROTO(PRIVATE srcPosn skip_digits,( srcPosn pos ));
+
 PROTO(PRIVATE srcPosn skip_quoted_string,( srcPosn pos ));
 
 PROTO(PRIVATE srcPosn skip_hollerith,( srcPosn pos ));
@@ -1189,7 +1191,7 @@ see_a_number(srcPosn pos,	/* location in source buffer */
 	     int can_be_holl)	/* context indication */
 {
    int digit_seen = FALSE;
-   int isave;
+   srcPosn save_pos;
 
    while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
      stepPosn(&pos);
@@ -1200,17 +1202,18 @@ see_a_number(srcPosn pos,	/* location in source buffer */
      SKIP_SPACE;
      can_be_holl = FALSE;
    }
-   isave=pos.idx;
+   save_pos = pos;
 
 		/* move past ddd or ddd. or .ddd or ddd.ddd */
    if(isdigit(pos.Line->line[pos.idx]))
      digit_seen = TRUE;
+
    while(isdigit(pos.Line->line[pos.idx])) {
      stepPosn(&pos);
      SKIP_SPACE;
    }
    if(pos.Line->line[pos.idx] == 'H' && can_be_holl) {
-     pos.idx = isave;
+     pos = save_pos;		/* back up to start of number on holl */
      pos = skip_hollerith(pos);
      return pos;
    }
@@ -1248,7 +1251,24 @@ see_a_number(srcPosn pos,	/* location in source buffer */
      while(isdigit(pos.Line->line[pos.idx]) || isspace(pos.Line->line[pos.idx]))
        stepPosn(&pos);
    }
-
+		/* look for optional kind parameter. */
+   if( pos.Line->line[pos.idx] == '_' ) {
+     save_pos = pos;		/* in case of backout */
+     stepPosn(&pos);
+     SKIP_SPACE;
+     if(isidletter(pos.Line->line[pos.idx])) { /* identifier as kind param */
+       pos = skip_idletters(pos);
+     }
+     else if(isadigit(pos.Line->line[pos.idx])) {
+       pos = skip_digits(pos);
+     }
+     else {
+	/* if no identifier or integer after underscore, it is not a
+	   kind param but we still have seen a number up to before
+	   the underscore, so back up to it. */
+       pos = save_pos;
+     }
+   }
    return pos;
 }/*see_a_number*/
 
@@ -1458,6 +1478,21 @@ if(debug_lexer && getenv("VERBOSE"))
 	return pos;
 }/*skip_idletters*/
 
+		/* skip_digits returns index of the nonspace character
+		   following a string of digits. */
+PRIVATE srcPosn
+skip_digits(srcPosn pos)
+{
+	int c;
+#ifdef DEBUG_IS_KEYWORD
+if(debug_lexer && getenv("VERBOSE"))
+(void)fprintf(list_fd,": skipping digits...");
+#endif
+	while(c=pos.Line->line[pos.idx],
+	      (isadigit(c) || isspace(c)))
+	  stepPosn(&pos);
+	return pos;
+}/*skip_idletters*/
 		/* Returns index of nonspace character following
 		   quote mark that closes string whose opening quote
 		   mark is before index. */

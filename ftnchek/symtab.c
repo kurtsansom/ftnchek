@@ -3291,7 +3291,7 @@ kind_t
 default_kind(int type)
 {
   kind_t kind;
-  printf("type=%d ",type);
+
   switch(type)
     {
     case type_COMPLEX:
