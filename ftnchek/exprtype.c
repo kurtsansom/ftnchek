@@ -1349,7 +1349,9 @@ symt->name,sized_typename(rettype,retsize));
 		   then result is one too. */
 	if( symt->intrinsic ) {
 	  int (*handler)( Token *args );
-
+	  int evaluated_result =
+	    (is_true(EVALUATED_EXPR,args->TOK_flags) ||
+	     defn->intrins_flags&I_INQ);
 				/* Evaluate intrinsic if a handler is
 				   defined and: result is integer or
 				   has always-evaluate flag; and the
@@ -1361,7 +1363,7 @@ symt->name,sized_typename(rettype,retsize));
 				 */
 	  if( (handler = defn->ii_handler) != NULL &&
 	      ( ((rettype == type_INTEGER || defn->intrins_flags&I_EVAL) &&
-	       (is_true(EVALUATED_EXPR,args->TOK_flags) || defn->intrins_flags&I_INQ))
+		 evaluated_result)
 		|| defn->intrins_flags&I_ARRY ) )
 	    {
 		     result->value.integer = (*handler)(args);
@@ -1374,6 +1376,11 @@ symt->name,sized_typename(rettype,retsize));
 		     }
 				/* Evaluation routines can affect the flags */
 		     copy_flag(EVALUATED_EXPR,result->TOK_flags,args->TOK_flags);
+		     /* Intrinsics with const args and inquiry intrinsics
+			yield const results
+		      */
+		     if(evaluated_result)
+		       make_true(CONST_EXPR,result->TOK_flags);
 	    }
 	  else
 	    {
