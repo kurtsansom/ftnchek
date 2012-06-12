@@ -229,7 +229,8 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 	unsigned pattern = flag_combo(used,set,ubs);
 
 	for(i=0;i<n;i++) {
-	    if( list[i]->common_var )	/* common vars are immune */
+	    if( list[i]->common_var ||	/* common vars are immune */
+		list[i]->defined_in_module ) /* and so are module vars */
 	       continue;
 					/* targets & pointers set as
 					 * pointees are immune */

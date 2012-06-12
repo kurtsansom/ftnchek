@@ -1359,6 +1359,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
     symt->size = id_size;
     symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
     symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
+    symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
   }
 
     if( id_array_var ) {
