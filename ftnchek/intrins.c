@@ -1046,6 +1046,7 @@ ii_ichar(args)		/* ICHAR(string) */
   Token *t=args->next_token;
 
   if(t->TOK_type != type_STRING || !is_true(LIT_CONST,t->TOK_flags)) {
+    make_false(PARAMETER_EXPR,args->TOK_flags);
     make_false(EVALUATED_EXPR,args->TOK_flags);
   }
   else {
