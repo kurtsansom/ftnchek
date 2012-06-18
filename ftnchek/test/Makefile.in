@@ -88,7 +88,8 @@ FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   elemental_intrinsics.f90 elemental_procedures.f90\
   allocatable_array2.f90 allocatable_array.f90 \
   allocatable_target.f90 allocate_component.f90 allocate_string.f90 \
-  array_section1.f90 array_rank1.f90 pointer_allocd.f90
+  array_section1.f90 array_rank1.f90 pointer_allocd.f90 kind_args.f90\
+  kind_assign.f90 kind_char.f90 kind_mixed.f90 kind_select.f90
 
 # file set for testing mapping of derived types in module
 MODULETYPEMAP=typedef1-mod.f90 typedef2-mod.f90 typedef12-use.f90 

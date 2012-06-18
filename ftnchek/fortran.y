@@ -2323,7 +2323,7 @@ kind_selector	:	expr
 			    if (port_concrete_kind &&
 			        type_of_kind == type_UNDECL) {
 			      nonportable($2.line_num,$2.col_num,
-			              "declaration uses concrete kind parameter: not portable");
+			              "declaration uses concrete kind parameter");
 			    }
 			  }
 			  else {
