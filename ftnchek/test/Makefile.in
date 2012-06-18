@@ -535,25 +535,25 @@ checkproject:
 	    $(COMPARE) $$f ; \
 	done
 	@$(RM) $(POLYGRAF:.f=.prj) polygraf.fcl polygraf.pcl
-	@$(FTNCHEK) -project $(POLYGRAF) >& polygraf.fcl
-	@$(FTNCHEK) $(POLYGRAF:.f=.prj) >& polygraf.pcl
+	@$(FTNCHEK) -project $(POLYGRAF) > polygraf.fcl 2>&1
+	@$(FTNCHEK) $(POLYGRAF:.f=.prj) > polygraf.pcl 2>&1
 	@-for f in $(POLYGRAF:.f=.prj) polygraf.fcl polygraf.pcl ; \
 	do \
 	    $(COMPARE) $$f ; \
 	done
-	@$(FTNCHEK) -project=create,no-trim-calls coregfx.f >& /dev/null
+	@$(FTNCHEK) -project=create,no-trim-calls coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr1
-	@$(FTNCHEK) -project=create,no-trim-common coregfx.f >& /dev/null
+	@$(FTNCHEK) -project=create,no-trim-common coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr2
-	@$(FTNCHEK) -project=create,no-trim-calls,no-trim-common coregfx.f >& /dev/null
+	@$(FTNCHEK) -project=create,no-trim-calls,no-trim-common coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr3
-	@$(FTNCHEK) -lib -project=create coregfx.f >& /dev/null
+	@$(FTNCHEK) -lib -project=create coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr4
-	@$(FTNCHEK) -lib -project=create,no-trim-calls coregfx.f >& /dev/null
+	@$(FTNCHEK) -lib -project=create,no-trim-calls coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr5
-	@$(FTNCHEK) -lib -project=create,no-trim-common coregfx.f >& /dev/null
+	@$(FTNCHEK) -lib -project=create,no-trim-common coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr6
-	@$(FTNCHEK) -lib -project=create,no-trim-calls,no-trim-common coregfx.f >& /dev/null
+	@$(FTNCHEK) -lib -project=create,no-trim-calls,no-trim-common coregfx.f > /dev/null 2>&1
 	@$(MV) coregfx.prj coregfx.pr7
 	@-for f in coregfx.pr[1-7] ; \
 	do \

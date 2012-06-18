@@ -21,10 +21,6 @@ autoconf installation.  (You must have autoconf installed.)  E.g.
 2. Now run autoconf to create configure script.
   $ autoconf
 
-2a. On Ubuntu systems, "sh" is linked to "dash" which is not
-compatible with some sh scripts.  It may be necessary (via sudo) to
-change the link to point to "bash".
-
 3. At this point configure should work.  Since you plan to do
 development work, you should use the developer version of the
 Makefile, which is specified by --enable-devel.  (This by default
