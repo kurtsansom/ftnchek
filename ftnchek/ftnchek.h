@@ -1030,6 +1030,8 @@ OPT(int,port_real_do,PORT_ALL);		/* Non-integer DO loop bounds */
 OPT(int,port_long_string,PORT_ALL);	/* Char string > 255 in length */
 OPT(int,port_hollerith,PORT_ALL);	/* Hollerith (except in FORMAT) */
 OPT(int,port_mixed_equiv,PORT_ALL);	/* Different types equivalenced */
+OPT(int,port_mixed_kind,PORT_ALL);	/* Default and specified kinds mixed */
+OPT(int,port_concrete_kind,PORT_ALL);	/* Concrete kind values */
 OPT(int,port_mixed_size,PORT_ALL);	/* sized, nonsized types mixed */
 OPT(int,port_param_implicit_type,PORT_ALL);/* Implicit param type != default */
 OPT(int,port_tabs,PORT_ALL);		/* Tabs in source */
@@ -1104,6 +1106,7 @@ OPT(int,trunc_int_div_real,TRUNC_ALL);	/* Int/int --> real */
 OPT(int,trunc_int_div_exponent,TRUNC_ALL);/* Int/int as exponentl */
 OPT(int,trunc_int_div_zero,TRUNC_ALL);	/* Int/int const = 0 */
 OPT(int,trunc_int_neg_power,TRUNC_ALL);	/* Int**(-int) */
+OPT(int,trunc_kind,TRUNC_ALL);		/* Kind truncated */
 OPT(int,trunc_real_subscript,TRUNC_ALL);/* Real array subscript */
 OPT(int,trunc_real_do_index,TRUNC_ALL);	/* Real DO index with int bounds */
 OPT(int,trunc_type_demotion,TRUNC_ALL);	/* High --> low precision */

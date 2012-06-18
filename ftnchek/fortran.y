@@ -128,6 +128,8 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
     control_item_count;	/* count of items in control_info_list */
 
+kind_t current_kind;		/* set when parse kind parameter */
+
 PRIVATE Token *current_dim_bound_list;	/* attr-based dim bound tokenlist */
 
 PRIVATE void apply_intent_attr(Token *t); /* apply INTENT attribute */
@@ -147,7 +149,7 @@ int stmt_sequence_no,   /* set when parsing, reset to 0 at end_stmt */
 PRIVATE long current_typesize;	/* for type*len declarations: value of len */
 PRIVATE char *current_len_text;	/* for type*len declarations: text of len */
 
-PRIVATE int kind_warning_given=FALSE; /* to say "not interpreted" only once */
+/*PRIVATE int kind_warning_given=FALSE;*/ /* to say "not interpreted" only once */
 
 PRIVATE Token
     len_spec_token,		/* Holds character length spec temporarily */
@@ -206,6 +208,7 @@ int
     current_optional_attr = FALSE, \
     current_dim_bound_list = NULL, \
     current_datatype = 0, \
+    current_kind = kind_DEFAULT_UNKNOWN, \
     current_pure_attr = FALSE, \
     current_elemental_attr = FALSE, \
     current_recursive_attr = FALSE )
@@ -275,7 +278,7 @@ PROTO(PRIVATE void init_io_ctrl_list,( void ));
 PROTO(PRIVATE void record_default_io,( void ));
 PROTO(PRIVATE void process_attrs,(Token *t,Token *dim_bounds));
 PROTO(PRIVATE void process_prefix_attrs,(Token *t));
-PROTO(PRIVATE void give_kind_warning,(Token *t));
+
 #ifdef DEBUG_PARSER
 PROTO(PRIVATE void print_exprlist,( char *s, Token *t ));
 PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
@@ -2219,10 +2222,9 @@ arith_type_name	:	sizeable_type_name {
 			     if(see_double_colon())
 				 in_attrbased_typedecl = TRUE;
 			}
-				/* Parse KIND selectors although we don't
-				   yet support them.
-				 */
-		|	sizeable_type_name left_paren kind_selector ')'
+				/* Parse KIND selectors */
+		|	sizeable_type_name left_paren {integer_context=FALSE;}
+				kind_selector {integer_context=TRUE;} ')'
 			{
 				/* Treat all KINDs as default */
 			  current_typesize = size_DEFAULT;
@@ -2237,21 +2239,25 @@ arith_type_name	:	sizeable_type_name {
 sizeable_type_name:	tok_INTEGER
 			{
 			     current_datatype = type_INTEGER;
+			     current_kind = default_kind(type_INTEGER);
 			     integer_context = TRUE;
 			}
 		|	tok_REAL
 			{
 			     current_datatype = type_REAL;
+			     current_kind = default_kind(type_REAL);
 			     integer_context = TRUE;
 			}
 		|	tok_COMPLEX
 			{
 			     current_datatype = type_COMPLEX;
+			     current_kind = default_kind(type_COMPLEX);
 			     integer_context = TRUE;
 			}
 		|	tok_LOGICAL
 			{
 			     current_datatype = type_LOGICAL;
+			     current_kind = default_kind(type_LOGICAL);
 			     integer_context = TRUE;
 			}
 		;
@@ -2259,12 +2265,14 @@ sizeable_type_name:	tok_INTEGER
 unsizeable_type_name:	tok_DOUBLEPRECISION
 			{
 			     current_datatype = type_DP;
+			     current_kind = default_kind(type_DP);
 			     current_typesize = size_DEFAULT;
 			     current_len_text = NULL;
 			}
 		|	tok_DOUBLECOMPLEX
 			{
 			     current_datatype = type_DCOMPLEX;
+			     current_kind = default_kind(type_DCOMPLEX);
 			     current_typesize = size_DEFAULT;
 			     current_len_text = NULL;
 			     if(f77_double_complex || f90_double_complex) {
@@ -2288,20 +2296,35 @@ unsizeable_type_name:	tok_DOUBLEPRECISION
 				 */
 kind_selector	:	expr
 			{
-			  if(!kind_warning_given)
-			      give_kind_warning(&($1));
 			  if(f77_attrbased_typedecl) {
 			    nonstandard($1.line_num, $1.col_num,0,0);
 			    msg_tail(": F90-style declaration");
 			  }
+
+			  current_kind = int_expr_value(&($1));
 			}
 		|	symbolic_name '=' expr
 			{
+			  int type_of_kind;
 			  int erroneous=FALSE;
 			  if( strcmp(hashtab[$1.value.integer].name,"KIND")
 			      == 0 ) {
-			    if(!kind_warning_given)
-			      give_kind_warning(&($1));
+			    current_kind = int_expr_value(&($3));
+			    type_of_kind = kind_type(current_kind);
+
+			    if( type_of_kind != type_UNDECL &&
+			        current_datatype != type_of_kind ) {
+			      warning($2.line_num,$2.col_num,
+			              "kind parameter defined for");
+			      msg_tail(type_name(type_of_kind));
+			      msg_tail("type used to declare");
+			      msg_tail(type_name(current_datatype));
+			    }
+			    if (port_concrete_kind &&
+			        type_of_kind == type_UNDECL) {
+			      nonportable($2.line_num,$2.col_num,
+			              "declaration uses concrete kind parameter: not portable");
+			    }
 			  }
 			  else {
 			    syntax_error($1.line_num,$1.col_num,
@@ -2313,6 +2336,7 @@ kind_selector	:	expr
 			    nonstandard($1.line_num, $1.col_num,0,0);
 			    msg_tail(": F90-style declaration");
 			  }
+
 			}
 		;
 
@@ -2320,6 +2344,7 @@ kind_selector	:	expr
 plain_char_type_name:	tok_CHARACTER
 			{
 			     current_datatype = type_STRING;
+			     current_kind = default_kind(type_STRING);
 			     current_typesize = 1;
 			     current_len_text = NULL;
 			     current_size_is_adjustable = 0;
@@ -2456,6 +2481,7 @@ scalar_type_decl_entity:symbolic_name
 			{
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
@@ -2468,6 +2494,7 @@ array_declarator_entity: array_declarator
 			{
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),(Token *)NULL);
@@ -2530,6 +2557,7 @@ char_scalar_type_decl_entity: symbolic_name
 			     $1.size_is_expression = current_size_is_expression;
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),current_dim_bound_list);
@@ -2541,6 +2569,7 @@ char_scalar_type_decl_entity: symbolic_name
 			     $1.size_is_expression = $3.size_is_expression;
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  $3.value.integer,
 					  new_tree_text(
 					     $3.left_token == NULL?
@@ -2556,6 +2585,7 @@ char_array_declarator_entity: array_declarator
 			     $1.size_is_expression = current_size_is_expression;
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  current_typesize,
 					  current_len_text);
 			     process_attrs(&($1),(Token *)NULL);
@@ -2567,6 +2597,7 @@ char_array_declarator_entity: array_declarator
 			     $1.size_is_expression = $3.size_is_expression;
 			     declare_type(&($1),
 					  current_datatype,
+					  current_kind,
 					  $3.value.integer,
 					  new_tree_text(
 					     $3.left_token == NULL?
@@ -2960,6 +2991,7 @@ derived_type_name:	tok_TYPE '(' symbolic_name ')'
 			     facts are known.
 			   */
 			  current_datatype = find_dtype(&($3),in_dtype_def);
+			  current_kind = default_kind(current_datatype);
 			  current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 			  $$ = $3;	/* pass the type name up */
@@ -3127,8 +3159,6 @@ len_spec_item	:	len_spec_expr
 			  }
 				/* 2nd item is KIND */
 			  else if(len_spec_item_count == 1) {
-			    if(!kind_warning_given)
-			      give_kind_warning(&($1));
 			  }
 			  else if(len_spec_item_count == 2) {
 			    syntax_error($1.line_num,$1.col_num,
@@ -3145,8 +3175,7 @@ len_spec_item	:	len_spec_expr
 			  }
 			  else if( strcmp(hashtab[$1.value.integer].name,"KIND")
 			      == 0 ) {
-			    if(!kind_warning_given)
-			      give_kind_warning(&($1));
+			    current_kind = int_expr_value(&($3));
 			  }
 			  else {
 			    syntax_error($1.line_num,$1.col_num,
@@ -3324,7 +3353,10 @@ cray_pointer_item:      '(' pointer_name ',' pointee_name ')'
 
 pointer_name    :       symbolic_name
 			{
-			     declare_type(&($1),type_INTEGER,local_ptrsize,
+			     declare_type(&($1),
+			                  type_INTEGER,
+			                  default_kind(type_INTEGER),
+					  local_ptrsize,
 					  NULL);
 			}
 		;
@@ -5240,6 +5272,7 @@ literal_const	:	numeric_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
+			    $$.kind = $2.kind;
 			}
 		;
 
@@ -5251,21 +5284,27 @@ numeric_literal_const:	tok_integer_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_INTEGER);
 			    $$.size = size_DEFAULT;
+			    $$.kind = ($2.kind == kind_DEFAULT_UNKNOWN) ?
+			    	default_kind(type_INTEGER) : $2.kind;
 			}
 		|	tok_real_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_REAL);
 			    $$.size = size_DEFAULT;
+			    $$.kind = ($2.kind == kind_DEFAULT_UNKNOWN) ?
+			    	default_kind(type_REAL) : $2.kind;
 			}
 		|	tok_dp_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_DP);
 			    $$.size = size_DEFAULT;
+			    $$.kind = default_kind(type_DP); /* no kind param allowed */
 			}
 		|	tok_quad_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_QUAD);
 			    $$.size = size_QUAD;
+			    $$.kind = default_quad_kind();
                             if(f77_quad_constants || f90_quad_constants) {
                               nonstandard($1.line_num,$1.col_num,f90_quad_constants,0);
                               msg_tail(": quad precision constant");
@@ -5277,18 +5316,86 @@ complex_const	:	tok_lparen signed_numeric_literal_const ',' signed_numeric_liter
 			{
 			    int real_type, imag_type;
 			    int token_class, final_type, final_size;
+			    kind_t real_kind, imag_kind, final_kind;
 
 			    /* datatype is stored in tclass as
 			     * token class.
 			     */
 			    real_type = $2.tclass;
 			    imag_type = $4.tclass; 
+			    real_kind = $2.kind;
+			    imag_kind = $4.kind;
 
-
-			    if( real_type == tok_integer_const )
+			    /* integer is promoted to default real */
+			    if( real_type == tok_integer_const ) {
 				real_type = tok_real_const;
-			    if( imag_type == tok_integer_const )
+				real_kind = kind_DEFAULT_REAL;
+			    }
+			    if( imag_type == tok_integer_const ) {
 				imag_type = tok_real_const;
+				real_kind = kind_DEFAULT_REAL;
+			    }
+
+			    /* if same types then complex constant gets
+			    kind of the part with greater decimal
+			    precision */
+			    if (real_type == imag_type) {
+				/* Note that quad precision is
+				 * type_REAL with its own default
+				 * kind.  The next step works if both
+				 * parts are default kinds.  The std
+				 * does not address quad.  We decree
+				 * that it beats all other real
+				 * non-default kinds.
+				 */
+				if( real_kind == kind_DEFAULT_QUAD ||
+				    imag_kind == kind_DEFAULT_QUAD ) {
+				    final_kind = kind_DEFAULT_QUAD;
+				}
+				else {
+				/* Either default or specified real
+				 * kind.  Note that if precision is
+				 * not specified it comes back -1.
+				 * Both parts d.p. is also handled here:
+				 * they will be both default dp kind.
+				 */
+				    final_kind =
+					( kind_precision(real_kind) >=
+					  kind_precision(imag_kind) ) ?
+					real_kind : imag_kind;
+				}
+				/* Warn if const mixes concrete & not,
+				   or different concrete kinds.
+				 */
+				if(port_mixed_kind) {
+				    if( real_kind != imag_kind &&
+				       (real_kind >= 0 || imag_kind >= 0) ){
+					nonportable($3.line_num,$3.col_num,
+						"complex constant mixes concrete kind with");
+					if(real_kind >= 0 && imag_kind >= 0)
+					    msg_tail("different concrete kind");
+					else
+					    msg_tail("non-concrete kind");
+				    }
+				}
+			    }
+			    else {/* one & only one part double precision */
+				/* Result has the higher precision,
+				 * but we do not presume to know what
+				 * the precision of d.p. is, so if
+				 * other part is specified real kind,
+				 * warn under -port.  Assume dp wins. */
+			        final_kind = kind_DEFAULT_DP;
+				if( port_mixed_kind ) {
+				    if( real_kind != kind_DEFAULT_REAL &&
+					imag_kind != kind_DEFAULT_REAL ) {
+					nonportable($3.line_num,$3.col_num,
+						"complex constant mixes default D.P. and specified real kinds");
+					msg_tail(": assuming D.P. more precise");
+				    }
+				}
+			    }
+
 			    token_class = tok_complex_const;
 			    final_type = type_COMPLEX;
 			    final_size = size_DEFAULT;
@@ -5315,6 +5422,7 @@ complex_const	:	tok_lparen signed_numeric_literal_const ',' signed_numeric_liter
 			    $$ = $2;	/* save value of real part only */
 			    $$.tclass = token_class;
 			    $$.TOK_type = type_pack(class_VAR,final_type);
+			    $$.kind = final_kind;
 			    $$.size = final_size;
 
 			    /* Reconstitute entire complex constant string in
@@ -5366,6 +5474,7 @@ signed_numeric_literal_const: numeric_literal_const
 char_literal_const:	char_kind_param tok_string
 			{
 			    $$ = $2;
+			    $$.kind = $1.kind;
 			}
 		;
 
@@ -5376,26 +5485,32 @@ char_kind_param	:	kind_param tok_underscore
 		|
 			{
 			    /* empty production */
+			    $$.kind = kind_DEFAULT_CHARACTER;
 			}
 		;
 
 non_char_kind_param:	'_' kind_param
 			{
 			    /* used in numeric and logical constants */
+			    $$ = $2;
 			}
 		|
 			{
 			    /* empty production */
+			    $$.kind = default_unknown_kind();
 			}
 		;
 
 kind_param	:	tok_integer_const
 	   		{
 			    /* has to be nonnegative integer */
+			    $$.kind = $1.value.integer;
 			}
 	   	|	tok_identifier
 			{
 			    /* has to be scalar nonnegative integer */
+			    /* the identifier could be undefined */
+			    $$.kind = int_expr_value(&($1));
 			}
 	   	;
 
@@ -6841,15 +6956,6 @@ PRIVATE void set_attr_flags( Token *t, Token *result )
   }
 }
 
-PRIVATE void give_kind_warning(Token *t)
-{
-  warning(t->line_num,t->col_num,
-"I do not yet support KIND selectors.  \
-All KINDs are treated as default KIND.  \
-Checking of type agreement may be incorrect as a result.  \
-(This message is only given once.)");
-  kind_warning_given = TRUE;
-}
 
 
 SUBPROG_TYPE find_subprog_type(int stmt_class)

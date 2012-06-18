@@ -259,6 +259,7 @@ void process_dtype_components(const char *name)
   for (i=curr_scope_bottom; i<loc_symtab_top; i++) {
     curr->name = new_global_string(loc_symtab[i].name);
     curr->type = get_type(&loc_symtab[i]);
+    curr->kind = loc_symtab[i].kind;
     curr->size = loc_symtab[i].size;
     curr->pointer = loc_symtab[i].pointer;
     /* Component is private if PRIVATE statement appears and component
@@ -751,6 +752,7 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
   else {
     result->TOK_type = type_pack(class_VAR, datatype_of(comp_dtype->type));
     result->size = result_size;
+    result->kind = comp_dtype->kind;
     result->array_dim = result_dim;
 #ifdef DEBUG_DTYPE
   if(debug_latest) {

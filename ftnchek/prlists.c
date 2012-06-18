@@ -367,6 +367,7 @@ make_arg_array(t)
 	for(i=0; i<count; i++){  /* Here we fill array. */
 
 	    arglist[i].type = s->TOK_type; /* use evaluated type, not symt */
+	    arglist[i].kind = s->kind;
 	    arglist[i].size = s->size;
 	    arglist[i].same_as = i; /* initialize to same-as-self */
 			/* Keep track of array and external declarations */
@@ -705,6 +706,7 @@ make_dummy_arg_array (t)
 		implied_type = get_type(symt);
 		arglist[i].type = type_pack(storage_class_of(symt->type),
 						implied_type);
+		arglist[i].kind = symt->kind;
 		arglist[i].size = get_size(symt,implied_type);
 		arglist[i].same_as = i; /* always is same-as-self */
 		arglist[i].is_lvalue = TRUE;

@@ -133,7 +133,9 @@ this Software without prior written authorization from the author.
 /* Internally defined kind numbers are designed to be in a distinct
    space from user-defined ones, and distinct from each other if
    defined differently.  They are negative.  The default kinds are the
-   negative of their respective type numbers.  The selected int and
+   negative of their respective type numbers, except for QUAD, which
+   does not have its own type number, so we use the first available
+   number after the defined types.  The selected int and
    real kinds are coded so that the type and the selected range and
    precision can be recovered.  See selected_int_kind() et al for details  */
 #define kind_DEFAULT_INTEGER (-type_INTEGER)
@@ -141,6 +143,8 @@ this Software without prior written authorization from the author.
 #define kind_DEFAULT_DP (-type_DP)
 #define kind_DEFAULT_LOGICAL (-type_LOGICAL)
 #define kind_DEFAULT_CHARACTER (-type_STRING)
+#define kind_DEFAULT_QUAD  (-MIN_DTYPE_ID)
+#define kind_DEFAULT_UNKNOWN (-(MIN_DTYPE_ID+1))
 
 				/* tests for elementary vs derived type */
 #define is_elementary_type(t) ((unsigned)(t) < MIN_DTYPE_ID)
@@ -397,6 +401,7 @@ struct tokstruct {
 	long tclass,tsubclass;	/* Token category and subcategory */
 	long size;		/* sizeof(datatype) */
 	type_t TOK_type;	/* Storage class & data type of identifier */
+	kind_t kind;		/* Kind parameter */
 	unsigned TOK_flags:32;	/* Exprtype flags (see defns below) */
 	/* int symtab_index; */	/* symtab top when encountered (for scoping)*/
 	LINENO_t line_num;	/* Line where token occurred */
@@ -492,6 +497,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 	long common_index;	/* index in block */
 	long size;
 	type_t type;
+	kind_t kind;
 	short same_as;	/* index if two actual arguments the same */
 	unsigned is_lvalue: 1,
 		 set_flag: 1,
@@ -529,6 +535,7 @@ typedef struct {	/* ComListElement: holds common var data */
 	char *name;		/* name of common variable */
 	long size;
 	type_t type;
+	kind_t kind;
 	unsigned		/* copies of flags from symtab */
 	  used:1,
 	  set:1,
@@ -670,6 +677,7 @@ typedef struct lSymtEntry{
 	LINENO_t line_declared, line_set, line_used, line_assocd, line_allocd;
 	short file_declared, file_set, file_used, file_assocd, file_allocd;
 	type_t  type;		/* Type & storage class: see macros below */
+	kind_t kind;		/* Kind parameter */
 			/* Flags */
 	unsigned
 	     used_flag: 1,	/* value is accessed (read from variable) */
@@ -725,6 +733,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	} link;
 	long size;
 	type_t  type;		/* Type & storage class: see macros below */
+	kind_t kind;		/* Kind parameter */
 			/* Flags.  See remarks above */
 	unsigned
 	     used_flag: 1,
@@ -1126,7 +1135,7 @@ PROTO(void call_func,( Token *id, Token *arg ));
 PROTO(void call_subr,( Token *id, Token *arg ));
 PROTO(char * char_expr_value,( Token *t ));
 PROTO(void check_loose_ends,( int curmodhash ));
-PROTO(void declare_type,( Token *id, int datatype, long size, char *size_text ));
+PROTO(void declare_type,( Token *id, int datatype, kind_t kind, long size, char *size_text ));
 PROTO(void def_arg_name,( Token *id ));
 PROTO(void def_array_dim,( Token *id, Token *arg ));
 PROTO(void def_com_block,( Token *id, Token *comlist ));
@@ -1210,6 +1219,8 @@ PROTO(char* typespec, ( int t, int has_size, long size,
 
 /* Routines to set and retrieve info about kind numbers */
 PROTO(kind_t default_kind,(int type));
+PROTO(kind_t default_quad_kind,());
+PROTO(kind_t default_unknown_kind,());
 PROTO(kind_t selected_int_kind,( int range ));
 PROTO(kind_t selected_real_kind_r,( int range ));
 PROTO(kind_t selected_real_kind_p,( int precision ));

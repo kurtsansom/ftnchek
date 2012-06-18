@@ -401,6 +401,7 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
   for(i=0; i<num_components; i++) {
     WRITE_STR(" component",curr[i].name);
     WRITE_NUM(" type",curr[i].type);
+    WRITE_NUM(" kind",curr[i].kind);
     WRITE_NUM(" size",curr[i].size);
     (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		  curr[i].array,
@@ -423,6 +424,7 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
   WRITE_STR(" var",lsymt->name);
   WRITE_NUM(" type",get_type(lsymt));
+  WRITE_NUM(" kind",lsymt->kind);
   WRITE_NUM(" size",lsymt->size);
   (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		lsymt->parameter,
@@ -507,6 +509,7 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 
 	  WRITE_NUM(" class",storage_class_of(gsymt->type));
 	  WRITE_NUM(" type",datatype_of(gsymt->type));
+	  WRITE_NUM(" kind",gsymt->kind);
 	  WRITE_NUM(" size",gsymt->size);
 		/* Flag values stored are cumulative only for current file
 		   so they will not depend on what files were previously
@@ -674,6 +677,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
 	NEXTLINE;
 	WRITE_NUM(" class",storage_class_of(arg[i].type));
 	WRITE_NUM(" type",datatype_of(arg[i].type));
+	WRITE_NUM(" kind",arg[i].kind);
 	WRITE_NUM(" size",arg[i].size);
 	if( ((storage_class_of(arg[i].type) == class_VAR) &&
 	     is_computational_type(datatype_of(arg[i].type))) ) {
@@ -754,6 +758,7 @@ PRIVATE void
 	NEXTLINE;
 	WRITE_NUM(" class",storage_class_of(cvar[i].type));
 	WRITE_NUM(" type",datatype_of(cvar[i].type));
+	WRITE_NUM(" kind",cvar[i].kind);
 	WRITE_NUM(" size",cvar[i].size);
 	WRITE_NUM(" dims",array_dims(cvar[i].dimen_info));
 	WRITE_NUM(" elts",array_size(cvar[i].dimen_info));
@@ -1094,6 +1099,7 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
        type_module[MAXNAME+1],
        component_name[MAXNAME+1];
   int dtype_type, component_type;
+  kind_t component_kind;
   long dtype_size, component_size;
   int i, dtype_num_components;
   int dtype_public,		/* dtype flag bits */
@@ -1230,6 +1236,7 @@ if (use_this_item) {
   for(i = 0; i < dtype_num_components; i++) {
     READ_STR(" component",component_name);
     READ_NUM(" type",component_type);
+    READ_NUM(" kind",component_kind);
     READ_LONG(" size",component_size);
     fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	   &component_array,
@@ -1256,6 +1263,7 @@ if (use_this_item) {
       curr = dtype->components;
       curr[i].name = new_global_string(component_name);
       curr[i].type = map_type(component_type);
+      curr[i].kind = component_kind;
       curr[i].array_dim = array_dim_info(component_array_dims,component_array_elts);
       curr[i].size = component_size;
       curr[i].array = component_array;
@@ -1301,6 +1309,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 {
   char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
+  long id_kind;
   int mapped_type;		/* type from map_type array */
   long id_size;
   int id_param,			/* flag bits */
@@ -1318,6 +1327,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 
   READ_STR(" var",id_name);
   READ_LONG(" type",id_type);
+  READ_LONG(" kind",id_kind);
   READ_LONG(" size",id_size);
   fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	 &id_param,
@@ -1438,6 +1448,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 	        expr[]="expr";
 #endif
     int id_class,id_type;
+    kind_t id_kind;
     long id_size;
     int mapped_type;		/* type from map_type array */
     unsigned
@@ -1458,6 +1469,7 @@ arg_info_in(fd,filename,is_defn,item_list)
     unsigned alist_line, alist_topline;
     long alist_size;
     unsigned numargs,iarg,arg_num,arg_class,arg_type;
+    kind_t arg_kind;
     int mapped_arg_type;
     int arg_dims;
     unsigned long arg_elts;
@@ -1485,6 +1497,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 	READ_STR(" external",id_name); /* External name */
     READ_NUM(" class",id_class); /* class as in symtab */
     READ_NUM(" type",id_type); /* type as in symtab */
+    READ_NUM(" kind",id_kind); /* kind as in symtab */
     READ_LONG(" size",id_size); /* size as in symtab */
     if(fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	      &id_used_flag,
@@ -1728,6 +1741,7 @@ id_name,id_class,id_type);
 	READ_ARG(" name",arg_name);
 	READ_NUM(" class",arg_class);
 	READ_NUM(" type",arg_type);
+	READ_NUM(" kind",arg_kind);
 	READ_LONG(" size",arg_size);
 	READ_NUM(" dims",arg_dims);
 	READ_LONG(" elts",arg_elts);
@@ -1765,6 +1779,7 @@ id_name,id_class,id_type);
 #endif
 	alist[iarg].array_dim = array_dim_info(arg_dims,arg_elts);
 	alist[iarg].type = type_pack(arg_class,mapped_arg_type);
+	alist[iarg].kind = arg_kind;
 	alist[iarg].size = arg_size;
 	if( strcmp(arg_common_block,"-") == 0 ) { /* indicator for "none" */
 	  alist[iarg].common_block = (Gsymtab *)NULL;
@@ -1822,6 +1837,7 @@ com_info_in(FILE *fd, const char *filename, const char *modulename, Token *item_
 		clist_future;
     unsigned clist_line,clist_topline;
     unsigned numvars,prev_n,ivar,var_num,var_class,var_type;
+    kind_t var_kind;
     int var_dims;
     unsigned long var_elts;
     unsigned			/* Flags for common variables */
@@ -1965,6 +1981,7 @@ id_name,id_class,id_type);
       NEXTLINE;
       READ_NUM(" class",var_class);
       READ_NUM(" type",var_type);
+      READ_NUM(" kind",var_kind);
       READ_LONG(" size",var_size);
       READ_NUM(" dims",var_dims);
       READ_LONG(" elts",var_elts);
@@ -1992,6 +2009,7 @@ id_name,id_class,id_type);
 
       clist[ivar].dimen_info = array_dim_info(var_dims,var_elts);
       clist[ivar].type = type_pack(var_class,var_type);
+      clist[ivar].kind = var_kind;
       clist[ivar].size = var_size;
       clist[ivar].used = var_used;
       clist[ivar].set = var_set;

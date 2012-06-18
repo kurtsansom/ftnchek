@@ -1309,7 +1309,6 @@ PRIVATE int
 ii_minmaxloc(Token *args, int min)
 {
   Token *array, *dim, *mask = (Token *)NULL;
-  int rank;
   int result=0;
   if( (array = args->next_token) != NULL ) { /* ensure array is present */
 
@@ -1398,8 +1397,7 @@ ii_kind( Token *args )
   make_true(PARAMETER_EXPR,args->TOK_flags);
   make_true(EVALUATED_EXPR,args->TOK_flags);
   if( args->next_token != NULL ) {
-  /* return args->next_token->kind */
-    return default_kind(datatype_of(args->next_token->TOK_type));
+    return args->next_token->kind;
   }
   else {
     return 0;

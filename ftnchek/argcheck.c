@@ -93,13 +93,15 @@ arg_array_cmp(name,args1,args2)
 	}
 
 	if(argcheck_argtype)
-	{	/* Look for type mismatches */
+	{	/* Look for type and kind mismatches */
 	    cmp_error_count = 0;
 	    for (i=0; i<n; i++) {
 	      int c1 = storage_class_of(a1[i].type),
 	          c2 = storage_class_of(a2[i].type),
 		  t1 = datatype_of(a1[i].type),
 	          t2 = datatype_of(a2[i].type);
+	      kind_t kind1 = a1[i].kind,
+		     kind2 = a2[i].kind;
 	      long
 		  s1 = a1[i].size,
 		  s2 = a2[i].size;
@@ -245,6 +247,21 @@ arg_array_cmp(name,args1,args2)
 
 		    }/*end if holl size mismatch*/
 		}/*end if type==holl*/
+
+		
+		/* check kind parameter only if kind was defined */
+		else if ( !( kind1 == default_kind(t1) ||
+		             kind2 == default_kind(t2)
+		           ) ) {
+		  if (kind1 != kind2) {
+		    if(argcmp_error_head(name,args1,"kind mismatch"))
+		      break;
+		    arg_error_report(args1,"Dummy arg",i,"is kind");
+		    msg_tail(ulongtostr((unsigned long)kind1));
+		    arg_error_report(args2,"Actual arg",i,"is kind");
+		    msg_tail(ulongtostr((unsigned long)kind2));
+		  }
+		}
 	      }
 	    }/*end for i*/
 	}/* end look for type && size mismatches */

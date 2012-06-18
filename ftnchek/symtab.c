@@ -633,13 +633,14 @@ check_stmt_function_args(symt,id,arg)
 
 
 void
-declare_type(Token *id, int datatype, long int size, char *size_text)
+declare_type(Token *id, int datatype, kind_t kind, long int size, char *size_text)
 {
 	int h=id->value.integer;
 	Lsymtab *symt=hashtab[h].loc_symtab;
 
 	if( (symt) == NULL) {
 	   symt = install_local(h,datatype,class_VAR);
+	   symt->kind = kind;
 	   symt->size = size;
 	   symt->size_is_adjustable = id->size_is_adjustable;
 	   symt->size_is_expression = id->size_is_expression;
@@ -672,6 +673,7 @@ declare_type(Token *id, int datatype, long int size, char *size_text)
 	  {int new_here = ! in_curr_scope(symt);
 	  if ( new_here ) {
 	      symt = install_local(h,datatype,class_VAR);
+	      symt->kind = kind;
 	  }
 
 	  if(!new_here && datatype_of(symt->type) != type_UNDECL) {
@@ -682,6 +684,8 @@ declare_type(Token *id, int datatype, long int size, char *size_text)
 	  else {
 			/* Now give it the declared type */
 	      symt->type = type_pack(storage_class_of(symt->type),datatype);
+
+	      symt->kind = kind;
 	      symt->size = size;
 	      symt->size_is_adjustable = id->size_is_adjustable;
 	      symt->size_is_expression = id->size_is_expression;
@@ -784,6 +788,7 @@ def_arg_name(id)		/* Process items in argument list */
 			/* Dummy args mask names in enclosing scope. */
 	if( (symt=hashtab[h].loc_symtab) == NULL || ! in_curr_scope(symt)) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
+	   symt->kind = default_unknown_kind();
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	}
@@ -1193,6 +1198,7 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 			   Since this is the current routine, it has
 			   storage class of a variable. */
 	   symt = install_local(h,datatype,class_VAR);
+	   symt->kind = default_kind(datatype);
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	   symt->size = size;
@@ -1894,6 +1900,7 @@ void do_result_spec(Token *p, int hashno, int entry_hashno)
    */
   result->result_var = TRUE;
   result->type = type_pack(class_VAR, entry_datatype);
+  result->kind = default_kind(result->type);
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {
@@ -3286,7 +3293,9 @@ do_nullify(id)		/* Process NULLIFY statement */
 
 /* Set default kind for given type.  For complex types, kind is the
    kind of the component reals.  For others, kind is negative of
-   type number. */
+   type number.  Since quad has no type of its own, its default kind
+   is defined by a special function.
+*/
 kind_t
 default_kind(int type)
 {
@@ -3312,6 +3321,21 @@ default_kind(int type)
       break;
     }
   return kind;
+}
+
+kind_t
+default_quad_kind()
+{
+    return kind_DEFAULT_QUAD;
+}
+
+/* When type of item is unknown, assign generic default kind
+ * parameter.  It will be changed to default for the type when
+ * type is known.
+ */
+kind_t default_unknown_kind()
+{
+    return kind_DEFAULT_UNKNOWN;
 }
 
 /* -k = (R+1)*R_factor + (P+1)*P_factor + int?1:0, for P+R > 0.
@@ -3416,6 +3440,10 @@ int kind_type( kind_t kind )
     return type_UNDECL;			/* unknown type */
   }
   else {
+
+    if( kind == kind_DEFAULT_QUAD )	/* special case */
+      return type_REAL;			/* QUAD is just real type */
+
     kind = -kind;		/* get absolute value */
     if( kind < P_factor ) {	/* a default kind */
       return kind;		/* default kind = -type */
@@ -3434,8 +3462,8 @@ int kind_type( kind_t kind )
 int
 kind_range(kind_t kind)
 {
-  if( kind >= 0 ) {		/* user-defined value */
-    return 0;
+  if( kind >= 0 || kind == kind_DEFAULT_QUAD ) {/* user-defined value or quad */
+    return -1;
   }
   else {
     kind = -kind;		/* get absolute value */
@@ -3453,8 +3481,8 @@ kind_range(kind_t kind)
 int
 kind_precision(kind_t kind)
 {
-  if( kind >= 0 ) {		/* user-defined value */
-    return 0;
+  if( kind >= 0 || kind == kind_DEFAULT_QUAD ) {/* user-defined value or quad */
+    return -1;
   }
   else {
     kind = -kind;		/* get absolute value */

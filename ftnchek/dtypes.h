@@ -25,6 +25,7 @@ typedef struct DerivedTypeComponent {
   array_dim_t array_dim;	/* array size and no. of dims */
   char *name;			/* component name (not in symtab) */
   type_t type;			
+  kind_t kind;
   long size;			/* Size of object in bytes */
   	/* flags */
   unsigned
