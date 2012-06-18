@@ -6758,11 +6758,21 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
 
 /*--------------------------addition------------------------------------*/
 
-	if (!contains_sect || (stmt_class != tok_SUBROUTINE &&
-		stmt_class != tok_FUNCTION))
+    if (!contains_sect) {
 		block_stack[block_depth].subprogtype = not_subprog;
-	else { /* a subprogram inside a contains block is either
-			  a module subprogram or an internal subprogram */
+    }
+	else { /* A subprogram inside a contains block is either a
+		  module subprogram or an internal subprogram.  Note
+		  we warn but process anyway if it is not a procedure
+		  (subroutine or function) that can legitimately go
+		  inside a CONTAINS block, since not treating it so
+		  will mess up management of the global symbol table.
+	       */
+		if(  stmt_class != tok_SUBROUTINE &&
+		     stmt_class != tok_FUNCTION ) {
+		  syntax_error(t->line_num,t->col_num,
+			       "program unit not allowed in CONTAINS section");
+		}
 		if (block_depth > 0 && block_stack[block_depth-1].sclass
 				== tok_MODULE)
 			block_stack[block_depth].subprogtype = module_subprog;
