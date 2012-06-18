@@ -1705,7 +1705,11 @@ dummy_argument	:	symbolic_name
 block_data_stmt	:	block_data_handle EOS
 			{
 				  /* form name %DATnn */
-			  ++block_data_number;
+			  if( ++block_data_number == 2 ) {
+			    /* warn once if more than one unnamed */
+			    syntax_error($1.line_num,$1.col_num,
+				 "unnamed BLOCK DATA unit conflicts with a previous declaration");
+			  }
 			  (void)sprintf(unnamed_block_data+4,"%02d",
 					block_data_number%100);
 			  implied_id_token(&($1),unnamed_block_data);
