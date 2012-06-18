@@ -107,7 +107,8 @@ PROTO( PRIVATE int is_keyword,( int i ));
 		   Field split_pos is 0 if keyword cannot be split; otherwise
 		   it is the length of the first moiety.  END BLOCK DATA
 		   is the only 3-word keyword, and the implementation happens
-		   to check its "END" based on ENDSUBROUTINE's split_pos so OK.
+		   to check its "END" based on another END keywd's split_pos so
+		   END BLOCK DATA is OK, but must treat END BLOCKDATA specially.
 		   ELSE is always parsed as a separate keyword even if
 		   followed by IF or WHERE, because ELSE may be
 		   followed by a construct name, which messes up the
@@ -262,7 +263,6 @@ get_identifier(token)
 	int c,		/* Uppercase version of current letter */
 	    preceding_c,/* Char preceding latest id */
 	    has_embedded_space,	/* Spaces inside keyword or id */
-	    num_spaces,		/* Count of spaces inside */
 	    split_pos,		/* Where space allowed */
 	    kwd_not_separated,	/* keyword followed by alphanumeric w/o spc */
 	    kwd_split_pos,	/* for MB keyword: actual location of blank */
@@ -289,7 +289,6 @@ get_identifier(token)
 	possible_keyword = TRUE;
 	preceding_c = prev_char;
 	has_embedded_space = kwd_not_split = FALSE;
-	num_spaces = 0;
 	kwd_not_separated = FALSE;
 	kwd_split_pos = 0;
 	space_seen_lately = FALSE;
@@ -323,7 +322,6 @@ get_identifier(token)
 				   But count them in case other spaces occur.
 				 */
 	    kwd_split_pos = klen;
-	    num_spaces++;
 	  }
 	  bi_advance();		/* Pull in the next character */
 
@@ -505,9 +503,12 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 		    }
 	}
 	else {			/* It is a keyword.  Embedded space OK if
-				   it is where allowed, but only one.  */
-	  if( num_spaces == 1 )
-	    has_embedded_space = (has_embedded_space && (kwd_split_pos != split_pos));
+				   it is where allowed.  Special case:
+				   END BLOCKDATA will have kwd_split_pos=3
+				   and split_pos=8 so watch for it.
+				*/
+	  has_embedded_space = (has_embedded_space && (kwd_split_pos != split_pos) &&
+			!(keywd_class == tok_ENDBLOCKDATA && kwd_split_pos == 3));
 	}
 
 		/* Catch ELSE WHERE to flag embedded space. */
