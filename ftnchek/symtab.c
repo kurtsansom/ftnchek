@@ -363,8 +363,41 @@ call_func(id,arg)	/* Process function invocation */
 	  check_intrins_args(id,arg);
     }
     else {		/* It is not intrinsic: install in global table */
+      int func_is_internal = FALSE;
       switch(storage_class_of(symt->type)) {
 	case class_SUBPROGRAM:
+	  if(!symt->external && !symt->argument) {
+	/* Check if this is the first invocation seen in local scope */
+	    if( symt->info.toklist == (TokenListHeader *)NULL ) {
+#ifdef DEBUG_LOOKAHEAD
+	      if(debug_latest) {
+		fprintf(list_fd,"\ninvoke func %s: file_has_contains=%d",
+			symt->name,file_has_contains);
+	      }
+#endif
+	      if( file_has_contains ) {
+		ProcInterface interface;
+		if( (func_is_internal = search_for_internal(symt->name,&interface)) ) {
+#ifdef DEBUG_LOOKAHEAD
+		  if(debug_latest) {
+		    fprintf(list_fd,"\n internal %s found",symt->name);
+		  }
+#endif
+	       /* Fill in local symbol table entry with info about subroutine */
+	    symt->type = type_pack(class_SUBPROGRAM,interface.datatype);
+	    symt->size = interface.size;
+	    symt->kind = interface.kind;
+	    symt->array_dim = interface.array_dim;
+	    symt->array_var = interface.array;
+	    symt->pointer = interface.pointer;
+	    symt->recursive = interface.recursive;
+	    symt->pure = interface.pure;
+	    symt->elemental = interface.elemental;
+
+		}
+	      }
+	    }
+	  }
 	  symt->external = TRUE;
 	  if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
 		gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
@@ -474,16 +507,51 @@ call_subr(id,arg)	/* Process call statements */
 	if(misc_warn)
 	  check_intrins_args(id,arg);
     }
-    else {		/* It is not intrinsic: install in global table */
-	symt->external = TRUE;
-	if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
-		gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
-		gsymt->info.arglist = NULL;
+    else {
+      int subr_is_internal = FALSE;
+	
+	/* If this is the first invocation seen in local scope, check
+	   whether it could be an internal or peer module/internal routine.
+	 */
+      if( !symt->external && !symt->argument &&
+	  symt->info.toklist == (TokenListHeader *)NULL ) {
+#ifdef DEBUG_LOOKAHEAD
+	if(debug_latest) {
+	  fprintf(list_fd,"\ncall subr %s: file_has_contains=%d",
+		  symt->name,file_has_contains);
 	}
-	gsymt->kind = 0;
+#endif
+	if( file_has_contains ) {
+	  ProcInterface interface;
+	  if( (subr_is_internal = search_for_internal(symt->name,&interface)) ) {
+#ifdef DEBUG_LOOKAHEAD
+	    if(debug_latest) {
+	      fprintf(list_fd,"\n internal %s found",symt->name);
+	    }
+#endif
+	       /* Fill in local symbol table entry with info about subroutine */
+	    symt->type = type_pack(class_SUBPROGRAM,type_SUBROUTINE);
+	    symt->kind = interface.kind;
+	    symt->array_dim = interface.array_dim;
+	    symt->array_var = interface.array;
+	    symt->pointer = interface.pointer;
+	    symt->recursive = interface.recursive;
+	    symt->pure = interface.pure;
+	    symt->elemental = interface.elemental;
+	  }
+	}
+      }	/* end look for internal */
 
-			/* store arg list in local table */
-	call_external(symt,id,arg);
+		/* It is not intrinsic: install in global table */
+      symt->external = TRUE;
+      if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
+	gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
+	gsymt->info.arglist = NULL;
+      }
+      gsymt->kind = 0;
+
+      call_external(symt,id,arg);
+
     }
 
     /* For elemental function, args must be conformable.  Result takes

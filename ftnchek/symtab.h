@@ -256,11 +256,13 @@ typedef long kind_t;
 /* eventually we should go over to this */
 #if 0
 typedef struct {
-    int kind;				/* KIND parameter */
+    kind_t kind;			/* KIND parameter */
     short type;				/* type id */
     short class;			/* storage class */
 } type_t;
 #endif
+
+
 		/* Array of class and type name translations */
 SYM_SHARED
 char *class_name[]
@@ -799,6 +801,36 @@ int implicit_type[('Z'-'A'+1)+2],	// indexed by [char - 'A']
 SYM_SHARED
 char *implicit_len_text[('Z'-'A'+1)+2];
 */
+
+
+
+/* Lookahead kluge for getting explicit interface of internal
+   procedures */
+
+/* Struct for storing info about internal procedure interface.
+   At present with lookahead kluge, we only store info needed
+   for local checking.
+ */
+typedef struct {
+  int datatype;
+  long size;
+  kind_t kind;
+  array_dim_t array_dim;
+  unsigned
+    kind_is_bogus:1,		/* unable to determine kind */
+    array:1,			/* function returns an array */
+    pointer:1,			/* function returns a pointer */
+    elemental:1,		/* elemental procedure */
+    pure:1,			/* pure procedure */
+    recursive:1;		/* recursive procedure */
+} ProcInterface;
+
+
+SYM_SHARED
+int file_has_contains;	/* init_scan() records presence of CONTAINS stmt */
+
+PROTO(int search_for_internal,(const char *name, ProcInterface *interface));
+
 
 /* Local scope management */
 

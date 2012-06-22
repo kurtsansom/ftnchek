@@ -51,6 +51,10 @@ as the "MIT License."
 #include "forlex.h"
 #define ADVANCE
 #include "advance.h"
+#if HAVE_STRINGS_H
+#include <strings.h>	/* we use strcasecmp */
+#endif
+#include "utils.h"
 
 /* Note: beginning with rev 1.15 (July 2003) this code is somewhat
  * schizophrenic.  The source file is now read entirely into an
@@ -108,6 +112,42 @@ PROTO(PRIVATE srcPosn skip_digits,( srcPosn pos ));
 PROTO(PRIVATE srcPosn skip_quoted_string,( srcPosn pos ));
 
 PROTO(PRIVATE srcPosn skip_hollerith,( srcPosn pos ));
+
+PROTO(PRIVATE srcPosn read_int_const,(srcPosn pos, int *value));
+
+/* Lookahead kluge routines */
+
+PROTO(PRIVATE srcPosn parse_subprog_stmt,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_subprog_keywd,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_prefix_keywd,(srcPosn pos, int only_types));
+
+PROTO(PRIVATE srcPosn parse_end_subprog,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_result_clause,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_dtype_spec,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_identifier,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_kind_param,(srcPosn pos, int datatype, int keyword_mandatory));
+
+PROTO(PRIVATE srcPosn parse_char_len,(srcPosn pos, int keyword_mandatory));
+
+PROTO(PRIVATE srcPosn parse_kind_selector,(srcPosn pos, int datatype));
+
+PROTO(PRIVATE srcPosn parse_char_selector,(srcPosn pos));
+
+
+PROTO(PRIVATE srcPosn parse_size_spec,(srcPosn pos));
+
+/* next routines do not use srcPosn for sake of efficiency */
+PROTO(PRIVATE int skip_label,(const char *line, int i));
+
+PROTO(PRIVATE srcLine *scan_for_contains,(srcLine *start_srcLine, int stop_at_end));
+
+PROTO(PRIVATE void populate_interface,(ProcInterface *interface));
 
 #ifdef ALLOW_UNIX_CPP
 PROTO(PRIVATE int take_cpp_line,( srcLine *Buf ));
@@ -167,6 +207,13 @@ init_scan(VOID)			/* Starts reading a file */
 	    top_file_line_num = 1;
 
 	init_stream();
+
+	/* Record whether file has a CONTAINS statement.  This will be
+	   consulted by call_func and call_subr to decide whether to look
+	   ahead for an internal defn to satisfy the call.
+	*/
+	file_has_contains =
+	  (scan_for_contains(next_srcLine,FALSE) != (srcLine *)NULL);
 }
 
 void
@@ -778,10 +825,22 @@ free_srcBuffer(srcLine *srcBuf)
 }
 
 
-	/* Functions which look ahead as far as end of line to see if input
+	/* Functions which look ahead as far as end of stmt to see if input
 	   cursor is sitting at start of a token of the given class.  Used
 	   to resolve ambiguities that need more than one token of lookahead.
 	   */
+
+
+/* Convenience macro for accessing character at position POS */
+#define CHAR_AT(POS) (POS.Line->line[POS.idx])
+
+/* Macro to skip whitespace within significant part of stmt.  It will
+   leave pos.idx as index of first nonspace after starting position
+   unless only blanks follow.
+ */
+
+#define SKIP_SPACE    while(pos.idx <= pos.Line->end_index && isspace(CHAR_AT(pos))) stepPosn(&pos)
+
 
 
 /* Function to advance a srcPosn location by one character.  Normally
@@ -798,7 +857,7 @@ stepPosn(srcPosn* p)
 
     p->idx++;			/* Usual case: step to next character */
 
-    if( L->line[p->idx] == '\0' ) { /* Reached end of line? */
+    if( p->idx > L->end_index ) { /* Reached end of significant text? */
 
 				/* If stmt is continued, move to next line.
 				   First, skip over intervening comments.
@@ -828,19 +887,19 @@ looking_at_cplx(VOID)
 
 	if( (pos = see_a_number(pos,FALSE)), pos.idx < 0 )
 	  return FALSE;
-	while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
-	  stepPosn(&pos);
 
-	if( pos.Line->line[pos.idx] != ',' )
+	SKIP_SPACE;
+
+	if( CHAR_AT(pos) != ',' )
 	  return FALSE;
 	stepPosn(&pos);
 
 	if( (pos = see_a_number(pos,FALSE)), pos.idx < 0 )
 	  return FALSE;
-	while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
-	  stepPosn(&pos);
 
-	if(pos.Line->line[pos.idx] != ')')
+	SKIP_SPACE;
+
+	if(CHAR_AT(pos) != ')')
 	  return FALSE;
     }
 #ifdef DEBUG_IS_KEYWORD
@@ -888,7 +947,7 @@ curr_char,pos.Line->line[next_index]);
 	if(isidletter(curr_char) || isdigit(curr_char) ||
 	   isspace(curr_char)){
 	  pos = skip_idletters( pos );
-	  c = pos.Line->line[pos.idx];	/* Store following character in c */
+	  c = CHAR_AT(pos);	/* Store following character in c */
 	  stepPosn(&pos);   /* Leave index pointing at char after c */
 	}
 	else {
@@ -897,7 +956,7 @@ curr_char,pos.Line->line[next_index]);
 
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-(void)fprintf(list_fd," c=%c then %c",c,pos.Line->line[pos.idx]);
+(void)fprintf(list_fd," c=%c then %c",c,CHAR_AT(pos));
 #endif
 
 				/* An initial identifier followed by single
@@ -908,7 +967,7 @@ if(debug_lexer && getenv("VERBOSE"))
 				   probably DOUBLE which will be matched later.
 				 */
 	if( c == ':' ) {
-	  while( isspace( (c=pos.Line->line[pos.idx]) ) )
+	  while( isspace( (c=CHAR_AT(pos)) ) )
 	    stepPosn(&pos);
 	  return (c == ':' && token_class != tok_DO );
 	} 
@@ -941,14 +1000,14 @@ if(debug_lexer && getenv("VERBOSE"))
 	      return FALSE;
 				/* Checks out OK: */
 	    pos = skip_idletters(pos);	/* skip DO index or WHILE */
-	    c = pos.Line->line[pos.idx];
+	    c = CHAR_AT(pos);
 	    stepPosn(&pos);
 	    opt_comma = TRUE;
 	  }
 
 	  if(c == '=') {	/* Traditional DO form */
 	    pos = see_expression(pos);
-	    return (pos.idx != -1 && pos.Line->line[pos.idx] == ',') || opt_comma;
+	    return (pos.idx != -1 && CHAR_AT(pos) == ',') || opt_comma;
 	  }
 	  else {		/* Nonstandard variants */
 	    if(c == '(') {
@@ -989,26 +1048,26 @@ if(debug_lexer && getenv("VERBOSE"))
 
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-(void)fprintf(list_fd," to %c",pos.Line->line[pos.idx]);
+(void)fprintf(list_fd," to %c",CHAR_AT(pos));
 #endif
 
-	if(pos.Line->line[pos.idx] == '(') {
+	if(CHAR_AT(pos) == '(') {
 	  stepPosn(&pos);		/* Move past the paren */
 	  pos = skip_balanced_parens(pos);
 
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-(void)fprintf(list_fd," to %c",pos.Line->line[pos.idx]);
+(void)fprintf(list_fd," to %c",CHAR_AT(pos));
 #endif
 
 	}
 
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-(void)fprintf(list_fd," conclude %s",pos.Line->line[pos.idx]!= '='?"keyword":"variable");
+(void)fprintf(list_fd," conclude %s",CHAR_AT(pos)!= '='?"keyword":"variable");
 #endif
 
-	return (pos.Line->line[pos.idx] != '=');
+	return (CHAR_AT(pos) != '=');
       }
     }
 #ifdef DEBUG_IS_KEYWORD
@@ -1029,10 +1088,10 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
 		/* This guy is called when an integer is followed by '.'
 		   in cases where a real number or expression is allowed.
 		   When an integer is followed by .E, it can either be a real
-		   like 1.E10, or a comparison like (1.EQ.I).  This requires
-		   looking for the 'Q' after the 'E'.  The other cases,
-		   like ... 1.AND. ... are resolved by looking at next_char
-		   to see if it is the 'D' of a d.p. constant or not.
+		   like 1.E10, or a comparison like (1.EQ.I).  We need to
+		   be able to identify F90 defined-operators too.  Just
+		   look for one or more letters followed by a closing '.'
+		   to be sure it is an operator.
 		  */
 int
 looking_at_relop(VOID)
@@ -1044,33 +1103,18 @@ looking_at_relop(VOID)
     if( next_char != EOS &&	/* Looking at next line already */
 	curr_srcLine != (srcLine *)NULL )
     {
+	 int letter_count=0;
 	 pos.Line = next_srcLine; /* starting position of lookahead text */
 	 pos.idx = next_index;
 
-	while( (c=pos.Line->line[pos.idx]) != '\0' && isspace(c))
-	  stepPosn(&pos);
-
-	if( !isaletter( c ) )	/* next char must be letter */
-		return FALSE;
-	c = makeupper(c);
-	if( c == 'D' )	/* D.P. exponent */
-	  return FALSE;	/* No dotted keywords start with D */
-	if( c == 'Q' )	/* Q.P. exponent */
-	  return FALSE;	/* No dotted keywords start with Q */
-
-			/* If next char is any other letter but 'E', cannot be
-			    exponent.  If it is 'E', must be EQ or EQV to
-			    be a relop.  So look ahead for the 'Q'. */
-	else if( c == 'E' ) {
-	  do {
-	    stepPosn(&pos);
-	  } while( (c=pos.Line->line[pos.idx]) != '\0' && isspace(c));
-
-	  c = makeupper(c);
-	  return (c == 'Q');
-	}
-	else		/* Next char not D or E: must be a dotted keyword */
-	  return TRUE;
+	 SKIP_SPACE;		/* move to first nonblank after '.' */
+	 while( pos.idx <= pos.Line->end_index &&
+		isaletter(c = CHAR_AT(pos)) ) {
+	   ++letter_count;
+	   stepPosn(&pos);
+	   SKIP_SPACE;
+	 }
+	 return (letter_count > 0 && c == '.');	/* require letters ended by '.' */
     }
 #ifdef DEBUG_IS_KEYWORD
     else {
@@ -1085,6 +1129,8 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
     return FALSE;
 
 }
+
+
 		/* Routine called when an identifier is being taken,
 		 * and an underscore is seen.  It checks if the next
 		 * thing up is a character literal constant, in which
@@ -1103,8 +1149,8 @@ looking_at_string(VOID)
       pos.Line = next_srcLine; /* starting position of lookahead text */
       pos.idx = next_index;
 
-      while( (c=pos.Line->line[pos.idx]) != '\0' && isspace(c))
-	stepPosn(&pos);
+      SKIP_SPACE;
+      c = CHAR_AT(pos);
     }
 
     /* If next nonblank thing is a quote mark then we have a hit. */
@@ -1134,7 +1180,8 @@ looking_at_implicit_list(VOID)
 
 		/* scan across a letter-list inside parentheses */
       letter_next_up = TRUE;
-      while( (c=pos.Line->line[pos.idx]) != '\0' && c != ')' ) {
+      c = CHAR_AT(pos);
+      while( c != ')' && pos.idx <= pos.Line->end_index ) {
 	if(! isspace(c) ) {
 	  if(letter_next_up) {
 	    if(! isaletter(c) )
@@ -1150,6 +1197,7 @@ looking_at_implicit_list(VOID)
 	  }
 	}
 	stepPosn(&pos);
+	c = CHAR_AT(pos);
       }
 
       if( c == ')' )		/* skip past closing paren */
@@ -1160,9 +1208,10 @@ looking_at_implicit_list(VOID)
 		   If we are looking at a len or kind spec, then next nonblank
 		   must be the left paren of the letter list.
 		 */
-      while( (c=pos.Line->line[pos.idx]) != '\0' && isspace(c) )
-	stepPosn(&pos);
-      if(c != '\0')
+      SKIP_SPACE;
+      c = CHAR_AT(pos);
+
+      if(pos.idx <= pos.Line->end_index) /* c is significant */
 	return (c != '(');
     }
 #ifdef DEBUG_IS_KEYWORD
@@ -1184,7 +1233,6 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
 	   Leading whitespace in s is skipped.*/
 
 
-#define SKIP_SPACE    while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx])) stepPosn(&pos)
 
 PRIVATE srcPosn
 see_a_number(srcPosn pos,	/* location in source buffer */
@@ -1193,11 +1241,10 @@ see_a_number(srcPosn pos,	/* location in source buffer */
    int digit_seen = FALSE;
    srcPosn save_pos;
 
-   while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
-     stepPosn(&pos);
+   SKIP_SPACE;
 
 			/* move past optional preceding sign */
-   if(pos.Line->line[pos.idx] == '-' || pos.Line->line[pos.idx] == '+' ) {
+   if(CHAR_AT(pos) == '-' || CHAR_AT(pos) == '+' ) {
      stepPosn(&pos);
      SKIP_SPACE;
      can_be_holl = FALSE;
@@ -1205,24 +1252,24 @@ see_a_number(srcPosn pos,	/* location in source buffer */
    save_pos = pos;
 
 		/* move past ddd or ddd. or .ddd or ddd.ddd */
-   if(isdigit(pos.Line->line[pos.idx]))
+   if(isdigit(CHAR_AT(pos)))
      digit_seen = TRUE;
 
-   while(isdigit(pos.Line->line[pos.idx])) {
+   while(isdigit(CHAR_AT(pos))) {
      stepPosn(&pos);
      SKIP_SPACE;
    }
-   if(pos.Line->line[pos.idx] == 'H' && can_be_holl) {
+   if(CHAR_AT(pos) == 'H' && can_be_holl) {
      pos = save_pos;		/* back up to start of number on holl */
      pos = skip_hollerith(pos);
      return pos;
    }
-   if(pos.Line->line[pos.idx] == '.') {
+   if(CHAR_AT(pos) == '.') {
      stepPosn(&pos);
      SKIP_SPACE;
-     if(isdigit(pos.Line->line[pos.idx]))
+     if(isdigit(CHAR_AT(pos)))
        digit_seen = TRUE;
-     while(isdigit(pos.Line->line[pos.idx])) {
+     while(isdigit(CHAR_AT(pos))) {
        stepPosn(&pos);
        SKIP_SPACE;
      }
@@ -1236,30 +1283,30 @@ see_a_number(srcPosn pos,	/* location in source buffer */
 
 		/* look for exponential part.  The standard does not
 		   allow D or Q, but we will, just in case. */
-   if(makeupper(pos.Line->line[pos.idx]) == 'E' || makeupper(pos.Line->line[pos.idx]) == 'D' ||
-      makeupper(pos.Line->line[pos.idx]) == 'Q') {
+   if(makeupper(CHAR_AT(pos)) == 'E' || makeupper(CHAR_AT(pos)) == 'D' ||
+      makeupper(CHAR_AT(pos)) == 'Q') {
      stepPosn(&pos);
      SKIP_SPACE;
-     if(pos.Line->line[pos.idx] == '+' || pos.Line->line[pos.idx] == '-') {
+     if(CHAR_AT(pos) == '+' || CHAR_AT(pos) == '-') {
        stepPosn(&pos);
        SKIP_SPACE;
      }
-     if(!isdigit(pos.Line->line[pos.idx])) {
+     if(!isdigit(CHAR_AT(pos))) {
        pos.idx = -1;
        return pos;
      }
-     while(isdigit(pos.Line->line[pos.idx]) || isspace(pos.Line->line[pos.idx]))
+     while(isdigit(CHAR_AT(pos)) || isspace(CHAR_AT(pos)))
        stepPosn(&pos);
    }
 		/* look for optional kind parameter. */
-   if( pos.Line->line[pos.idx] == '_' ) {
+   if( CHAR_AT(pos) == '_' ) {
      save_pos = pos;		/* in case of backout */
      stepPosn(&pos);
      SKIP_SPACE;
-     if(isidletter(pos.Line->line[pos.idx])) { /* identifier as kind param */
+     if(isidletter(CHAR_AT(pos))) { /* identifier as kind param */
        pos = skip_idletters(pos);
      }
-     else if(isadigit(pos.Line->line[pos.idx])) {
+     else if(isadigit(CHAR_AT(pos))) {
        pos = skip_digits(pos);
      }
      else {
@@ -1287,7 +1334,7 @@ see_dowhile(srcPosn pos)
 {
     int c;
 				/* Skip over the label */
-    while( isdigit(c=pos.Line->line[pos.idx]) || isspace(c) )
+    while( isdigit(c=CHAR_AT(pos)) || isspace(c) )
       stepPosn(&pos);
 
     if(c == ',')		/* Skip optional comma */
@@ -1295,7 +1342,7 @@ see_dowhile(srcPosn pos)
 
     pos = see_keyword(pos,"WHILE");
 
-    if( pos.idx == -1 || pos.Line->line[pos.idx] != '(')  /* Look for the opening paren */
+    if( pos.idx == -1 || CHAR_AT(pos) != '(')  /* Look for the opening paren */
     {
       pos.idx = -1;
       return pos;
@@ -1305,7 +1352,7 @@ see_dowhile(srcPosn pos)
     pos = skip_balanced_parens(pos);
 				/* Only = sign can follow the parens if this
 				  is not a do-while. */
-    if( pos.Line->line[pos.idx] == '=' )
+    if( CHAR_AT(pos) == '=' )
 	 pos.idx = -1;
 
     return pos;
@@ -1324,17 +1371,17 @@ see_double_colon(VOID)
     {
 	pos.Line = next_srcLine;
 	pos.idx = next_index;
-	while(pos.Line->line[pos.idx] != '\0') {
+	while(pos.idx <= pos.Line->end_index) {
 
 				/* Skip past commas */
-	  if(pos.Line->line[pos.idx] == ',')
+	  if(CHAR_AT(pos) == ',')
 	    stepPosn(&pos);
 				/* Check for a double colon */
-	  else if(pos.Line->line[pos.idx] == ':') {
+	  else if(CHAR_AT(pos) == ':') {
 	    do {
 		stepPosn(&pos);
-	    } while(isspace(pos.Line->line[pos.idx]));
-	    if(pos.Line->line[pos.idx] == ':')
+	    } while(isspace(CHAR_AT(pos)));
+	    if(CHAR_AT(pos) == ':')
 	      return TRUE;
 	  }
 				/* Other possible things look like exprs */
@@ -1362,7 +1409,8 @@ PRIVATE srcPosn
 see_expression(srcPosn pos)
 {
     int c;
-    while(pos.idx != -1 && (c=pos.Line->line[pos.idx]) != '=' && c != '\0') {
+    while(pos.idx != -1 && pos.idx <= pos.Line->end_index &&
+	  (c=CHAR_AT(pos)) != '=' && c != '\0') {
 	if(isidletter(c))
 	  pos = skip_idletters(pos);
 	else if(isdigit(c))
@@ -1382,16 +1430,18 @@ see_expression(srcPosn pos)
     return pos;
 }/*see_expression*/
 
-	/* see_keyword returns -1 if the line (ignoring blanks and
+	/* see_keyword returns pos with idx -1 if the line (ignoring blanks and
 	   uppercasing alphabetics) does not match the given string
-	   matchstr.  If it does match, returns index of next nonspace
-	   character. Note that index must be at start of keyword. */
+	   matchstr.  If it does match, idx is index of next nonspace
+	   character (or stmt-terminating null). Note that given pos.idx must
+	   be at start of keyword. */
 
 PRIVATE srcPosn
 see_keyword(srcPosn pos, char *matchstr)
 {
     int c;
-    while(*matchstr != 0 && (c=pos.Line->line[pos.idx]) != '\0') {
+    while(*matchstr != '\0' && pos.idx <= pos.Line->end_index) {
+      c=CHAR_AT(pos);
       if(! isspace(c) ) {
 	if(makeupper(c) != *matchstr++) {
 	  pos.idx = -1;
@@ -1401,8 +1451,7 @@ see_keyword(srcPosn pos, char *matchstr)
       stepPosn(&pos);
     }
     if(*matchstr == '\0') {	/* Match found */
-      while(isspace(pos.Line->line[pos.idx]))
-	stepPosn(&pos);
+      SKIP_SPACE;
       return pos;
     }
     else {			/* No match */
@@ -1413,7 +1462,7 @@ see_keyword(srcPosn pos, char *matchstr)
 
 		/* skip_balanced_parens returns index of the nonspace character
 		   following the closing ')' that balances the opening
-		   '(' preceding pos.Line->line[pos.idx], or of final nul if the
+		   '(' preceding CHAR_AT(pos), or of final nul if the
 		   parentheses are not balanced within the line.
 		*/
 PRIVATE srcPosn
@@ -1426,34 +1475,34 @@ if(debug_lexer && getenv("VERBOSE"))
 (void)fprintf(list_fd,"\nskipping ()...");
 #endif
 
-  while(pos.Line->line[pos.idx] != '\0' && depth > 0) {
+  while(pos.idx <= pos.Line->end_index && depth > 0) {
 #ifdef INLINE_COMMENT_CHAR
-    if(pos.Line->line[pos.idx] == INLINE_COMMENT_CHAR) /* inline comment ends line */
+    if(CHAR_AT(pos) == INLINE_COMMENT_CHAR) /* inline comment ends line */
       break;
 #endif
-    if(pos.Line->line[pos.idx] == '\'' || pos.Line->line[pos.idx] == '"') {	/* embedded strings confuse things */
+    if(CHAR_AT(pos) == '\'' || CHAR_AT(pos) == '"') {	/* embedded strings confuse things */
       pos = skip_quoted_string(pos);
       prevchar = 'X';	/* Arbitrary non punctuation */
     }
-    else if(ispunct(prevchar) && isdigit(pos.Line->line[pos.idx])) {
+    else if(ispunct(prevchar) && isdigit(CHAR_AT(pos))) {
       pos = skip_hollerith(pos); /* Skip hollerith or number */
-      prevchar = pos.Line->line[pos.idx];
+      prevchar = CHAR_AT(pos);
     }
     else {
 				/* Keep track of nesting */
-      if     (pos.Line->line[pos.idx] == '(') ++depth;
-      else if(pos.Line->line[pos.idx] == ')') --depth;
+      if     (CHAR_AT(pos) == '(') ++depth;
+      else if(CHAR_AT(pos) == ')') --depth;
 
-      if(! isspace(pos.Line->line[pos.idx]) )
-	prevchar = pos.Line->line[pos.idx];
+      if(! isspace(CHAR_AT(pos)) )
+	prevchar = CHAR_AT(pos);
 
       stepPosn(&pos);
     }
   }
 
-				/* We are now past the closing paren */
-  while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
-    stepPosn(&pos);		/* skip trailing space */
+				/* We are now past the closing paren.
+				   skip trailing space */
+  SKIP_SPACE;
 
   return pos;
 }/*skip_balanced_parens*/
@@ -1472,7 +1521,7 @@ skip_idletters(srcPosn pos)
 if(debug_lexer && getenv("VERBOSE"))
 (void)fprintf(list_fd,": skipping letters...");
 #endif
-	while(c=pos.Line->line[pos.idx],
+	while(c=CHAR_AT(pos),
 	      (isidletter(c) || isadigit(c) || isspace(c)))
 	  stepPosn(&pos);
 	return pos;
@@ -1488,7 +1537,7 @@ skip_digits(srcPosn pos)
 if(debug_lexer && getenv("VERBOSE"))
 (void)fprintf(list_fd,": skipping digits...");
 #endif
-	while(c=pos.Line->line[pos.idx],
+	while(c=CHAR_AT(pos),
 	      (isadigit(c) || isspace(c)))
 	  stepPosn(&pos);
 	return pos;
@@ -1500,28 +1549,49 @@ PRIVATE srcPosn
 skip_quoted_string(srcPosn pos)
 {
   int c;
-  int start_quote_char = pos.Line->line[pos.idx];	/* get opening quote char: ' or " */
+  int start_quote_char = CHAR_AT(pos);	/* get opening quote char: ' or " */
   stepPosn(&pos);
-  while( (c=pos.Line->line[pos.idx]) != '\0') {
+  while( pos.idx <= pos.Line->end_index ) {
+    c = CHAR_AT(pos);
     if( source_unix_backslash && c == '\\' ) {	/* skip any escaped char */
       stepPosn(&pos);
-      if(pos.Line->line[pos.idx] == '\0')	/* (check just in case) */
+      if( pos.idx <= pos.Line->end_index )	/* (check just in case) */
 	  break;
     }
     if(c == start_quote_char) {	/* Closing quote? */
       stepPosn(&pos);
-      if(pos.Line->line[pos.idx] != start_quote_char) /* Quoted quote? */
+      if(CHAR_AT(pos) != start_quote_char) /* Quoted quote? */
 	break;
     }
     stepPosn(&pos);
   }
 
-				/* We are now past the closing quote mark */
-  while(pos.Line->line[pos.idx] != '\0' && isspace(pos.Line->line[pos.idx]))
-    stepPosn(&pos);		/* skip trailing space */
+				/* We are now past the closing quote mark.
+				   Skip trailing space */
+  SKIP_SPACE;
 
   return pos;
 }/*skip_quoted_string*/
+
+
+/* Routine to read an integer constant starting at the current
+   position.  Returns pos at next nonspace character after last digit.
+   Places value of the integer in the value argument.  This should
+   only be called when a digit is at position.
+ */
+PRIVATE
+srcPosn read_int_const(srcPosn pos, int *value)
+{
+    int v=0;
+    int c;
+    while(isdigit(c=CHAR_AT(pos))) {
+      v = v*10 + BCD(c);
+      stepPosn(&pos);
+      SKIP_SPACE;
+    }
+    *value = v;
+    return pos;
+}
 
 
 			/* Skips holleriths.  Note: treats tabs within
@@ -1529,34 +1599,30 @@ skip_quoted_string(srcPosn pos)
 PRIVATE srcPosn
 skip_hollerith(srcPosn pos)
 {
-  int len=0;
-  int c;
-  while(isdigit(c=pos.Line->line[pos.idx])) {
-    len = len*10 + BCD(c);
-    stepPosn(&pos);
-    SKIP_SPACE;
-  }
+  int len;
+  pos = read_int_const(pos, &len); /* read the length */
+
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
   (void)fprintf(list_fd,"\nskip_hollerith: %d then %c:",
-len,pos.Line->line[pos.idx]);
+len,CHAR_AT(pos));
 #endif
-  if(makeupper(pos.Line->line[pos.idx]) != 'H')
+  if(makeupper(CHAR_AT(pos)) != 'H')
     return pos;
 
   stepPosn(&pos);				/* Skip the 'H' */
 
-  while(pos.Line->line[pos.idx] != '\0' && len > 0){ /* Move forward len characters */
+  while(pos.idx <= pos.Line->end_index && len > 0){ /* Move forward len characters */
 
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-  (void)fprintf(list_fd,"%c",pos.Line->line[pos.idx]);
+  (void)fprintf(list_fd,"%c",CHAR_AT(pos));
 #endif
     --len; stepPosn(&pos);
   }
 #ifdef DEBUG_IS_KEYWORD
 if(debug_lexer && getenv("VERBOSE"))
-  (void)fprintf(list_fd," to %c",pos.Line->line[pos.idx]);
+  (void)fprintf(list_fd," to %c",CHAR_AT(pos));
 #endif
   return pos;
 }/*skip_hollerith*/
@@ -1576,6 +1642,920 @@ void mark_prog_unit_srcline( LINENO_t line_num )
      while( mkhtml_bookmark != (srcLine *)NULL &&
 	    mkhtml_bookmark->line_num > line_num)
 	  mkhtml_bookmark = mkhtml_bookmark->prev;
+}
+
+
+/* Routines for the lookahead kluge.  Pending a major rewrite of
+ * ftnchek to permit two-pass processing, we solve the problem of
+ * explicit context for internal subprograms by a lookahead that is
+ * invoked when a call of a previously unseen subprogram occurs.  The
+ * goal of the lookahead is to harvest the minimum necessary
+ * information about the subprogram interface: whether a local
+ * subprogram of that name exists, and what type (possibly subroutine)
+ * and attributes it has.  Arguments do not need to be analyzed, since
+ * checking of them occurs at wrapup time.
+ * Restrictions: CONTAINS must not have embedded space or be split across
+ * a contination line.  ENTRY points, allowed in module procedures, are
+ * not recognized as satisfying invocations by peers.
+ * Bug: evaluating KIND parameters is not done, since it would involve
+ * re-implementing too much of the parser.  KIND parameters are set to
+ * default kind, and kind_is_bogus flag is set if KIND is declared, so
+ * that checking code knows to suppress warnings.
+
+To do:
+  parse size specs in CHARACTER*([LEN=]len) and REAL*8 et al.
+  find type and attrs of result var declared below FUNCTION stmt
+ */
+
+				/* buffer to hold identifier just scanned */
+PRIVATE
+char parsed_identifier[MAXIDSIZE+1];
+
+/* buffers to hold procedure name and function result variable */
+PRIVATE
+char parsed_procname[MAXIDSIZE+1];
+
+PRIVATE
+char parsed_resultvar[MAXIDSIZE+1];
+
+			
+PRIVATE
+int parsed_subprog_class,	/* keyword class of subprog that was found */
+  is_internal,			/* is an internal subprog */
+  is_module,			/* is a module subprog */
+  parsed_datatype,		/* datatype of subprog */
+  parsed_size,			/* size (CHARACTER len or numeric*size) */
+  parsed_kind_param,		/* kind of subprog (FUNCTIONs only) */
+  kind_is_bogus,		/* set if KIND spec is present */
+  parsed_recursive,		/* RECURSIVE attribute */
+  parsed_pure,			/* PURE attribute */
+  parsed_elemental;		/* ELEMENTAL attribute */
+
+struct keywd_list {
+  char* keywd;			/* keyword string */
+  int class;			/* token class of keyword */
+};
+
+/* Array of subprogram keywords. */
+PRIVATE
+struct keywd_list subprog_keywd[] = {
+  {"FUNCTION",tok_FUNCTION},
+  {"SUBROUTINE",tok_SUBROUTINE},
+  {"PROGRAM",tok_PROGRAM},
+  {"MODULE",tok_MODULE},
+  {"BLOCKDATA",tok_BLOCKDATA}
+};
+#define NUM_SUBPROG_KEYWDS (sizeof(subprog_keywd)/sizeof(subprog_keywd[0]))
+
+/* Array of prefix keywords.  Type names must be first so list
+   can also be used to look for just type names.
+ */
+PRIVATE
+struct keywd_list prefix_keywd[] = {
+  {"INTEGER",tok_INTEGER},
+  {"REAL",tok_REAL},
+  {"DOUBLEPRECISION",tok_DOUBLEPRECISION},
+  {"COMPLEX",tok_COMPLEX},
+  {"CHARACTER",tok_CHARACTER},
+  {"LOGICAL",tok_LOGICAL},
+  {"TYPE",tok_TYPE},
+  {"RECURSIVE",tok_RECURSIVE},
+  {"PURE",tok_PURE},
+  {"ELEMENTAL",tok_ELEMENTAL},
+};
+#define NUM_PREFIX_KEYWDS (sizeof(prefix_keywd)/sizeof(prefix_keywd[0]))
+#define NUM_TYPE_KEYWDS 7	/* includes TYPE */
+
+/* Routine that looks for a subprogram keyword (in subprog_keywd list)
+   and returns pos at the next nonspace location after it.  Sets
+   pos.idx = -1 if no keyword found.  As side effect, sets
+   parsed_subprog_class to the token class of the keyword found.
+ */
+PRIVATE
+srcPosn parse_subprog_keywd(srcPosn pos)
+{
+  srcPosn save_pos;
+  int k;
+  for(k=0; k<NUM_SUBPROG_KEYWDS; k++) {
+    pos = see_keyword(pos,subprog_keywd[k].keywd);
+    if( pos.idx >= 0 ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_subprog_keywd found %s",subprog_keywd[k].keywd);
+   }
+#endif
+       parsed_subprog_class = subprog_keywd[k].class;
+      return pos;
+    }
+    else {
+      pos = save_pos;		/* back up to try next */
+    }
+  }
+  pos.idx = -1;			/* no match found */
+  return pos;
+}
+
+/* Routine that looks for a prefix keyword (in prefix_keywd list) and
+   returns pos at the next nonspace location after it.  Sets pos.idx =
+   -1 if no keyword found.  As side effect, sets parsed_datatype and
+   parsed_kind to type and kind if prefix item is a type, or sets one
+   of the flags parsed_{recursive,pure,elemental} to TRUE according to
+   prefix item.
+ */
+PRIVATE
+srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
+{
+  srcPosn save_pos;
+  int k, max_k;
+
+  /* set scan to look for any prefix or, if only_types=TRUE,
+     only type names */
+  if( only_types )
+    max_k = NUM_TYPE_KEYWDS;
+  else
+    max_k = NUM_PREFIX_KEYWDS;
+
+  save_pos = pos;
+  for(k=0; k < max_k; k++) {
+    pos = see_keyword(pos,prefix_keywd[k].keywd);
+    if( pos.idx >= 0 ) {	/* prefix keyword seen */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_prefix_keywd found %s",prefix_keywd[k].keywd);
+   }
+#endif
+      switch(prefix_keywd[k].class) {
+      case tok_INTEGER:
+	parsed_datatype = type_INTEGER;
+	parsed_kind_param = kind_DEFAULT_INTEGER;
+	break;
+      case tok_REAL:
+	parsed_datatype = type_REAL;
+	parsed_kind_param =  kind_DEFAULT_REAL;
+	break;
+      case tok_DOUBLEPRECISION:
+	parsed_datatype = type_DP;
+	parsed_kind_param =  kind_DEFAULT_DP;
+	break;
+      case tok_COMPLEX:
+	parsed_datatype = type_COMPLEX;
+	parsed_kind_param =  kind_DEFAULT_REAL;
+	break;
+      case tok_CHARACTER:
+	parsed_datatype = type_STRING;
+	parsed_kind_param =  kind_DEFAULT_CHARACTER;
+	break;
+      case tok_LOGICAL:
+	parsed_datatype = type_INTEGER;
+	parsed_kind_param =  kind_DEFAULT_LOGICAL;
+	break;
+      case tok_TYPE:
+	pos = parse_dtype_spec(pos);
+	if( pos.idx < 0 )
+	  return pos;	/* bail out if it fails */
+	break;
+      case tok_RECURSIVE:
+	parsed_recursive = TRUE;
+	break;
+      case tok_PURE:
+	parsed_pure = TRUE;
+	break;
+      case tok_ELEMENTAL:
+	parsed_elemental = TRUE;
+	break;
+      default:
+	break;		/* can't happen */
+      }/* end switch */
+
+		/* For applicable types, look for *size or (kind-selector) */
+      switch(prefix_keywd[k].class) {
+      case tok_INTEGER:
+      case tok_REAL:
+      case tok_COMPLEX:
+      case tok_LOGICAL:
+	if( CHAR_AT(pos) == '*' )
+	  pos = parse_size_spec(pos);
+	else
+	  pos = parse_kind_selector(pos,parsed_datatype); /* will do nothing if absent */
+	break;
+	/* For CHARACTER type, look for *size or (char-selector) */
+      case tok_CHARACTER:
+	parsed_size = 1;	/* default size for character */
+	if( CHAR_AT(pos) == '*' )
+	  pos = parse_size_spec(pos);
+	else
+	  pos = parse_char_selector(pos);
+	break;
+      }/* end switch */
+
+      SKIP_SPACE;
+      return pos;
+    }
+    else {			/* no match on keyword k */
+      pos = save_pos;		/* back up & try next keyword */
+    }
+  }/* for(k=0,k<NUM_PREFIX_KEYWDS; k++)*/
+
+  pos.idx = -1;			/* no match found */
+  return pos;
+}
+
+/* Routine that looks for a subprogram definition of the form
+   [prefix] subprog-class name [( [arg-list] )] [RESULT ( result-var )]
+   where prefix is a list of one or more of the keywords in prefix_keywd
+   and subprog-class is one of the keywords in subprog_keywd.
+   Returns pos with idx >= 0 if found, idx = -1 if not found.
+
+   As side effects, data type and attribute values are put into
+   parsed_datatype, parsed_recursive, parsed_pure, and
+   parsed_elemental; and subroutine name or function result name is
+   stored in parsed_identifier.
+ */
+PRIVATE
+srcPosn parse_subprog_stmt(srcPosn pos)
+{
+  srcPosn save_pos;
+
+  /* Initialize datatype and attribute values */
+  parsed_datatype = type_UNDECL;
+  parsed_size = size_DEFAULT; /* will be changed to 1 if CHARACTER */
+  parsed_kind_param = kind_DEFAULT_UNKNOWN;
+  kind_is_bogus = FALSE;	/* hope it will be default kind */
+  is_internal = FALSE;
+  is_module = FALSE;
+  parsed_recursive = FALSE;	/* prefix keywords that may be seen */
+  parsed_pure = FALSE;
+  parsed_elemental = FALSE;
+
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_subprog_stmt: %s",pos.Line->line);
+  }
+#endif
+
+  /* Parse as many prefix keywords as are present. */
+  do {
+    save_pos = pos;		/* remember start point */
+    pos = parse_prefix_keywd(pos,FALSE); /* look for a match */
+  } while(pos.idx >= 0);	/* keep looking for more matches */
+
+  pos = save_pos;	    /* return to last start point */
+
+  /* Now parse the subprog-class keyword. */
+  pos = parse_subprog_keywd(pos);
+  if( pos.idx >= 0 ) {    /* match found: verify name next */
+    if( pos.idx > pos.Line->end_index ) { /* end of statement: OK only for BLOCK DATA */
+      if( parsed_subprog_class != tok_BLOCKDATA ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_subprog_stmt: stmt ends here: abort match");
+  }
+#endif
+	pos.idx = -1;
+      }
+    }
+    else {
+      /* Now find the subprog name */
+      pos = parse_identifier(pos);
+      if( pos.idx >= 0 ) {	/* identifier seen */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_subprog_stmt found name %s",parsed_identifier);
+   }
+#endif
+ 	strcpy(parsed_procname,parsed_identifier); /* save the name */
+	strcpy(parsed_resultvar,parsed_identifier); /* = default result var */
+
+	/* At this point it is OK for statement to be ended if it is a
+	   PROGRAM, MODULE, SUBROUTINE, or BLOCK DATA subprogram but
+	   not FUNCTION.  We do not check that these rules are obeyed,
+	   since it is impossible for a match that ends stmt to be
+	   some other kind of statement.  Next up is ( arg-list )
+	   which is optional for SUBROUTINE if arg-list is empty.
+	 */
+#ifdef DEBUG_LOOKAHEAD
+	if(debug_latest && getenv("VERBOSE")) {
+	  fprintf(list_fd,"\nparse_subprog_stmt at pos %d of %d",
+		  pos.idx, pos.Line->end_index);
+	  if( pos.idx <= pos.Line->end_index)
+	    fprintf(list_fd,": %s",pos.Line->line+pos.idx);
+	}
+#endif
+	if( pos.idx <= pos.Line->end_index ) { /* not end of statement */
+	  if( CHAR_AT(pos) == '(' ) { /* (arg-list) present */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE") && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_subprog_stmt skipping balanced parens");
+   }
+#endif
+	    stepPosn(&pos);		     /* eat the '(' */
+	    SKIP_SPACE;
+	    pos = skip_balanced_parens(pos); /* we do not harvest dummy args */
+	  }
+	  if( pos.idx <= pos.Line->end_index ) { /* still not end: RESULT clause next */
+	    pos = parse_result_clause(pos); /* this will fail if it is an asgmt stmt after all */
+	  }
+	}
+      }/* end parsing after proc name */
+    }/* end parsing after subprog keywd */
+  }/* end subprog keywd seen */
+
+  return pos;
+}
+
+
+
+/* Routine that looks for an END [subprog-class [name]] where
+   subprog-class = PROGRAM|MODULE|SUBROUTINE|FUNCTION|BLOCKDATA.  No
+   checking done whether the optional subprog name part matches
+   opener.  Returns pos with idx = index of optional name (or of
+   terminal '\0' if no name) if a match is found, otherwise pos.idx =
+   -1.
+
+   This routine will look ahead past end of line if statement is
+   continued.  Blank space within keywords is tolerated.
+*/
+
+PRIVATE
+srcPosn parse_end_subprog(srcPosn pos)
+{
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_end_subprog: %s",pos.Line->line);
+  }
+#endif
+
+  pos = see_keyword(pos, "END");
+
+  if(pos.idx >= 0) {			  /* END was seen */
+
+    if( pos.idx > pos.Line->end_index ) { /* END is all by itself */
+      return pos;
+    }
+    else {		/* END is followed by something: must match a keyword */
+      pos = parse_subprog_keywd(pos);
+
+      if( pos.idx >= 0 ) {    /* match found: verify end of stmt or name next */
+	if( pos.idx >= pos.Line->end_index ) { /* end of statement */
+	  return pos;
+	}
+	else {		/* not end of stmt: must be followed by identifier */
+	  pos = parse_identifier(pos);
+	  if( pos.idx <= pos.Line->end_index ) { /* not end of statement: abort match */
+	    pos.idx = -1;
+	  }
+	  return pos;
+	}
+      }
+    }
+  }
+  return pos;
+}
+
+/* Routine to parse the RESULT(result-var) part of a function definition.
+   As a side effect, parsed_resultvar is filled with the name of the result-var.
+ */
+PRIVATE
+srcPosn parse_result_clause(srcPosn pos)
+{
+  pos = see_keyword(pos,"RESULT");
+  if( pos.idx >= 0 ) {		/* RESULT keyword seen */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_result_clause sees RESULT");
+  }
+#endif
+    if( CHAR_AT(pos) != '(' ) { /* look for opening paren */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd," not followed by (");
+  }
+#endif
+      pos.idx = -1;			   /* bogus */
+    }
+    else {
+      stepPosn(&pos);		   /* eat left paren */
+      SKIP_SPACE;
+      pos = parse_identifier(pos); /* get the result var name */
+      if( pos.idx >= 0 ) {
+	if( CHAR_AT(pos) != ')' ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nidentifier not followed by )");
+  }
+#endif
+	  pos.idx = -1;				    /* bogus */
+	}
+	else {
+	  stepPosn(&pos);	   /* eat right paren */
+	  SKIP_SPACE;
+	  strcpy(parsed_resultvar,parsed_identifier); /* save result var name */
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_result_clause: result var=%s",parsed_resultvar);
+  }
+#endif
+	}
+      }
+    }
+  }
+  return pos;
+}
+
+/* Routine to parse the (type-name) part of a type-spec of the form
+   TYPE(type-name).  As a side effect, parsed_datatype is set to the type
+   id of the named type.
+ */
+PRIVATE
+srcPosn parse_dtype_spec(srcPosn pos)
+{
+  SKIP_SPACE;
+  if( CHAR_AT(pos) != '(' ) { /* expect left paren */
+    pos.idx = -1;
+  }
+  else {
+    stepPosn(&pos);		/* advance to start of name */
+    SKIP_SPACE;
+    pos = parse_identifier(pos);	/* this sets parsed_identifier to type-name */
+    if( pos.idx >= 0 ) {		/* identifier seen: look up its type id */
+      int h = hash_lookup(parsed_identifier);
+      Lsymtab *type_symt = hashtab[h].loc_symtab;
+      if( type_symt == (Lsymtab *)NULL ) { /* something bogus */
+	pos.idx = -1;
+	return pos;
+      }
+      else {		/* (should test that it is class_DTYPE) */
+	parsed_datatype = datatype_of(type_symt->type);
+      }
+      SKIP_SPACE;
+      if( CHAR_AT(pos) != ')' ) { /* expect closing paren */
+	pos.idx = -1;
+      }
+      else {
+	stepPosn(&pos);		/* step past the ')' and trailing space */
+	SKIP_SPACE;
+      }
+    }
+  }
+  return pos;
+}
+
+
+/* Routine to see if an identifier is at the starting position.  If
+   found, pos is updated to the next nonspace character, otherwise
+   pos.idx is set to -1.  As a side effect, parsed_identifier buffer
+   is filled with a copy (uppercased and blanks removed) of the
+   identifier.
+ */
+
+PRIVATE
+srcPosn parse_identifier(srcPosn pos)
+{
+  int c;
+  int idlen=0;
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_identifier: <%s>",pos.Line->line+pos.idx);
+  }
+#endif
+  while( isidletter(c=CHAR_AT(pos)) || isadigit(c) ) {
+    if( idlen < MAXIDSIZE ) {
+      parsed_identifier[idlen++] = makeupper(c);
+    }
+    stepPosn(&pos);
+  }
+  parsed_identifier[idlen] = '\0';
+
+  if( idlen == 0 )		/* no identifier seen */
+    pos.idx = -1;
+  else
+    SKIP_SPACE;			/* move to following text */
+
+  return pos;
+}
+
+/* Routine to parse a size-spec if present.  This is either the
+   standard conforming but deprecated CHARACTER*len or the vendor
+   extension e.g. REAL*8.  In either case the size must be an integer
+   constant, which we can interpret.  This should only be called when
+   '*' is seen at current position.
+ */
+PRIVATE
+srcPosn parse_size_spec(srcPosn pos)
+{
+  stepPosn(&pos);		/* eat the '*' */
+  SKIP_SPACE;
+  pos = read_int_const(pos, &parsed_size); /* get the size */
+
+  /* standard allows optional comma after CHARACTER*len */
+  if( CHAR_AT(pos) == ',' ) {
+    stepPosn(&pos);		/* eat the ',' */
+    SKIP_SPACE;
+  }
+  return pos;
+}
+
+
+/* Routine that is called inside a kind-selector or char-selector to
+   parse and evaluate, if possible without too much trouble, the kind
+   parameter.  Sets pos.idx = -1 if it fails, otherwise pos is at next
+   nonblank after the parameter.  Set keyword_mandatory = TRUE if
+   keyword must be present for this to be a kind.
+
+   As side effect, sets parsed_kind_param to the kind value if found
+   and evaluated, or to default kind if found but not evaluated.
+*/
+PRIVATE
+srcPosn parse_kind_param(srcPosn pos, int datatype, int keyword_mandatory)
+{
+  srcPosn save_pos;
+  int c;
+      /* first skip over KIND= if present */
+  save_pos = pos;
+  pos = see_keyword(pos,"KIND=");
+
+  if( pos.idx < 0 ) {	      /* keyword not seen */
+    if( keyword_mandatory ) {	/* if KIND= mandatory, do not process */
+      return pos;
+    }
+    else {
+      pos = save_pos; /* KIND= optional & not seen, return to start of value */
+    }
+  }
+
+      /* Now try to read an integer at the position. */
+  if( isdigit(CHAR_AT(pos)) ) {
+    save_pos = pos;
+    pos = read_int_const(pos,&parsed_kind_param);
+    /* It is unlikely that kind is a calculated quantity, but make sure
+       that no expr follows number.  Param can be followed only by
+       ',' or ')' */
+    if( (c=CHAR_AT(pos)) != ',' && c != ')' ) {
+      parsed_kind_param = default_kind(datatype); /* give up */
+      pos = see_expression(save_pos);	/* this will skip to ',' or ')' */
+    }
+  }
+  else {
+    parsed_kind_param = default_kind(datatype); /* give up */
+    kind_is_bogus = TRUE;
+    pos = see_expression(pos);	/* this will skip to ',' or ')' */
+  }
+
+  return pos;
+}
+
+/* Routine that is called inside a char-selector to parse and
+   evaluate, if possible without too much trouble, the length
+   parameter.  Sets pos.idx = -1 if it fails, otherwise pos is at next
+   nonblank after the parameter.  Set keyword_mandatory = TRUE if
+   keyword must be present for this to be a length.
+ */
+PRIVATE
+srcPosn parse_char_len(srcPosn pos, int keyword_mandatory)
+{
+  srcPosn save_pos;
+  int c;
+      /* first skip over LEN= if present */
+  save_pos = pos;
+  pos = see_keyword(pos,"LEN=");
+
+  if( pos.idx < 0 ) {	      /* keyword not seen */
+    if( keyword_mandatory ) {	/* if LEN= mandatory, do not process */
+      return pos;
+    }
+    else {
+      pos = save_pos; /* LEN= optional & not seen, return to start of value */
+    }
+
+    pos = see_keyword(pos,"KIND="); /* keyword may be KIND instead */
+    if( pos.idx >= 0 ) {	 /* if so this is not a LEN */
+      pos.idx = -1;
+      return pos;
+    }
+    else {
+      pos = save_pos;		/* go ahead with implied LEN */
+    }
+  }
+
+      /* Now try to read an integer at the position. */
+  if( isdigit(CHAR_AT(pos)) ) {
+    save_pos = pos;
+    pos = read_int_const(pos,&parsed_size);
+    /* Length may be a calculated quantity, so make sure that no expr
+       follows.  Length can be followed only by ',' or ')'.  If not,
+       then set size unknown and skip.
+    */
+    if( (c=CHAR_AT(pos)) != ',' && c != ')' ) {
+      parsed_size = size_UNKNOWN; /* give up */
+      pos = see_expression(save_pos);	/* this will skip to ',' or ')' */
+    }
+  }
+  else {
+    parsed_size = size_UNKNOWN; /* give up */
+    pos = see_expression(pos);	/* this will skip to ',' or ')' */
+  }
+
+  return pos;
+}
+
+
+/* Routine to parse a kind-spec if present.  It is to be called with
+   pos at the position that will be '(' if there is a kind-spec.
+   NOTE: unlike most parse_whatever routines, this does NOT set
+   pos.idx = -1 if kind-spec not seen, but leaves pos unchanged.  If
+   kind-spec present, pos is left pointing at the next nonspace after
+   the (kind-spec).
+
+   As side effect, sets parsed_kind_param to the kind value if found
+   and evaluated, or to default kind if found but not evaluated.
+
+   NOTE FURTHER: because of the effort that would be required to
+   evaluate the kind-spec, this kluge simply skips over it unless it
+   is a concrete integer, setting kind_is_bogus flag so that checks
+   can be aware that true kind value is not known.
+ */
+
+PRIVATE
+srcPosn parse_kind_selector(srcPosn pos, int datatype)
+{
+  srcPosn save_pos;
+  if( CHAR_AT(pos) == '(' ) { /* kind-selector is present */
+    stepPosn(&pos);		/* eat the '(' */
+    SKIP_SPACE;
+    save_pos = pos;
+    pos = parse_kind_param(pos,datatype,FALSE); /* get the parameter */
+    if( pos.idx < 0 )				/* failed: something bogus */
+      pos = save_pos;
+    else {
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nparse_kind_selector found kind=%d",parsed_kind_param);
+    }
+#endif
+      stepPosn(&pos);		/* eat the ',' or ')' at end */
+      SKIP_SPACE;
+    }
+  }
+  return pos;
+}
+
+/* Routine to parse a char-selector if present.  This is of form
+   ([LEN=]len[,[KIND=]kind]) or (KIND=kind,LEN=len)
+
+   It is to be called with pos at the position that will be '(' if
+   there is a char-selector.  NOTE: unlike most parse_whatever
+   routines, this does NOT set pos.idx = -1 if char-selector not seen,
+   but leaves pos unchanged.  If char-selector is present, pos is left
+   pointing at the next nonspace after the closing paren.
+
+   NOTE FURTHER: because of the effort that would be required to
+   evaluate the len or kind, this kluge simply skips over it unless it
+   is a concrete integer, setting len to size_UNKNOWN and
+   setting kind_is_bogus flag so that checks can be aware that true
+   kind value is not known.
+ */
+
+PRIVATE
+srcPosn parse_char_selector(srcPosn pos)
+{
+  srcPosn save_pos;
+  char c_after_spec;
+
+  if( CHAR_AT(pos) == '(' ) { /* char-selector is present  */
+    stepPosn(&pos);		/* eat the '(' */
+    SKIP_SPACE;
+
+    /* first look for LEN= */
+    save_pos = pos;
+    pos = parse_char_len(pos,FALSE); /* LEN= is optional */
+    if( pos.idx >= 0 ) {	/* length found */
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nparse_char_selector found len=%d",parsed_size);
+    }
+#endif
+      c_after_spec = CHAR_AT(pos);
+      stepPosn(&pos);		/* eat the ',' or ')' */
+      SKIP_SPACE;
+
+      if( c_after_spec == ',' ) {
+	save_pos = pos;		/* look for optional kind after len */
+	pos = parse_kind_param(pos,type_STRING,FALSE); /* KIND= is optional */
+	if( pos.idx < 0 )
+	  pos = save_pos;
+	else {
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nparse_char_selector found kind=%d",parsed_kind_param);
+    }
+#endif
+	  stepPosn(&pos);	/* eat the ')' */
+	  SKIP_SPACE;
+	}
+
+      }
+    }
+    else {		     /* [LEN=]len not found */
+				/* can only be KIND=kind[,LEN=len] */
+      pos = parse_kind_param(save_pos,type_STRING,TRUE);
+
+      if( pos.idx < 0 ) {		/* not found: give up */
+	return save_pos;
+      }
+      else {
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nparse_char_selector found KIND=%d",parsed_kind_param);
+    }
+#endif
+	c_after_spec = CHAR_AT(pos);
+	stepPosn(&pos);		/* eat the ',' or ')' */
+	SKIP_SPACE;
+	if( c_after_spec == ',' ) {
+	  save_pos = pos;			/* look for optional length */
+	  pos = parse_char_len(pos,TRUE); /* LEN= is mandatory in this case */
+	  if( pos.idx < 0 ) {
+	    pos = save_pos;	/* not seen: back up */
+	  }
+	  else{
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nparse_char_selector found LEN=%d",parsed_size);
+    }
+#endif
+	    stepPosn(&pos);		/* eat the ')' */
+	    SKIP_SPACE;
+	  }
+	}
+      }
+    }
+  }
+  return pos;
+}
+
+
+/* Routine to skip a statement label (sequence of digits) if any,
+   starting at line[i].  It does not skip prior blank space, so should
+   be given index of first nonblank character of line.  It returns
+   index of first nonblank character after the label, or given index i
+   if no label present.
+ */
+PRIVATE
+int skip_label(const char *line, int i)
+{
+      while(isadigit(line[i])) /* skip label if present */
+	i++;
+      while(iswhitespace(line[i])) /* then skip blank space */
+	i++;
+      return i;
+}
+
+/* Routine that searches from given starting line forward
+   to find a CONTAINS statement.  It returns the srcLine where found,
+   or NULL if not found.  If stop_at_end is true, it will stop the
+   scan at the next END of a subprogram.  With stop_at_end = FALSE,
+   this is called by init_scan() to set file_has_contains, which is
+   used to decide whether to look ahead for internal subprogram
+   definition when unknown subprogram invocation is found.  With
+   stop_at_end = TRUE, this is called by scan_for_internal() to find
+   the starting point from which to scan for a given internal or
+   module subprogram.
+
+   Routine is written for efficiency, so it does not use see_keyword
+   or look out for odd cases.  It will only find CONTAINS if it is on
+   a single line (i.e. not split across a continuation).  It can be
+   fooled by a continued statement with CONTAINS by itself on first
+   line and e.g. = 0 on continuation line.
+ */
+PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
+{
+  srcLine *Line = start_srcLine;
+  int len = strlen("CONTAINS");
+
+  while( Line  != (srcLine *)NULL ) {
+    if( !(Line->comment || Line->contin) ) {
+      /* begin scan at first significant char after label */
+      int i = skip_label(Line->line,Line->start_index);
+
+      /* Look for a line beginning with the string CONTAINS */
+      if(strncasecmp(&(Line->line[i]),"CONTAINS",len) == 0 &&
+	 i+len > Line->end_index) { /* verify nothing follows */
+	  return Line;				/* found */
+      }
+      /* No success: go to next line unless stop_at_end==TRUE and
+         and end subprogram statement is here. */
+      if( stop_at_end ) {
+	srcPosn pos;
+	pos.Line = Line;
+	pos.idx = i;
+	pos = parse_end_subprog(pos);
+	if(pos.idx >= 0)	/* statement matches end subprog */
+	  break;
+      }
+    }
+    Line = Line->next;
+  }
+  return (srcLine *)NULL;			/* not found */
+} /* scan_for_contains */
+
+/* Routine that searches for an internal or module
+   procedure with the given name that could satisfy a call at the
+   current source line.
+
+   There are two contexts in which the call can occur:
+
+   (1) a program unit (main program, external subroutine, or
+   external function) or a module procedure (subroutine or function)
+   referencing a subroutine or function in its CONTAINS section.
+
+   (2) an internal or module procedure within a CONTAINS section of an
+   enclosing program unit (main program, module, external subroutine
+   or external function), referencing a peer (internal or module
+   respectively) procedure in the same CONTAINS section.
+
+   A call from a module procedure can be of either kind, in which case
+   (1) prevails.
+*/
+
+int search_for_internal(const char *name, ProcInterface *interface)
+{
+  srcPosn pos;
+  Gsymtab *host_gsymt;
+
+  /* Internal subprograms cannot have CONTAINS of their own, so skip
+     case (1) if context is call from internal subprogram.
+   */
+  host_gsymt = hashtab[current_prog_unit_hash].glob_symtab;
+  if( !host_gsymt->internal_subprog ) {
+    is_internal = TRUE;
+
+	/* Case (1) search for proc in CONTAINS section within current unit*/
+    pos.Line = scan_for_contains(next_srcLine,TRUE);
+
+    if( pos.Line != (srcLine *)NULL ) { /* CONTAINS was found */
+
+      while( (pos.Line=pos.Line->next) != (srcLine *)NULL ) { /* advance to next stmt */
+	srcPosn save_pos;
+	pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+	save_pos = pos;
+	pos = parse_subprog_stmt(pos);
+	if( pos.idx >= 0 ) {	/* found a subprog statement*/
+	  if( strcmp(name,parsed_procname) == 0 ) { /* matches the one we seek */
+	    populate_interface(interface); /* copy parsed values to ProcInterface struct */
+	    return TRUE;
+	  }
+	  else {			/* not the one we seek: scan to END stmt */
+#ifdef DEBUG_LOOKAHEAD
+	    if(debug_latest && getenv("VERBOSE")) {
+	      fprintf(list_fd,"\nsearch_for_internal scanning for END");
+	    }
+#endif
+	    while( (pos.Line=pos.Line->next) != (srcLine *)NULL ) {
+	      pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+	      pos = parse_end_subprog(pos);
+	      if( pos.idx >= 0 )
+		break;
+	    }
+	    if( pos.Line == (srcLine *)NULL ) /* protect against hitting end of source */
+	      return FALSE;
+	  }
+	}/* end found subprog stmt */
+	else {			/* catch end of CONTAINS */
+	  pos = parse_end_subprog(save_pos); /* i.e. see another END not subprog header */
+	  if( pos.idx >= 0 )
+	    return FALSE;
+	}
+      }	/* end while pos.Line != NULL */
+    }/* end if CONTAINS found */
+  }/* end if !internal_subprog */
+
+  return FALSE;			/* not found */
+}
+
+/* Copy parsed subprogram characteristics to interface struct. */
+PRIVATE
+void populate_interface(ProcInterface *i)
+{
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,"\ntype %d(%s)",parsed_datatype,type_name(parsed_datatype));
+    fprintf(list_fd," kind %d size %d",parsed_kind_param,parsed_size);
+  }
+#endif
+  i->datatype = parsed_datatype;
+  i->size = parsed_size;
+  if( parsed_kind_param == kind_DEFAULT_UNKNOWN &&
+      parsed_datatype != type_UNDECL )
+    i->kind = default_kind(parsed_datatype);
+  else
+    i->kind = parsed_kind_param;
+  i->array_dim = array_dim_info(0,0); /* FIXME when array dim is parsed */
+  i->kind_is_bogus = kind_is_bogus;
+  i->array = FALSE;		/* FIXME when array dim is parsed */
+  i->pointer = FALSE;		/* FIXME when pointer attr is parsed */
+  i->elemental = parsed_elemental;
+  i->pure = parsed_pure;
+  i->recursive = parsed_recursive;
 }
 
 /* End of module Advance */
