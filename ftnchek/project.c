@@ -507,7 +507,7 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 	  else
 	    WRITE_STR(" external",gsymt->name);
 
-	  WRITE_NUM(" class",storage_class_of(gsymt->type));
+	  WRITE_NUM(" class",storage_class_of(gsymt->type)); /* values as in global symtab */
 	  WRITE_NUM(" type",datatype_of(gsymt->type));
 	  WRITE_NUM(" kind",gsymt->kind);
 	  WRITE_NUM(" size",gsymt->size);
@@ -653,6 +653,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
       WRITE_NUM(" top",a->top_line_num);
       WRITE_NUM(" class",storage_class_of(a->type));
       WRITE_NUM(" type",datatype_of(a->type));
+      WRITE_NUM(" kind",a->kind);
       WRITE_NUM(" size",a->size);
       (void)fprintf(fd," flags %d %d %d %d",
 	      a->is_defn,
@@ -807,6 +808,12 @@ PRIVATE int nil(VOID)/* to make lint happy */
 			       fscanf(fd,"%d",&NUM)==1)? READ_OK:READ_ERROR))
 #define READ_LONG(LEADER,NUM) ((void)((fscanf(fd,LEADER)==0 &&\
 			       fscanf(fd,"%ld",&NUM)==1)? READ_OK:READ_ERROR))
+#if (SIZEOF_INT >= 4)			/* kind_t is int or long depending */
+#define READ_KIND READ_NUM
+#else
+#define READ_KIND READ_LONG
+#endif
+
 #define NEXTLINE {int c;while( (c=fgetc(fd)) != EOF && c != '\n') continue;\
 		    if(c == EOF) READ_ERROR; else ++proj_line_num;}
 
@@ -1236,7 +1243,7 @@ if (use_this_item) {
   for(i = 0; i < dtype_num_components; i++) {
     READ_STR(" component",component_name);
     READ_NUM(" type",component_type);
-    READ_NUM(" kind",component_kind);
+    READ_KIND(" kind",component_kind);
     READ_LONG(" size",component_size);
     fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	   &component_array,
@@ -1309,7 +1316,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 {
   char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
-  long id_kind;
+  kind_t id_kind;
   int mapped_type;		/* type from map_type array */
   long id_size;
   int id_param,			/* flag bits */
@@ -1327,7 +1334,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
 
   READ_STR(" var",id_name);
   READ_LONG(" type",id_type);
-  READ_LONG(" kind",id_kind);
+  READ_KIND(" kind",id_kind);
   READ_LONG(" size",id_size);
   fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	 &id_param,
@@ -1467,6 +1474,7 @@ arg_info_in(fd,filename,is_defn,item_list)
        alist_external_decl,alist_actual_arg;
     int mapped_alist_type;
     unsigned alist_line, alist_topline;
+    kind_t alist_kind;
     long alist_size;
     unsigned numargs,iarg,arg_num,arg_class,arg_type;
     kind_t arg_kind;
@@ -1497,7 +1505,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 	READ_STR(" external",id_name); /* External name */
     READ_NUM(" class",id_class); /* class as in symtab */
     READ_NUM(" type",id_type); /* type as in symtab */
-    READ_NUM(" kind",id_kind); /* kind as in symtab */
+    READ_KIND(" kind",id_kind); /* kind as in symtab */
     READ_LONG(" size",id_size); /* size as in symtab */
     if(fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	      &id_used_flag,
@@ -1545,11 +1553,13 @@ id_name,id_class,id_type);
     if( (gsymt = hashtab[h].glob_symtab) == NULL) {
       gsymt = install_global((int)h,mapped_type,class_SUBPROGRAM);
       gsymt->size = id_size;
+      gsymt->kind = id_kind;
       new_module = TRUE;
     }
-    else if(is_defn)
+    else if(is_defn) {
       gsymt->size = id_size;
-
+      gsymt->kind = id_kind;
+    }
 		/* Set library_prog_unit flag if project file was created
 		   with -lib mode in effect, or is now taken in -lib mode */
     if(!module && is_defn && (library_mode || id_library_prog_unit)) {
@@ -1593,6 +1603,7 @@ id_name,id_class,id_type);
       READ_NUM(" top",alist_topline); /* topfile line number */
       READ_NUM(" class",alist_class);	/* class as in ArgListHeader */
       READ_NUM(" type",alist_type); /* type as in ArgListHeader */
+      READ_KIND(" kind",alist_kind);/* kind as in ArgListHeader */
       READ_LONG(" size",alist_size); /* size as in ArgListHeader */
       if(fscanf(fd," flags %d %d %d %d",
 		&alist_is_defn,
@@ -1614,6 +1625,7 @@ id_name,id_class,id_type);
      */
     if(module && use_this_item) {
       Lsymtab *symt = install_local(h,mapped_alist_type,class_SUBPROGRAM);
+      symt->kind = alist_kind;
       symt->size = alist_size;
       symt->line_declared = alist_line;
       symt->file_declared = inctable_index;	/* WRONG */
@@ -1711,6 +1723,7 @@ id_name,id_class,id_type);
 			/* Initialize arglist and link it to symtab */
       ahead->type = type_pack(alist_class,mapped_alist_type);
       ahead->size = alist_size;
+      ahead->kind = alist_kind;
       ahead->numargs = (short)numargs;
       ahead->arg_array = (numargs==0? NULL: alist);
       ahead->prog_unit = prog_unit;
@@ -1741,7 +1754,7 @@ id_name,id_class,id_type);
 	READ_ARG(" name",arg_name);
 	READ_NUM(" class",arg_class);
 	READ_NUM(" type",arg_type);
-	READ_NUM(" kind",arg_kind);
+	READ_KIND(" kind",arg_kind);
 	READ_LONG(" size",arg_size);
 	READ_NUM(" dims",arg_dims);
 	READ_LONG(" elts",arg_elts);
@@ -1981,7 +1994,7 @@ id_name,id_class,id_type);
       NEXTLINE;
       READ_NUM(" class",var_class);
       READ_NUM(" type",var_type);
-      READ_NUM(" kind",var_kind);
+      READ_KIND(" kind",var_kind);
       READ_LONG(" size",var_size);
       READ_NUM(" dims",var_dims);
       READ_LONG(" elts",var_elts);

@@ -61,6 +61,7 @@ as the "MIT License."
 PROTO(PRIVATE char* sized_typename,( int type, long size ));
 PROTO(PRIVATE void report_mismatch,( const Token *term1, const Token *op, const Token *term2 ));
 PROTO(PRIVATE void report_type,( const Token *t ));
+PROTO(PRIVATE void report_kind_property,(int value, const char *tag));
 PROTO(PRIVATE int int_power,( int x, int n ));
 PROTO(PRIVATE int array_section_size,(Token *id, int dim, Token *bounds));
 PROTO(PRIVATE void check_array_conformance,(Token *term1, Token *term2,
@@ -359,16 +360,22 @@ binexpr_type(term1,op,term2,result)
 	    }
 	    /* only do kind checking for expressions with dissimilar 
 	     * declared kinds */
-	    else if ( !( kind1 == default_kind(type1) ||
-		         kind2 == default_kind(type2) ) ) {
+	    else if( !( kind_is_default(kind1) &&
+		        kind_is_default(kind2) ) ) {
 		if( port_concrete_kind &&
+		    type1 != S && /* concat of mixed kinds is syntax error below */
 			( (kind_type(kind1) == type_UNDECL &&
 			   kind_type(kind2) != type_UNDECL) ||
 			  (kind_type(kind2) == type_UNDECL &&
 			   kind_type(kind1) != type_UNDECL) )
 		  ) {
 		    nonportable(op->line_num,op->col_num,
-			    "mixes selected and concrete kinds");
+			    "mixes selected and concrete kinds:");
+		    report_kind(kind1);
+		    report_type(term1);
+		    msg_tail("and");
+		    report_kind(kind2);
+		    report_type(term2);
 		}
 
 		/* perform kind propagation in expression */
@@ -398,7 +405,12 @@ binexpr_type(term1,op,term2,result)
 				 kind2 == kind_DEFAULT_QUAD) {
 			    if( port_mixed_kind ) {
 				nonportable(op->line_num,op->col_num,
-					"operation mixes default QUAD and non-default kinds");
+					"operation mixes default and non-default kinds");
+				report_kind(kind1);
+				report_type(term1);
+				msg_tail("and");
+				report_kind(kind2);
+				report_type(term2);
 			    }
 			    result->kind = kind_DEFAULT_QUAD; /* punt */
 			}
@@ -418,7 +430,7 @@ binexpr_type(term1,op,term2,result)
 		    /* for CHARACTER, the kinds must match in a
 		     * concatenation operation 
 		     */
-		    if (type1 == type_STRING && opclass == tok_concat) {
+		    if (type1 == S && opclass == tok_concat) {
 		        /* expression gets kind of the first expression */
 			if (kind1 == kind2) {
 			    result->kind = kind1;
@@ -426,9 +438,9 @@ binexpr_type(term1,op,term2,result)
 			else {
 			    syntax_error(op->line_num,op->col_num,
 				    "kind mismatch in concatenation");
-			    msg_tail(ulongtostr((unsigned long)kind1));
+			    report_kind(kind1);
 			    msg_tail("and");
-			    msg_tail(ulongtostr((unsigned long)kind2));
+			    report_kind(kind2);
 			}
 		    }
 		}
@@ -465,7 +477,8 @@ binexpr_type(term1,op,term2,result)
 		        (type2 == type_REAL && kind2 < 0) ) ||
 		      ( type2 == type_DP &&
 		        (type1 == type_REAL && kind1 < 0) ) ) ) {
-		        nonportable(op->line_num,op->col_num, "expression mixes default D.P. and selected real kinds: assuming D.P. more precise");
+		        nonportable(op->line_num,op->col_num,
+			    "expression mixes default D.P. and selected real kinds: assuming D.P. more precise");
 		}
 
 		result->kind = ( type1 == result_type ) ?
@@ -1081,8 +1094,11 @@ assignment_stmt_type(term1,equals,term2)
       equals_col_num = equals->col_num;
     }
 
-    if(type2 == type_GENERIC)	/* takes type from assignee */
+    if(type2 == type_GENERIC) {	/* takes type from assignee */
       type2 = type1;
+      /* (size is propagated below) */
+      kind2 = kind1;
+    }
 
     if( is_derived_type(type1) || is_derived_type(type2) ) {
       if( (is_derived_type(type1) != is_derived_type(type2)) ||
@@ -1128,10 +1144,14 @@ assignment_stmt_type(term1,equals,term2)
 	      }
 	    }
 	    else {
-	      /* warn about kind truncation only if kind was defined */
+	      int trunc_warning_given=FALSE;
+	      /* warn about kind truncation only if kind was declared
+		 for at least one operand.
+	       */
+
 	      if ( trunc_kind && kind1 != kind2 &&
-		   !( kind1 == default_kind(type1) ||
-		      kind2 == default_kind(type2) )
+		   !( kind_is_default(kind1) &&
+		      kind_is_default(kind2) )
 		 ) {
 
 		int kind1_report, kind2_report;
@@ -1142,15 +1162,12 @@ assignment_stmt_type(term1,equals,term2)
 
 		  if (kind1_report < kind2_report) {
 		    warning(equals_line_num,equals_col_num,
-			"possible integer range mismatch");
-		    ( kind2_report == 0 ) ? msg_tail("default") :
-		      ( kind2_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail(ulongtostr((unsigned long)kind2_report));
+			    "possible integer mismatch:");
+		    report_kind_property(kind2_report,"range");
 		    msg_tail("assigned to");
-		    ( kind1_report == 0 ) ? msg_tail("default") :
-		      ( kind1_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail(ulongtostr((unsigned long)kind1_report));
+		    report_kind_property(kind1_report,"range");
 		    msg_tail(": may overflow");
+		    trunc_warning_given = TRUE;
 		  }
 		}
 		else if (type1 == type_REAL && type2 == type_REAL) {
@@ -1158,61 +1175,83 @@ assignment_stmt_type(term1,equals,term2)
 		  kind2_report = kind_precision(kind2);
 
 		  if( port_mixed_kind &&
-		      (kind1_report == 0 || kind2_report == 0) ) {
+		      (kind1_report <= 0 || kind2_report <= 0) &&
+		      /* special case of quad assigned to real or v-v, will
+			 be warned about twice if -trunc=size-pro/demotion
+			 or -port=mixed-size is given.
+		       */
+		      !( (port_mixed_size || trunc_promotion || trunc_size_demotion) &&
+			 (kind1 == kind_DEFAULT_QUAD || kind2 == kind_DEFAULT_QUAD) )
+		    ) {
 		    nonportable(equals_line_num,equals_col_num,
-			"assignment mixes");
-		    ( kind1_report == 0 ) ? msg_tail("default") :
-		      ( kind1_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail("selected real kind");
-		    msg_tail("and");
-		    ( kind2_report == 0 ) ? msg_tail("default") :
-		      ( kind2_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail("selected real kind");
+			"assignment mixes kinds:");
+		    report_kind_property(kind2_report,"precision");
+		    msg_tail("assigned to");
+		    report_kind_property(kind1_report,"precision");
+		    msg_tail("real");
+		    trunc_warning_given = TRUE;
 		  }
 
-		  if (kind1_report < kind2_report) {
+		  if (kind1_report < kind2_report &&
+		      !( (port_mixed_size || trunc_promotion) &&
+			  kind1 == kind_DEFAULT_QUAD )
+		    ) {
 		    warning(equals_line_num,equals_col_num,
-			"possible real precision mismatch");
-		    ( kind2_report == 0 ) ? msg_tail("default") :
-		      ( kind2_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail(ulongtostr((unsigned long)kind2_report));
+			"possible real mismatch:");
+		    report_kind_property(kind2_report,"precision");
 		    msg_tail("assigned to");
-		    ( kind1_report == 0 ) ? msg_tail("default") :
-		      ( kind1_report == -1 ) ? msg_tail("unknown") :
-		      msg_tail(ulongtostr((unsigned long)kind1_report));
-		    msg_tail(": may not give desired precision");
+		    report_kind_property(kind1_report,"precision");
+		    msg_tail("real: may not give desired precision");
+		    trunc_warning_given = TRUE;
 		  }
 		}
 
 	      }
 
-	      if( port_concrete_kind &&
-		  ( kind1 != default_kind(type1) &&
-		    kind2 != default_kind(type2) ) &&
-		  ( (kind_type(kind1) == type_UNDECL &&
-		     kind_type(kind2) != type_UNDECL) ||
-		    (kind_type(kind2) == type_UNDECL &&
-		     kind_type(kind1) != type_UNDECL) )
-		) {
-		  nonportable(equals_line_num,equals_col_num,
-			  "mixes selected and concrete kinds");
-	      }
+	      if(!trunc_warning_given) {
+		int concrete_with_selected = FALSE;
+		int dp_with_selected = FALSE;
 
-	      if( port_mixed_kind &&
-		  ( kind1 != default_kind(type1) &&
-		    kind2 != default_kind(type2) ) &&
-		  ( ( type1 == type_DP && 
-		      (type2 == type_REAL && kind2 < 0) ) ||
-		    ( type2 == type_DP &&
-		      (type1 == type_REAL && kind1 < 0) ) ) 
-		) {
+		/* Warn under -port=concrete-kind if concrete numeric
+		 * or logical kind is mixed with selected kind
+		 */
+		if( port_concrete_kind ) {
+		  concrete_with_selected = (
+		    type1 != S && /* mixed char kinds reported below as syntax error */
+		    ( kind1 != default_kind(type1) ||
+		      kind2 != default_kind(type2) ) &&
+		    ( (kind1 >= 0 && kind2 < 0) ||
+		      (kind2 >= 0 && kind1 < 0) )
+		    );
+		}
+
+	      /* Warn under -port=mixed-kind about mixing default
+	       * double precision and selected real kind.  Note that
+	       * type_DP can only be default DP kind.
+	       */
+		if( port_mixed_kind ) {
+		  dp_with_selected = (
+		    ( (kind1 != default_kind(type1) && kind1 != kind_DEFAULT_QUAD) ||
+		      (kind2 != default_kind(type2) && kind2 != kind_DEFAULT_QUAD) ) &&
+		    ( ( type1 == type_DP && 
+			(type2 == type_REAL && kind2 < 0) ) ||
+		      ( type2 == type_DP &&
+			(type1 == type_REAL && kind1 < 0) ) ) 
+		    );
+		}
+
+		if( concrete_with_selected || dp_with_selected ) {
 		  nonportable(equals_line_num,equals_col_num,(char *)NULL);
-		  ( type2 == type_DP ) ? msg_tail("default D.P.") :
-		      msg_tail("selected real kind");
+		  report_kind(kind2);
+		  report_type(term2);
+
 		  msg_tail("assigned to");
-		  ( type1 == type_DP ) ? msg_tail("default D.P.") :
-		      msg_tail("selected real kind");
-		  msg_tail(":precision may differ");
+
+		  report_kind(kind1);
+		  report_type(term1);
+
+		  msg_tail(": precision may differ");
+		}
 	      }
 
 	      check_array_conformance(term1, term2,(Token *)NULL,
@@ -1339,18 +1378,20 @@ if(debug_latest) {
 			     (trunc_size_demotion && size_trunc);
 		mixed_warn = ((port_mixed_size || local_wordsize==0) &&
 				mixed_size);
-		if( trunc_warn ) {
+		/* don't report tailored messaged for quad types which
+		 * have type_REAL and cannot be distinguished as such */
+		if (trunc_warn) {
 		  warning(equals_line_num,equals_col_num,"");
-		  if (kind2 != default_kind(type2)) {
-		      (kind2 >= 0) ? msg_tail("concrete") :
-			  msg_tail("selected");
+		  if (!kind_is_default(kind2)) {
+		    report_kind(kind2);
 		  }
 		  report_type(term2);
 		  if(trunc_warn && !type_trunc && mixed_size
 		       && local_wordsize == 0)
 		    msg_tail("possibly");
-		  if ( kind1 == default_kind(type1) &&
-		       kind2 == default_kind(type2) ) {
+		  if( ( kind_is_default(kind1) &&
+		        kind_is_default(kind2) )
+		    ) {
 		      if(promotion)
 			  msg_tail("promoted to");
 		      else
@@ -1359,9 +1400,8 @@ if(debug_latest) {
 		  else {
 		      msg_tail("assigned to");
 		  }
-		  if (kind1 != default_kind(type1)) {
-		      (kind1 >= 0) ? msg_tail("concrete") :
-			  msg_tail("selected");
+		  if ( !kind_is_default(kind1) ) {
+		    report_kind(kind1);
 		  }
 		  report_type(term1);
 		  if(promotion || (kind1 != default_kind(type1)))
@@ -1466,6 +1506,8 @@ func_ref_expr(id,args,result)
 	Lsymtab *symt;
 	IntrinsInfo *defn;
 	int rettype, retsize;
+	/* initialize to zero to skip kind checking */
+	kind_t retkind;
 
 	symt = hashtab[id->value.integer].loc_symtab;
 
@@ -1474,13 +1516,14 @@ func_ref_expr(id,args,result)
 			/* Intrinsic functions: type stored in info field */
 	    rettype = defn->result_type;
 	    retsize = size_DEFAULT;
-	    if( defn->intrins_flags & I_QUAD ) { /* Quad intrinsic */
+	    if( defn->intrins_flags & I_QUAD ) { /* Intrinsic result is quad */
 				/* These are either R*16 or X*32 */
 	      retsize = ((rettype==type_QUAD)? size_QUAD: size_CQUAD);
+	      retkind = kind_DEFAULT_QUAD; /* same kind for real or complex */
 	    }
 
 		/* Generic Intrinsic functions: use propagated arg type */
-	    if(rettype == type_GENERIC) {
+	    else if(rettype == type_GENERIC) {
 		if(args->next_token == NULL) {
 		    /* NULL with no arg takes type of assignee, so
 		       leave its type as from table, type_GENERIC, and
@@ -1495,13 +1538,8 @@ func_ref_expr(id,args,result)
 		  retsize = size_DEFAULT;
 		}
 		else {
-#ifdef OLDSTUFF
-		  rettype = args->next_token->TOK_type;
-		  retsize = args->next_token->size;
-#else
 		  rettype = args->TOK_type;
 		  retsize = args->size;
-#endif
 		}
 			/* special case: REAL(integer|[d]real) ->  real */
 		if((INTRINS_ID(defn->intrins_flags) == I_SP_R) &&
@@ -1522,18 +1560,21 @@ func_ref_expr(id,args,result)
 			rettype = type_DP;
 			retsize = size_DEFAULT;
 		}
-	      }
+		retkind = default_kind(rettype);
+	    }/* end type_GENERIC */
 	      else {		/* non-generic */
 
 				/* special case: CHAR(code): size=1 */
 		if(INTRINS_ID(defn->intrins_flags) == I_CHAR) {
 		  retsize = 1;
 		}
+		retkind = default_kind(rettype);
 	      }
 	}
 	else {			/* non-intrinsic */
 	    rettype = get_type(symt);
 	    retsize = get_size(symt,rettype);
+	    retkind = get_kind(symt,rettype);
 	}
 		/* referencing function makes it no longer a class_SUBPROGRAM
 		   but an expression. */
@@ -1546,6 +1587,7 @@ func_ref_expr(id,args,result)
 	result->TOK_flags = 0;	/* clear all flags */
 #endif
 	result->size = retsize;
+	result->kind = retkind;
 	result->next_token = (Token *)NULL;
 
 	/* transfer pointer/target attributes to token */
@@ -1621,13 +1663,6 @@ symt->name,sized_typename(rettype,retsize));
 	    }
 	  copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
 
-	  /* temporary fix for CHAR intrinsic to set default CHAR kind*/
-	  if (strcmp(defn->name, "CHAR") == 0) {
-	    result->value.integer = default_kind(type_STRING);
-	    result->kind = default_kind(type_STRING);
-	  }
-
-
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {
@@ -1663,12 +1698,7 @@ primary_id_expr(id,primary)
 	kind_t id_kind;
 	symt = hashtab[id->value.integer].loc_symtab;
 	id_type=get_type(symt);
-
-	/* If variable was not declared, its kind parameter is set
-	 * to the default kind parameter for its implicit type
-	 */
-	id_kind = ( symt->type == type_UNDECL ) ?
-	    default_kind(id_type) : symt->kind;
+	id_kind=get_kind(symt,id_type);
 
 #ifndef TOK_type
 	primary->tclass = id->tclass;
@@ -1874,6 +1904,14 @@ report_type(t)
   }
 }
 
+/* Prints value of range or precision of a kind.  tag="range" or "precision" */
+PRIVATE void
+report_kind_property(int value, const char *tag)
+{
+  if( value == 0 ) {msg_tail("default"); msg_tail(tag);}
+  else if( value == -1 ) {msg_tail("processor-dependent"); msg_tail(tag);}
+  else  {msg_tail(tag); msg_tail(ulongtostr((unsigned long)value));}
+}
 
 int
 #if HAVE_STDC

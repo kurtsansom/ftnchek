@@ -448,6 +448,7 @@ call_subr(id,arg)	/* Process call statements */
 		symt->info.toklist = NULL;
 	}
 	symt->type = type_pack(class_SUBPROGRAM,t);
+	symt->kind = 0;
 
 	/* Since nonstandard intrinsics include some subroutines,
 	   see if it is in intrinsic list.  Or
@@ -479,6 +480,8 @@ call_subr(id,arg)	/* Process call statements */
 		gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
 		gsymt->info.arglist = NULL;
 	}
+	gsymt->kind = 0;
+
 			/* store arg list in local table */
 	call_external(symt,id,arg);
     }
@@ -695,6 +698,7 @@ declare_type(Token *id, int datatype, kind_t kind, long int size, char *size_tex
 	      symt->line_declared = id->line_num;
 	      symt->file_declared = inctable_index;
 
+
 	      /* If function has a RESULT variable that is later
 	       * declared, function gets same type as RESULT variable.
 	       * (ENTRY is handled differently: if it has a RESULT
@@ -708,6 +712,8 @@ declare_type(Token *id, int datatype, kind_t kind, long int size, char *size_tex
 		     /* Give function the variable's type, and it has status
 		      * of a subprog. */
 		  func->type = type_pack(class_SUBPROGRAM, datatype);
+		  func->size = size;
+		  func->kind = kind;
 	      }
 	  }
 	  }
@@ -788,7 +794,7 @@ def_arg_name(id)		/* Process items in argument list */
 			/* Dummy args mask names in enclosing scope. */
 	if( (symt=hashtab[h].loc_symtab) == NULL || ! in_curr_scope(symt)) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
-	   symt->kind = default_unknown_kind();
+	   symt->kind = kind_DEFAULT_UNKNOWN;
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	}
@@ -1183,7 +1189,8 @@ def_ext_name(id)		/* Process external lists */
 
 
 
-void def_function(int datatype, long int size, char *size_text, Token *id, Token *args, SUBPROG_TYPE subprogtype)
+void def_function(int datatype, long int size, char *size_text, kind_t kind,
+		  Token *id, Token *args, SUBPROG_TYPE subprogtype)
 {
 	int storage_class;
 	int h=id->value.integer;
@@ -1198,7 +1205,7 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 			   Since this is the current routine, it has
 			   storage class of a variable. */
 	   symt = install_local(h,datatype,class_VAR);
-	   symt->kind = default_kind(datatype);
+	   symt->kind = kind;
 	   symt->line_declared = id->line_num;
 	   symt->file_declared = inctable_index;
 	   symt->size = size;
@@ -1242,6 +1249,7 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 			/* Symbol is new to global symtab: install it */
 	  gsymt = install_global(h,datatype,storage_class);
 	  gsymt->size = size;
+	  gsymt->kind = kind;
 	  gsymt->info.arglist = NULL;
 	}
 	else {
@@ -1249,6 +1257,7 @@ void def_function(int datatype, long int size, char *size_text, Token *id, Token
 			   declared datatype into symbol table. */
 	  gsymt->type = type_pack(storage_class,datatype);
 	  gsymt->size = size;
+	  gsymt->kind = kind;
 	}
 
 	/* Test to turn on internal or module subprogram flags */
@@ -1716,11 +1725,11 @@ do_ENTRY(id,args,hashno)	/* Processes ENTRY statement */
 		break;
 	    case type_SUBROUTINE:	/* Subroutine entry */
 		def_function(type_SUBROUTINE,size_DEFAULT,(char *)NULL,
-			     id,args,tok_SUBROUTINE);
+			     (kind_t)0,id,args,tok_SUBROUTINE);
 		break;
 	    default:		/* Function entry */
 		def_function(type_UNDECL,size_DEFAULT,(char *)NULL,
-			     id,args,tok_FUNCTION);
+			     default_kind(datatype),id,args,tok_FUNCTION);
 		break;
 	}
 
@@ -1797,19 +1806,6 @@ do_RETURN(hashno,keyword)
 		}
 	      }
 
-		/*
-		for(i=0; i<loc_symtab_top; i++) {
-		    if(storage_class_of(loc_symtab[i].type) == class_VAR
-			&& loc_symtab[i].entry_point
-			&& ! loc_symtab[i].set_flag ) {
-		      if(misc_warn) {
-			    warning(keyword->line_num,keyword->col_num,
-					loc_symtab[i].name);
-			    msg_tail("not set when RETURN encountered");
-		      }
-		    }
-		}
-		*/
 		break;
 	}
 	return valid;
@@ -1862,6 +1858,10 @@ void do_result_spec(Token *p, int hashno, int entry_hashno)
   Lsymtab *result = hashtab[p->value.integer].loc_symtab; /* result var */
   int entry_datatype = datatype_of(entry->type);
   int result_datatype = datatype_of(result->type);
+  long entry_size = entry->size;
+  long result_size = result->size;
+  kind_t entry_kind = entry->kind;
+  kind_t result_kind = result->kind;
 
   if( (strcmp(result->name, func->name) == 0) || 
       (strcmp(result->name, entry->name) == 0) ) {
@@ -1878,14 +1878,12 @@ void do_result_spec(Token *p, int hashno, int entry_hashno)
 	  syntax_error(p->line_num,NO_COL_NUM,
 		       "ENTRY name has a declared type");
       }
-      else {
-	  result_datatype = entry_datatype;
-      }
   }
-
   /* propagate RESULT type to ENTRY name */
   else if (result_datatype != type_UNDECL) {
       entry_datatype = result_datatype;
+      entry_size = result_size;
+      entry_kind = result_kind;
   }
 
   /* Turn the function/entry name into an external name in local symbol
@@ -1893,6 +1891,8 @@ void do_result_spec(Token *p, int hashno, int entry_hashno)
    */
   entry->result_var = FALSE;
   entry->type = type_pack(class_SUBPROGRAM, entry_datatype); 
+  entry->size = entry_size;
+  entry->kind = entry_kind;
   entry->external = TRUE;
 
   /* propagate return type of function if available
@@ -1900,7 +1900,8 @@ void do_result_spec(Token *p, int hashno, int entry_hashno)
    */
   result->result_var = TRUE;
   result->type = type_pack(class_VAR, entry_datatype);
-  result->kind = default_kind(result->type);
+  result->size = entry_size;
+  result->kind = entry_kind;
 
 #ifdef DEBUG_SUFFIX
     if(debug_latest) {
@@ -2116,6 +2117,28 @@ get_size_text(symt,type)		/* ARGSUSED1 */
   }
 }
 
+/* Returns kind of symbol.  Argument type must be resolved type,
+   having used implicit typing if necessary.
+ */
+kind_t
+get_kind(const Lsymtab *symt, int type)
+{
+  kind_t id_kind;
+
+	/* If variable was not declared, its kind parameter is set
+	 * to the default kind parameter for its implicit type
+	 */
+  if( symt->type == type_UNDECL )
+    id_kind = default_kind(type);
+  else
+    id_kind = symt->kind;
+
+  if( id_kind == kind_DEFAULT_UNKNOWN ) /* if kind not set till now, */
+    id_kind = default_kind(type);  /* set to default for type */
+
+  return id_kind;
+}
+
 int
 #if HAVE_STDC
 get_type(const Lsymtab *symt)	/* Returns data type of symbol, using implicit if necessary */
@@ -2254,6 +2277,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    gsymt->valid = TRUE;
 	    gsymt->type = type_pack(storage_class,datatype);
 	    gsymt->size = type_size[datatype];
+	    gsymt->kind = default_kind(datatype);
 	    if(storage_class == class_COMMON_BLOCK)
 		gsymt->info.comlist = NULL;
 	    else
@@ -2314,6 +2338,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    symt->size = is_derived_type(datatype)?
 	      size_DEFAULT:		/* derived types are default size */
 	      type_size[datatype];
+	    symt->kind = default_kind(datatype);
 	    symt->src.text = NULL;
 	    symt->equiv_link = symt;	/* equivalenced only to self */
 	    symt->common_block = (Gsymtab*)NULL;
@@ -3316,26 +3341,14 @@ default_kind(int type)
     case type_STRING:
       kind = -type;
       break;
+    case type_UNDECL:
+      kind = kind_DEFAULT_UNKNOWN;
+      break;
     default:			/* bogus: non-kindable type */
       kind = 0;
       break;
     }
   return kind;
-}
-
-kind_t
-default_quad_kind()
-{
-    return kind_DEFAULT_QUAD;
-}
-
-/* When type of item is unknown, assign generic default kind
- * parameter.  It will be changed to default for the type when
- * type is known.
- */
-kind_t default_unknown_kind()
-{
-    return kind_DEFAULT_UNKNOWN;
 }
 
 /* -k = (R+1)*R_factor + (P+1)*P_factor + int?1:0, for P+R > 0.
@@ -3495,6 +3508,15 @@ kind_precision(kind_t kind)
   }
 }
 
+/* Return TRUE if kind is a default kind, FALSE if not.
+   All default kinds -1 down to kind_DEFAULT_UNKNOWN.
+ */
+int
+kind_is_default(kind_t kind)
+{
+  return kind < 0 && kind >= kind_DEFAULT_UNKNOWN;
+}
+
 #undef R_factor
 #undef P_factor
 #undef MAX_P
@@ -3534,6 +3556,24 @@ typespec(t,has_size, size, has_len, len)
     }
     
     return buf;
+}
+
+/* Routine to print out kind qualifier that goes before type spec in warnings. */
+void
+report_kind(kind_t k)
+{
+  if( k >= 0 ) {			/* concrete kind */
+    msg_tail("kind=");
+    msg_tail(ulongtostr((unsigned long)k));
+  }
+  else {				/* default or selected kind */
+    if( kind_is_default(k) ) {
+      msg_tail("default");
+      if( k == kind_DEFAULT_QUAD ) msg_tail("quad");
+    }
+    else
+      msg_tail("selected");
+  }
 }
 
 /* Index variables in subscript lists of FORALL constructs have to be

@@ -764,7 +764,7 @@ PRIVATE WarnOptionList
   {"mixed-kind",	&port_mixed_kind,
 				"Default and explicit kinds mixed"},
   {"concrete-kind",	&port_concrete_kind,
-				"Concrete kind values"},
+				"Concrete numerical kind values used"},
   {"mixed-size",	&port_mixed_size,
 				"Default and explicit size types mixed"},
   {"real-do",		&port_real_do,

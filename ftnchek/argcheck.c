@@ -249,20 +249,26 @@ arg_array_cmp(name,args1,args2)
 		}/*end if type==holl*/
 
 		
-		/* check kind parameter only if kind was defined */
-		else if ( !( kind1 == default_kind(t1) ||
-		             kind2 == default_kind(t2)
-		           ) ) {
-		  if (kind1 != kind2) {
-		    if(argcmp_error_head(name,args1,"kind mismatch"))
+		/* Check kind parameter only if kind was defined on
+		 * one or both.  Mismatch is for sure if differing
+		 * kinds with at least one concrete.  Otherwise warn
+		 * only for -port=mixed-kind.
+		 */
+		else if ( (kind1 != kind2) &&
+			  (port_mixed_kind || kind1 >= 0 || kind2 >= 0) ) {
+		    if(argcmp_error_head(name,args1,"argument kind mismatch"))
 		      break;
-		    arg_error_report(args1,"Dummy arg",i,"is kind");
-		    msg_tail(ulongtostr((unsigned long)kind1));
-		    arg_error_report(args2,"Actual arg",i,"is kind");
-		    msg_tail(ulongtostr((unsigned long)kind2));
-		  }
+		    arg_error_report(args1,"Dummy arg",i,"is");
+		    if(! kind_is_default(kind1))
+		      report_kind(kind1);
+		    msg_tail(typespec(t1,!defsize1,(long)s1,FALSE,0L));
+		    arg_error_report(args2,"Actual arg",i,"is");
+		    if(! kind_is_default(kind2))
+		      report_kind(kind2);
+		    msg_tail(typespec(t2,!defsize2,(long)s2,FALSE,0L));
 		}
-	      }
+
+	      }/*if(args1->is_defn)*/
 	    }/*end for i*/
 	}/* end look for type && size mismatches */
 
@@ -811,6 +817,8 @@ if(debug_latest) {
 			      t2 = datatype_of(alist->type),
 			      s1 = defn_list->size,
 			      s2 = alist->size,
+			      k1 = defn_list->kind,
+			      k2 = alist->kind,
 			      defsize1 = (s1 == size_DEFAULT),
 			      defsize2 = (s2 == size_DEFAULT),
 			      cmptype1= type_category[t1],
@@ -830,6 +838,10 @@ if(debug_latest) {
 			  }
 				/* Check class, type, and size */
 			  if( (c1 != c2) || (cmptype1 != cmptype2) ||
+			      /* If selected/default kind params don't match, it could
+			       * still be OK on a specific processor,
+			       * so only warn under -port */
+			      (k1 != k2 && (port_mixed_kind || k1 >= 0 || k2 >= 0) ) ||
 			     ( (s1 != s2) &&
 				/*exclude char size-only mismatch betw calls */
 			      (t1 != type_STRING ||
@@ -845,6 +857,7 @@ if(debug_latest) {
 						     "Defined":
 						     "Invoked");
 				  msg_tail("as type");
+				  if( k1 != k2 && !kind_is_default(k1) ) report_kind(k1);
 				  msg_tail(typespec(t1,!defsize1,(long)s1,
 					   FALSE, 0L));
 				}
@@ -854,6 +867,7 @@ if(debug_latest) {
 						 "Defined":
 						 "Invoked");
 				msg_tail("as type");
+				if( k1 != k2 && !kind_is_default(k2) ) report_kind(k2);
 				msg_tail(typespec(t2,!defsize2,(long)s2,
 					 FALSE, 0L));
 			  }

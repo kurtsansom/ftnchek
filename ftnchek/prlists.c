@@ -229,6 +229,7 @@ else {
 			  a->type = type_pack(
 			         class_SUBPROGRAM,implied_type);
 			  a->size = get_size(&(loc_symtab[i]),implied_type);
+			  a->kind = get_kind(&(loc_symtab[i]),implied_type);
 			  a->prog_unit = curr_gsymt;
 			  a->filename = head_ptr->filename;
 			  a->topfile = top_filename;
@@ -706,7 +707,7 @@ make_dummy_arg_array (t)
 		implied_type = get_type(symt);
 		arglist[i].type = type_pack(storage_class_of(symt->type),
 						implied_type);
-		arglist[i].kind = symt->kind;
+		arglist[i].kind = get_kind(symt,implied_type);
 		arglist[i].size = get_size(symt,implied_type);
 		arglist[i].same_as = i; /* always is same-as-self */
 		arglist[i].is_lvalue = TRUE;

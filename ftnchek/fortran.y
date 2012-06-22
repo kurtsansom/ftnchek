@@ -480,6 +480,7 @@ stmt_list_item	:	ordinary_stmt
 					 type_PROGRAM,	/* type */
 					 size_DEFAULT,	/* size */
 					 (char *)NULL,	/* size text */
+					 (kind_t)0, /* kind */
 					 &($1),		/* name */
 					 (Token*)NULL,	/* args */
 					 find_subprog_type(tok_PROGRAM));
@@ -1213,6 +1214,7 @@ prog_stmt	:	tok_PROGRAM {check_seq_header(&($1));}
 					  type_PROGRAM,	/* type */
 					  size_DEFAULT,	/* size */
 					  (char *)NULL,	/* size text */
+					  (kind_t)0, /* kind */
 					  &($3),	/* name */
 					  (Token*)NULL,/* args */
 					  find_subprog_type($1.tclass));
@@ -1289,6 +1291,7 @@ unlabeled_function_stmt
 				      current_datatype,
 				      current_typesize,
 				      current_len_text,
+				      current_kind,
 				      &($2),
 				      (Token*)NULL,
 					  find_subprog_type($1.tclass));
@@ -1306,6 +1309,7 @@ unlabeled_function_stmt
 				      current_datatype,
 				      current_typesize,
 				      current_len_text,
+				      current_kind,
 				      &($2),
 				      &($4),
 					  find_subprog_type($1.tclass));
@@ -1331,6 +1335,7 @@ unlabeled_function_stmt
 				      type_UNDECL,
 				      size_DEFAULT,
 				      (char *)NULL,
+				      kind_DEFAULT_UNKNOWN,
 				      &($2),
 				      (Token*)NULL,
 					  find_subprog_type($1.tclass));
@@ -1348,6 +1353,7 @@ unlabeled_function_stmt
 				      type_UNDECL,	/* type */
 				      size_DEFAULT,	/* size */
 				      (char *)NULL,	/* size text */
+				      kind_DEFAULT_UNKNOWN,
 				      &($2),		/* name */
 				      &($4),		/* args */
 					  find_subprog_type($1.tclass));
@@ -1552,6 +1558,7 @@ module_stmt	:   module_handle symbolic_name EOS
 				       type_MODULE,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
@@ -1588,6 +1595,7 @@ unlabeled_subroutine_stmt
 				       type_SUBROUTINE,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
@@ -1604,6 +1612,7 @@ unlabeled_subroutine_stmt
 				       type_SUBROUTINE,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       &($4),
 					   find_subprog_type($1.tclass));
@@ -1622,6 +1631,7 @@ unlabeled_subroutine_stmt
 				       type_SUBROUTINE,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
@@ -1637,6 +1647,7 @@ unlabeled_subroutine_stmt
 				       type_SUBROUTINE,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       &($4),
 					   find_subprog_type($1.tclass));
@@ -1721,6 +1732,7 @@ block_data_stmt	:	block_data_handle EOS
 				       type_BLOCK_DATA,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($1),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
@@ -1733,6 +1745,7 @@ block_data_stmt	:	block_data_handle EOS
 				       type_BLOCK_DATA,
 				       size_DEFAULT,
 				       (char *)NULL,
+				       (kind_t)0,
 				       &($2),
 				       (Token*)NULL,
 					   find_subprog_type($1.tclass));
@@ -2226,8 +2239,12 @@ arith_type_name	:	sizeable_type_name {
 		|	sizeable_type_name left_paren {integer_context=FALSE;}
 				kind_selector {integer_context=TRUE;} ')'
 			{
-				/* Treat all KINDs as default */
-			  current_typesize = size_DEFAULT;
+				/* Treat all KINDs as default size,
+				 * except default QUAD */
+			  if( current_kind == kind_DEFAULT_QUAD )
+			    current_typesize = size_QUAD;
+			  else
+			    current_typesize = size_DEFAULT;
 			  current_len_text = NULL;
 			  in_attrbased_typedecl = initial_flag = TRUE;
 			}
@@ -5154,6 +5171,7 @@ array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
 			    $$.TOK_type = $2.TOK_type;
 			    $$.size = $2.size;
+			    $$.kind = $2.kind;
 			    $$.TOK_flags = 0;
 			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
 			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
@@ -5167,6 +5185,7 @@ array_constructor:	tok_l_ac_delimiter ac_value_list tok_r_ac_delimiter
 			    $$.left_token = add_tree_node(&($1),$2.next_token,(Token*)NULL);
 			    $$.TOK_type = $2.TOK_type;
 			    $$.size = $2.size;
+			    $$.kind = $2.kind;
 			    $$.TOK_flags = 0;
 			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
 			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
@@ -5263,6 +5282,7 @@ literal_const	:	numeric_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_HOLLERITH);
 			    /* (size is set in get_hollerith) */
+			    $$.kind = default_kind(type_INTEGER);
 			    if(port_hollerith) {
 				warning($1.line_num,$1.col_num,
 				"hollerith constant may not be portable");
@@ -5272,7 +5292,8 @@ literal_const	:	numeric_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
-			    $$.kind = $2.kind;
+			    $$.kind = ($2.kind == kind_DEFAULT_UNKNOWN) ?
+			    	default_kind(type_LOGICAL) : $2.kind;
 			}
 		;
 
@@ -5304,7 +5325,7 @@ numeric_literal_const:	tok_integer_const non_char_kind_param
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_QUAD);
 			    $$.size = size_QUAD;
-			    $$.kind = default_quad_kind();
+			    $$.kind = kind_DEFAULT_QUAD;
                             if(f77_quad_constants || f90_quad_constants) {
                               nonstandard($1.line_num,$1.col_num,f90_quad_constants,0);
                               msg_tail(": quad precision constant");
@@ -5497,7 +5518,7 @@ non_char_kind_param:	'_' kind_param
 		|
 			{
 			    /* empty production */
-			    $$.kind = default_unknown_kind();
+			    $$.kind = kind_DEFAULT_UNKNOWN;
 			}
 		;
 
@@ -5508,9 +5529,10 @@ kind_param	:	tok_integer_const
 			}
 	   	|	tok_identifier
 			{
+			    primary_id_expr(&($1),&($$));
 			    /* has to be scalar nonnegative integer */
 			    /* the identifier could be undefined */
-			    $$.kind = int_expr_value(&($1));
+			    $$.kind = int_expr_value(&($$));
 			}
 	   	;
 
@@ -5903,6 +5925,7 @@ data_constant	:	numeric_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_HOLLERITH);
 			    $$.size = size_DEFAULT;
+			    $$.kind = default_kind(type_INTEGER);
 			}
 		;
 
@@ -6314,32 +6337,6 @@ void apply_intent_attr(Token *t)
     }
 }
 
-/*** Temporary routine to fake it, as if the enclosing program unit
-     was just now declared.  This is called upon exiting from a
-     program unit enclosed in a larger scope.  This will go away
-     once the symbol table is redesigned to allow nested scopes.
-     Returns hash table index of the name of the unit.
- ***/
-int fake_def_subprog(BlockStack *b)
-{
-	Token id;
-	int h =	hash_lookup(b->name);	/* look up the name in hash table */
-
-	/* fill in the token with as much info as def_function uses */
-	id.value.integer = h;
-	id.line_num = b->first_line;
-	id.col_num = NO_COL_NUM;
-
-	def_function(
-		type_SUBROUTINE,
-		size_DEFAULT,
-		(char *)NULL,
-		&id,
-		(Token*)NULL,
-		find_subprog_type(tok_PROGRAM));
-
-	return h;
-}
 
 	/* After having parsed end_stmt, common block lists and
 	   subprogram argument lists are copied over into global symbol

@@ -7,6 +7,7 @@ integer (kind = ikl) :: il1, il2
 integer (kind = ikh) :: ih1, ih2
 real (kind = rkl) :: rl1, rl2
 real (kind = rkh) :: rh1, rh2
+real (kind(1.0q0)) :: q1
 
 integer :: id1, id2
 real :: rd1, rd2
@@ -21,5 +22,9 @@ il1 = id1 + il1
 rd1 = rl1
 rl1 = rh1
 rh1 = rl1
+
+rl1 = 1.0q5
+q1 = 1.0q5
+q1 = rl1
 
 end

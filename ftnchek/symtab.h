@@ -514,6 +514,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 
 typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	long size;
+	kind_t kind;
 	type_t type;
 	short numargs;
 	ArgListElement *arg_array;
@@ -1144,8 +1145,8 @@ PROTO(int def_curr_prog_unit,( Token *id ));
 PROTO(void def_do_variable,( Token *id ));
 PROTO(void def_equiv_name,( Token *id ));
 PROTO(void def_ext_name,( Token *id ));
-PROTO(void def_function,( int datatype, long size, char *size_text, Token
-		  *id, Token *args, SUBPROG_TYPE subprogtype ));
+PROTO(void def_function,( int datatype, long size, char *size_text, kind_t kind,
+		   Token *id, Token *args, SUBPROG_TYPE subprogtype ));
 PROTO(void def_intrins_name,( Token *id ));
 PROTO(void def_namelist,( Token *id, Token *list ));
 PROTO(void def_namelist_item,( Token *id ));
@@ -1163,6 +1164,7 @@ PROTO(void equivalence_result_vars,(int result_hashno));
 PROTO(DBLVAL float_expr_value,( Token *t ));
 PROTO(int get_size,( const Lsymtab *symt, int type ));
 PROTO(char * get_size_text,( const Lsymtab *symt, int type ));
+PROTO(kind_t get_kind,(const Lsymtab *symt, int type));
 PROTO(int get_type,( const Lsymtab *symt ));
 PROTO(unsigned hash_lookup,( const char *s ));
 PROTO(Gsymtab* install_global,( int h, int datatype, int storage_class ));
@@ -1219,8 +1221,6 @@ PROTO(char* typespec, ( int t, int has_size, long size,
 
 /* Routines to set and retrieve info about kind numbers */
 PROTO(kind_t default_kind,(int type));
-PROTO(kind_t default_quad_kind,());
-PROTO(kind_t default_unknown_kind,());
 PROTO(kind_t selected_int_kind,( int range ));
 PROTO(kind_t selected_real_kind_r,( int range ));
 PROTO(kind_t selected_real_kind_p,( int precision ));
@@ -1228,6 +1228,9 @@ PROTO(kind_t selected_real_kind_p_r,( int precision, int range ));
 PROTO(int kind_type,(kind_t kind));
 PROTO(int kind_range,(kind_t kind));
 PROTO(int kind_precision,(kind_t kind));
+PROTO(int kind_is_default,(kind_t kind));
+/* msg_tail printout of kind info */
+PROTO(void report_kind,( kind_t k ));
 
 				/* in symtab.c (formerly hash.c) */
 PROTO(unsigned long hash,( const char *s ));
