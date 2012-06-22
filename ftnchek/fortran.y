@@ -125,6 +125,7 @@ PRIVATE int current_datatype,	/* set when parse type_name or type_stmt */
     current_recursive_attr,	/* subprog is RECURSIVE */
     label_dummy_arg_count,	/* number of labels in dummy argument list */
     len_selector_given, /* flag for use in processing CHARACTER decls */
+    charspec_keywd_given,	/* for catching illegal forms */
     len_spec_item_count,/* count of items in CHARACTER len-selector list */
     control_item_count;	/* count of items in control_info_list */
 
@@ -2368,6 +2369,7 @@ plain_char_type_name:	tok_CHARACTER
 			     current_size_is_expression = 0;
 			     integer_context = TRUE;
 			     len_selector_given = FALSE;
+			     charspec_keywd_given = FALSE;
 			}
 		;
 
@@ -3176,8 +3178,25 @@ len_spec_item	:	len_spec_expr
 			  }
 				/* 2nd item is KIND */
 			  else if(len_spec_item_count == 1) {
-			  }
-			  else if(len_spec_item_count == 2) {
+			    /* If keyword was given earlier then it must be supplied later.
+			     */
+			    if( charspec_keywd_given ) {
+			      syntax_error($1.line_num,$1.col_num,
+				   "keyword");
+			      if(len_selector_given) msg_tail("KIND");
+			      else                   msg_tail("LEN");
+			      msg_tail("required here");
+			    }
+
+			    if( len_selector_given ) {
+			      current_kind = int_expr_value(&($1));
+			    }
+			    else {
+			      len_spec_token = $1;
+			      len_selector_given = TRUE;
+			    }
+			  } 
+			  else if(len_spec_item_count == 2) { /* only complain once */
 			    syntax_error($1.line_num,$1.col_num,
 					 "too many specifiers in list");
 			  }
@@ -3204,6 +3223,7 @@ len_spec_item	:	len_spec_expr
 			    nonstandard($2.line_num, $2.col_num,0,0);
 			    msg_tail(": F90-style declaration");
 			  }
+			  charspec_keywd_given = TRUE; /* once given, must use keywords */
 			}
 		;
 
