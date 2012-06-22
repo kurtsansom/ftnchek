@@ -1934,7 +1934,8 @@ substring_size(id,limits)
 	}
 	else {
 	  id_len = id->size;
-
+	  if( id_len == size_ADJUSTABLE ) /* map len=* to unknown for simpler tests */
+	    id_len = size_UNKNOWN;
 	  /* get tokens holding starting and ending bounds */
 	  start_bound = limits->left_token->left_token;
 	  end_bound = limits->left_token->next_token;
@@ -1944,7 +1945,7 @@ substring_size(id,limits)
 	    startindex = start_bound->value.integer;
 
 	  if( end_bound->tclass == tok_empty ) /* empty end bounds expr (...:) */
-	    endindex=id_len;
+	    endindex = id_len;
 	  else
 	    endindex = end_bound->value.integer;
 
