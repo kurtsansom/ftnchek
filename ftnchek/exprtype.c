@@ -1389,8 +1389,9 @@ if(debug_latest) {
 		  if(trunc_warn && !type_trunc && mixed_size
 		       && local_wordsize == 0)
 		    msg_tail("possibly");
-		  if( ( kind_is_default(kind1) &&
-		        kind_is_default(kind2) )
+		  if( ( (kind_is_default(kind1) &&
+			 kind_is_default(kind2)) ||
+			(size_trunc && type1==S) ) /* char size_trunc is for sure */
 		    ) {
 		      if(promotion)
 			  msg_tail("promoted to");
@@ -1404,7 +1405,8 @@ if(debug_latest) {
 		    report_kind(kind1);
 		  }
 		  report_type(term1);
-		  if(promotion || (kind1 != default_kind(type1)))
+		  if( (type1==R || type1==C || type1==D || type1==Z) &&
+		      (promotion || (kind1 != default_kind(type1))) )
 		    msg_tail(": may not give desired precision");
 		}
 		else if(mixed_warn) {
