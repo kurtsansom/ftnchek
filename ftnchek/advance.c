@@ -1096,7 +1096,7 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
 int
 looking_at_relop(VOID)
 {
-    int c;
+    int c=' ';			/* initialize so no compiler warning */
     srcPosn pos;
 
 
@@ -1139,23 +1139,25 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
 int
 looking_at_string(VOID)
 {
-    int c;
     srcPosn pos;
-
 
     if( next_char != EOS &&	/* Looking at next line already */
 	curr_srcLine != (srcLine *)NULL )
     {
+      int c;
       pos.Line = next_srcLine; /* starting position of lookahead text */
       pos.idx = next_index;
 
       SKIP_SPACE;
       c = CHAR_AT(pos);
-    }
 
     /* If next nonblank thing is a quote mark then we have a hit. */
-
-    return ( c == '\'' || c == '"' );
+      return ( c == '\'' || c == '"' );
+    }
+    else
+    {
+      return FALSE;
+    }
 }
 
 
@@ -1734,7 +1736,7 @@ struct keywd_list prefix_keywd[] = {
 PRIVATE
 srcPosn parse_subprog_keywd(srcPosn pos)
 {
-  srcPosn save_pos;
+  srcPosn save_pos = pos;
   int k;
   for(k=0; k<NUM_SUBPROG_KEYWDS; k++) {
     pos = see_keyword(pos,subprog_keywd[k].keywd);
