@@ -136,6 +136,7 @@ PROTO( int looking_at_keywd,( int token_class ));
 PROTO( int looking_at_relop,( void ));
 PROTO( int looking_at_string,( void ));
 PROTO( int looking_at_implicit_list,( void ));
+PROTO( int looking_at_prefix,( void ));
 
 				/* defined in forlex.c */
 PROTO( void get_binary_const,( Token *token, int c, int space_seen ));

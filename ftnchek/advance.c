@@ -113,6 +113,8 @@ PROTO(PRIVATE srcPosn skip_quoted_string,( srcPosn pos ));
 
 PROTO(PRIVATE srcPosn skip_hollerith,( srcPosn pos ));
 
+PROTO(PRIVATE srcPosn skip_dummy_arg_list,( srcPosn pos ));
+
 PROTO(PRIVATE srcPosn read_int_const,(srcPosn pos, int *value));
 
 /* Lookahead kluge routines */
@@ -916,6 +918,7 @@ else                (void)fprintf(list_fd," curr_srcLine = NULL");
 
 }
 
+
 int
 #if HAVE_STDC
 looking_at_keywd(int token_class)
@@ -1630,6 +1633,45 @@ if(debug_lexer && getenv("VERBOSE"))
 }/*skip_hollerith*/
 
 
+/* Skip over a procedure argument list.  Should be called when a '(' has
+   been seen and eaten.  Will skip a possibly empty list of
+   comma-separated identifiers and leave pos at next nonblank after
+   ')'.  Sets pos.idx to -1 if a non-identifier or other bogosity seen.
+ */
+PRIVATE
+srcPosn skip_dummy_arg_list( srcPosn pos )
+{
+  while( pos.idx >= 0 && CHAR_AT(pos) != ')' ) {
+    int c;
+    if( !isidletter(c=CHAR_AT(pos)) && /* must start with a letter, */
+	c != '*' ) {		       /* or be '*' for subr alternate return */
+      pos.idx = -1;
+    }
+    else {			/* advance past the dummy arg */
+      if( c == '*' ) {
+	stepPosn(&pos);
+      }
+      else {
+
+      /* this loop disallows embedded space in arg identifiers */
+	while( isidletter(c=CHAR_AT(pos)) || isadigit(c) ) {
+	  stepPosn(&pos);
+	}
+      }
+      SKIP_SPACE;
+      if( CHAR_AT(pos) == ',' ) { /* comma or close paren must follow */
+	stepPosn(&pos);		/* eat the comma */
+	SKIP_SPACE;
+      }
+    }
+  }
+  if( pos.idx >= 0 ) {		/* reached ')' */
+    stepPosn(&pos);		/* eat it */
+    SKIP_SPACE;
+  }
+
+  return pos;
+}
 
 		/* get_comments() in makehtml.c needs to be able to locate
 		 * the source line where the current prog unit is defined.
@@ -1952,7 +1994,7 @@ srcPosn parse_subprog_stmt(srcPosn pos)
 #endif
 	    stepPosn(&pos);		     /* eat the '(' */
 	    SKIP_SPACE;
-	    pos = skip_balanced_parens(pos); /* we do not harvest dummy args */
+	    pos = skip_dummy_arg_list(pos); /* we do not harvest dummy args */
 	  }
 	  if( pos.idx <= pos.Line->end_index ) { /* still not end: RESULT clause next */
 	    pos = parse_result_clause(pos); /* this will fail if it is an asgmt stmt after all */
@@ -2411,6 +2453,36 @@ int skip_label(const char *line, int i)
 	i++;
       return i;
 }
+
+/* Routine called when a possible prefix keyword ELEMENTAL, PURE, or
+   RECURSIVE is seen.  It calls parse_subprog_stmt to see if the
+   statement is a valid procedure declaration.  Note that there are
+   side effects as various parse variables are set, but these will do
+   no harm in the present context.  We check the parsed subprog class
+   to make sure it is one that allows prefix.
+
+   This is not part of the lookahead kluge but is used by is_keyword()
+   to disambiguate prefix keywords from identifiers.  It is located
+   here since it uses lookahead kluge routines and variables.
+ */
+
+int
+looking_at_prefix()
+{
+  srcPosn pos;
+  /* Back up to the beginning of statement */
+  pos.Line = next_srcLine;
+  pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+
+  pos = parse_subprog_stmt(pos);
+  if( pos.idx >= 0 &&
+      (parsed_subprog_class == tok_SUBROUTINE ||
+       parsed_subprog_class == tok_FUNCTION) )
+    return TRUE;
+  else
+    return FALSE;
+}
+
 
 /* Routine that searches from given starting line forward
    to find a CONTAINS statement.  It returns the srcLine where found,

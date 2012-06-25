@@ -71,6 +71,7 @@ PROTO( PRIVATE int is_keyword,( int i ));
 #define TK 0x200/* Type name that can be followed by kind-spec or len-spec */ 
 #define UK 0x400/* Keyword that can only occur in use stmt, ONLY */
 #define GN 0x800/* Generic specification keywords*/
+#define PX 0x1000/* Function prefix keywd ELEMENTAL, PURE, or RECURSIVE.*/
 /* **note: initial_flag is turned back on after comma when inside
   an attr-based type decl or USE statement or derived type decl. */
 
@@ -148,7 +149,7 @@ PRIVATE struct {
 {"DOUBLECOMPLEX",tok_DOUBLECOMPLEX,	IK | NI | EK | TY,	6},
 {"DOUBLEPRECISION",tok_DOUBLEPRECISION,	IK | NI | EK | TY,	6},
 {"DOWHILE",	tok_DOWHILE,	IK | NI | EK | MB,		2},
-{"ELEMENTAL",   tok_ELEMENTAL,  IK | NP | NI,   0},
+{"ELEMENTAL",   tok_ELEMENTAL,  NP | NI | PX,			0},
 {"ELSE",	tok_ELSE,	IK | NP | NI,			0},
 #if 0	/* ELSEIF not lexed: lexes ELSE and IF separately */
 {"ELSEIF",	tok_ELSEIF,	IK | NI | EK | MP | NA,		4},
@@ -211,10 +212,10 @@ PRIVATE struct {
 {"PROGRAM",	tok_PROGRAM,	IK | NP | NI | EK,		0},
 {"PROTECTED",   tok_PROTECTED,	IK | NI ,			0},
 {"PUBLIC",	tok_PUBLIC,	IK | NP | NI | EK,		0},
-{"PURE",	tok_PURE,	IK | NP | NI,			0},
+{"PURE",	tok_PURE,	NP | NI | PX,			0},
 {"READ",	tok_READ,	IK | EK | GN,			0},
 {"REAL",	tok_REAL,	IK | NI | EK | TY | TK,		0},
-{"RECURSIVE",   tok_RECURSIVE,	IK | NP | NI,			0},
+{"RECURSIVE",   tok_RECURSIVE,	NP | NI | PX,			0},
 {"RESULT",	tok_RESULT,	IK | NI | EK | MP | NA,		0},
 {"RETURN",	tok_RETURN,	IK | EK,			0},
 {"REWIND",	tok_REWIND,	IK | EK,			0},
@@ -711,7 +712,16 @@ is_keyword(i)
     ans = use_keywords_allowed;
   }
 
-
+  /* Function/subroutine prefix keywords must occur in first statement
+     of subprogram.  If so, look ahead to verify a FUNCTION or
+     SUBROUTINE declaration follows.
+   */
+  else if(MATCH(PX)) {
+    if( stmt_sequence_no > 0 )
+      ans = FALSE;		/* not first stmt: ruled out */
+    else
+      ans = looking_at_prefix(); /* lookahead */
+  }
   /*-------------------------------------------------------------*/
 		/* Remaining cases are IK in initial part */
 
