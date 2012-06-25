@@ -149,6 +149,8 @@ PROTO(PRIVATE int skip_label,(const char *line, int i));
 
 PROTO(PRIVATE srcLine *scan_for_contains,(srcLine *start_srcLine, int stop_at_end));
 
+PROTO(PRIVATE int get_alhead_defn,(Gsymtab *gsymt));
+
 PROTO(PRIVATE void populate_interface,(ProcInterface *interface));
 
 #ifdef ALLOW_UNIX_CPP
@@ -1725,15 +1727,18 @@ char parsed_resultvar[MAXIDSIZE+1];
 			
 PRIVATE
 int parsed_subprog_class,	/* keyword class of subprog that was found */
-  is_internal,			/* is an internal subprog */
-  is_module,			/* is a module subprog */
   parsed_datatype,		/* datatype of subprog */
   parsed_size,			/* size (CHARACTER len or numeric*size) */
   parsed_kind_param,		/* kind of subprog (FUNCTIONs only) */
   kind_is_bogus,		/* set if KIND spec is present */
-  parsed_recursive,		/* RECURSIVE attribute */
-  parsed_pure,			/* PURE attribute */
-  parsed_elemental;		/* ELEMENTAL attribute */
+  parsed_array_attr,		/* has array attributes */
+  parsed_pointer_attr,		/* has POINTER attribute */
+  parsed_recursive_attr,		/* RECURSIVE attribute */
+  parsed_pure_attr,			/* PURE attribute */
+  parsed_elemental_attr;		/* ELEMENTAL attribute */
+
+PRIVATE
+array_dim_t parsed_array_dim;		/* array attrs of function result */
 
 struct keywd_list {
   char* keywd;			/* keyword string */
@@ -1859,13 +1864,13 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
 	  return pos;	/* bail out if it fails */
 	break;
       case tok_RECURSIVE:
-	parsed_recursive = TRUE;
+	parsed_recursive_attr = TRUE;
 	break;
       case tok_PURE:
-	parsed_pure = TRUE;
+	parsed_pure_attr = TRUE;
 	break;
       case tok_ELEMENTAL:
-	parsed_elemental = TRUE;
+	parsed_elemental_attr = TRUE;
 	break;
       default:
 	break;		/* can't happen */
@@ -1911,8 +1916,8 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
    Returns pos with idx >= 0 if found, idx = -1 if not found.
 
    As side effects, data type and attribute values are put into
-   parsed_datatype, parsed_recursive, parsed_pure, and
-   parsed_elemental; and subroutine name or function result name is
+   parsed_datatype, parsed_recursive_attr, parsed_pure_attr, and
+   parsed_elemental_attr; and subroutine name or function result name is
    stored in parsed_identifier.
  */
 PRIVATE
@@ -1925,11 +1930,12 @@ srcPosn parse_subprog_stmt(srcPosn pos)
   parsed_size = size_DEFAULT; /* will be changed to 1 if CHARACTER */
   parsed_kind_param = kind_DEFAULT_UNKNOWN;
   kind_is_bogus = FALSE;	/* hope it will be default kind */
-  is_internal = FALSE;
-  is_module = FALSE;
-  parsed_recursive = FALSE;	/* prefix keywords that may be seen */
-  parsed_pure = FALSE;
-  parsed_elemental = FALSE;
+  parsed_array_attr = FALSE;
+  parsed_array_dim = array_dim_info(0,0); /* scalar */
+  parsed_pointer_attr = FALSE;
+  parsed_recursive_attr = FALSE;	/* prefix keywords that may be seen */
+  parsed_pure_attr = FALSE;
+  parsed_elemental_attr = FALSE;
 
 #ifdef DEBUG_LOOKAHEAD
   if(debug_latest && getenv("VERBOSE")) {
@@ -1948,6 +1954,25 @@ srcPosn parse_subprog_stmt(srcPosn pos)
   /* Now parse the subprog-class keyword. */
   pos = parse_subprog_keywd(pos);
   if( pos.idx >= 0 ) {    /* match found: verify name next */
+      /* for non functions, data type defaults to value appropriate for class */
+    switch( parsed_subprog_class ) {
+    case tok_PROGRAM:
+      parsed_datatype = type_PROGRAM;
+      parsed_kind_param = 0;
+      break;
+    case tok_SUBROUTINE:
+      parsed_datatype = type_SUBROUTINE;
+      parsed_kind_param = 0;
+      break;
+    case tok_MODULE:
+      parsed_datatype = type_MODULE;
+      parsed_kind_param = 0;
+      break;
+    case tok_BLOCKDATA:
+      parsed_datatype = type_BLOCK_DATA;
+      parsed_kind_param = 0;
+      break;
+    }
     if( pos.idx > pos.Line->end_index ) { /* end of statement: OK only for BLOCK DATA */
       if( parsed_subprog_class != tok_BLOCKDATA ) {
 #ifdef DEBUG_LOOKAHEAD
@@ -2454,6 +2479,54 @@ int skip_label(const char *line, int i)
       return i;
 }
 
+/* Routine to find an ArgListHeader record with is_defn set for the
+   given global symbol table entry.  If found, the values of interface
+   variables are set from those in the definition, and returns TRUE.
+   Otherwise returns FALSE.
+ */
+PRIVATE
+int get_alhead_defn(Gsymtab *gsymt)
+{
+  ArgListHeader *alhead = gsymt->info.arglist;
+
+  /* If procedure was seen by host unit, a global symtab entry was
+     created, but it will not have been processed yet, so check to
+     make sure there is an arglist header. */
+  while( alhead != (ArgListHeader *)NULL ) {
+
+    if( alhead->is_defn ) {
+      parsed_datatype = datatype_of(alhead->type);
+      parsed_size = alhead->size;
+      parsed_kind_param = alhead->kind;
+      kind_is_bogus = FALSE;
+/* FIXME when functions with array & pointer results supported
+      parsed_array_attr = alhead->array;
+      parsed_array_dim = alhead->array_dim;
+      parsed_pointer_attr = alhead->pointer;
+*/
+      /* FIXME: next attributes should come from alhead */
+      parsed_recursive_attr = gsymt->recursive;
+      parsed_pure_attr = gsymt->pure;
+      parsed_elemental_attr = gsymt->elemental;
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,": defn arglist found");
+  }
+#endif
+      return TRUE;		/* success */
+    }
+    else {
+      alhead = alhead->next;	/* not defn: follow list */
+    }
+  }
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,": defn not found");
+  }
+#endif
+  return FALSE;			/* no defn found */
+}
+
 /* Routine called when a possible prefix keyword ELEMENTAL, PURE, or
    RECURSIVE is seen.  It calls parse_subprog_stmt to see if the
    statement is a valid procedure declaration.  Note that there are
@@ -2532,9 +2605,11 @@ PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
   return (srcLine *)NULL;			/* not found */
 } /* scan_for_contains */
 
-/* Routine that searches for an internal or module
-   procedure with the given name that could satisfy a call at the
-   current source line.
+/* Routine that searches for an internal or module procedure with the
+   given name that could satisfy a call at the current source line.
+   Returns LOOKAHEAD_NOTFOUND if none found, LOOKAHEAD_INTERNAL if an
+   internal procedure is found, and LOOKAHEAD_MODULE if a module
+   procedure is found.
 
    There are two contexts in which the call can occur:
 
@@ -2561,7 +2636,6 @@ int search_for_internal(const char *name, ProcInterface *interface)
    */
   host_gsymt = hashtab[current_prog_unit_hash].glob_symtab;
   if( !host_gsymt->internal_subprog ) {
-    is_internal = TRUE;
 
 	/* Case (1) search for proc in CONTAINS section within current unit*/
     pos.Line = scan_for_contains(next_srcLine,TRUE);
@@ -2576,7 +2650,7 @@ int search_for_internal(const char *name, ProcInterface *interface)
 	if( pos.idx >= 0 ) {	/* found a subprog statement*/
 	  if( strcmp(name,parsed_procname) == 0 ) { /* matches the one we seek */
 	    populate_interface(interface); /* copy parsed values to ProcInterface struct */
-	    return TRUE;
+	    return LOOKAHEAD_INTERNAL;	   /* found internal procedure */
 	  }
 	  else {			/* not the one we seek: scan to END stmt */
 #ifdef DEBUG_LOOKAHEAD
@@ -2591,19 +2665,53 @@ int search_for_internal(const char *name, ProcInterface *interface)
 		break;
 	    }
 	    if( pos.Line == (srcLine *)NULL ) /* protect against hitting end of source */
-	      return FALSE;
+	      return LOOKAHEAD_NOTFOUND;
 	  }
 	}/* end found subprog stmt */
 	else {			/* catch end of CONTAINS */
 	  pos = parse_end_subprog(save_pos); /* i.e. see another END not subprog header */
 	  if( pos.idx >= 0 )
-	    return FALSE;
+	    return LOOKAHEAD_NOTFOUND;
 	}
       }	/* end while pos.Line != NULL */
     }/* end if CONTAINS found */
   }/* end if !internal_subprog */
 
-  return FALSE;			/* not found */
+  /* Case (2): after scan for own internal failed, look for
+     internal or module.  This can be only for calls from internal or
+     module procedure.*/
+  if( host_gsymt->internal_subprog || host_gsymt->module_subprog ) {
+    /* First, we may be lucky and the reference is to a previously
+       parsed procedure.  In that case we have full interface info in
+       global symbol table.  Or, the global entry may be from a
+       call from the host.  In that case the gsymt info is from a
+       previous lookahead and we cannot do any better. */
+    int h = hash_lookup(name);
+    Gsymtab *gsymt;
+    if( (gsymt = hashtab[h].glob_symtab) != (Gsymtab *)NULL ) {
+      /* Verify that the found item is a peer. */
+      if( (host_gsymt->internal_subprog && gsymt->internal_subprog) ||
+	  (host_gsymt->module_subprog && gsymt->module_subprog) ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,"\nglobal symtab entry found");
+  }
+#endif
+				/* Look for ArgListHeader defn and use
+				   it if there is one.
+				 */
+	if( get_alhead_defn(gsymt) ) {
+	    populate_interface(interface); /* copy parsed values to ProcInterface struct */
+	  /* Success: return code indicating which category */
+	  return (gsymt->internal_subprog?
+		  LOOKAHEAD_INTERNAL:
+		  LOOKAHEAD_MODULE);
+	}
+      }
+    }
+  }/* end if internal or module subprog */
+
+  return LOOKAHEAD_NOTFOUND;			/* not found */
 }
 
 /* Copy parsed subprogram characteristics to interface struct. */
@@ -2623,13 +2731,13 @@ void populate_interface(ProcInterface *i)
     i->kind = default_kind(parsed_datatype);
   else
     i->kind = parsed_kind_param;
-  i->array_dim = array_dim_info(0,0); /* FIXME when array dim is parsed */
+  i->array_dim = parsed_array_dim;
   i->kind_is_bogus = kind_is_bogus;
-  i->array = FALSE;		/* FIXME when array dim is parsed */
-  i->pointer = FALSE;		/* FIXME when pointer attr is parsed */
-  i->elemental = parsed_elemental;
-  i->pure = parsed_pure;
-  i->recursive = parsed_recursive;
+  i->array = parsed_array_attr;
+  i->pointer = parsed_pointer_attr;
+  i->elemental = parsed_elemental_attr;
+  i->pure = parsed_pure_attr;
+  i->recursive = parsed_recursive_attr;
 }
 
 /* End of module Advance */

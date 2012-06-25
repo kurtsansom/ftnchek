@@ -124,7 +124,7 @@ PROTO(PRIVATE void use_function_arg,( Token *id ));
 PROTO(PRIVATE void use_inq_arg,( Token *id ));
 PRIVATE Lsymtab *inherit_local(int h, Lsymtab *enclosing_symt);
 PRIVATE void make_equivalent(Lsymtab *symt1, Lsymtab *symt2);
-
+PROTO(PRIVATE void copy_interface_to_symtab,(Lsymtab *symt, const ProcInterface *interface));
 
 #ifdef DEBUG_SIZES
 PROTO(extern void print_sizeofs,( void ));	/* in symtab.c */
@@ -264,6 +264,7 @@ call_func(id,arg)	/* Process function invocation */
 	Lsymtab *symt;
 	Gsymtab *gsymt;
 	IntrinsInfo *defn;
+	int symt_inherited = FALSE;
 
 	if( (symt = (hashtab[h].loc_symtab)) == NULL){
 	   symt = install_local(h,type_UNDECL,class_SUBPROGRAM);
@@ -273,6 +274,7 @@ call_func(id,arg)	/* Process function invocation */
 	   /* copy appropriate fields to new masking entry */
 	   symt = inherit_local(h,symt);
 	   hashtab[h].loc_symtab = symt;
+	   symt_inherited = TRUE;
 	}
 	else {			/* protect ourself against nonsense */
 	   if( symt->array_var || symt->parameter ) {
@@ -363,12 +365,20 @@ call_func(id,arg)	/* Process function invocation */
 	  check_intrins_args(id,arg);
     }
     else {		/* It is not intrinsic: install in global table */
-      int func_is_internal = FALSE;
+      int lookahead_result = LOOKAHEAD_NOTFOUND;
       switch(storage_class_of(symt->type)) {
 	case class_SUBPROGRAM:
-	  if(!symt->external && !symt->argument) {
-	/* Check if this is the first invocation seen in local scope */
-	    if( symt->info.toklist == (TokenListHeader *)NULL ) {
+	  if(!symt->argument) {
+
+	/* Lookahead kluge: check if this is the first invocation seen
+	   in local scope, and if it may be an internal procedure,
+	   look ahead to find its interface.  If symt entry is
+	   inherited from host, info may be from lookahead, whereas by
+	   now perhaps it was parsed and a defn put into global
+	   symtab, with better info than lookahead.
+	*/
+	    if( symt->info.toklist == (TokenListHeader *)NULL ||
+		symt_inherited ) {
 #ifdef DEBUG_LOOKAHEAD
 	      if(debug_latest) {
 		fprintf(list_fd,"\ninvoke func %s: file_has_contains=%d",
@@ -377,22 +387,14 @@ call_func(id,arg)	/* Process function invocation */
 #endif
 	      if( file_has_contains ) {
 		ProcInterface interface;
-		if( (func_is_internal = search_for_internal(symt->name,&interface)) ) {
+		if( (lookahead_result = search_for_internal(symt->name,&interface)) != LOOKAHEAD_NOTFOUND ) {
 #ifdef DEBUG_LOOKAHEAD
 		  if(debug_latest) {
 		    fprintf(list_fd,"\n internal %s found",symt->name);
 		  }
 #endif
-	       /* Fill in local symbol table entry with info about subroutine */
-	    symt->type = type_pack(class_SUBPROGRAM,interface.datatype);
-	    symt->size = interface.size;
-	    symt->kind = interface.kind;
-	    symt->array_dim = interface.array_dim;
-	    symt->array_var = interface.array;
-	    symt->pointer = interface.pointer;
-	    symt->recursive = interface.recursive;
-	    symt->pure = interface.pure;
-	    symt->elemental = interface.elemental;
+	       /* Fill in local symbol table entry with info about function */
+		  copy_interface_to_symtab(symt,&interface);
 
 		}
 	      }
@@ -402,6 +404,11 @@ call_func(id,arg)	/* Process function invocation */
 	  if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
 		gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
 		gsymt->info.arglist = NULL;
+		/* If lookahead found it, set appropriate flag */
+		if( lookahead_result == LOOKAHEAD_INTERNAL)
+		  gsymt->internal_subprog = TRUE;
+		else if( lookahead_result == LOOKAHEAD_MODULE )
+		  gsymt->module_subprog = TRUE;
 	  }
 			/* store arg list in local table */
 	  call_external(symt,id,arg);
@@ -431,7 +438,6 @@ call_func(id,arg)	/* Process function invocation */
 
 } /*call_func*/
 
-
 void
 #if HAVE_STDC
 call_subr(Token *id, Token *arg)	/* Process call statements */
@@ -443,9 +449,8 @@ call_subr(id,arg)	/* Process call statements */
 	int t, h=id->value.integer;
 	Lsymtab *symt;
 	Gsymtab *gsymt;
-#ifndef STANDARD_INTRINSICS
 	IntrinsInfo *defn;
-#endif
+	int symt_inherited = FALSE;
 	if( (symt = (hashtab[h].loc_symtab)) == NULL){
 	   symt = install_local(h,type_SUBROUTINE,class_SUBPROGRAM);
    	   symt->info.toklist = NULL;
@@ -454,6 +459,7 @@ call_subr(id,arg)	/* Process call statements */
 	   /* copy appropriate fields to new masking entry */
 	   symt = inherit_local(h,symt);
 	   hashtab[h].loc_symtab = symt;
+	   symt_inherited = TRUE;
 	}
 	else {			/* protect ourself against nonsense */
 	   if( symt->array_var || symt->parameter ) {
@@ -472,7 +478,7 @@ call_subr(id,arg)	/* Process call statements */
 	    msg_tail(symt->name);
 	}
 
-	t=datatype_of(symt->type);
+	t = datatype_of(symt->type);
 		/* Symbol seen before: check it & change class */
 
 	if( (storage_class_of(symt->type) == class_VAR
@@ -488,14 +494,12 @@ call_subr(id,arg)	/* Process call statements */
 	   if declared intrinsic, then accept it as such and
 	   do checking now.  Otherwise, save arg list
 	   to be checked later. */
-#ifndef STANDARD_INTRINSICS
     if(!symt->external && !symt->intrinsic
 		&& (defn = find_intrinsic(symt->name)) != NULL) {
 			/* First encounter with intrinsic fcn: store info */
 		symt->intrinsic = TRUE;
 		symt->info.intrins_info = defn;
     }
-#endif
 
 			/* Token list is in reverse order.  Restore
 			   args to original order. */
@@ -508,13 +512,15 @@ call_subr(id,arg)	/* Process call statements */
 	  check_intrins_args(id,arg);
     }
     else {
-      int subr_is_internal = FALSE;
+      int lookahead_result = LOOKAHEAD_NOTFOUND;
 	
-	/* If this is the first invocation seen in local scope, check
-	   whether it could be an internal or peer module/internal routine.
-	 */
-      if( !symt->external && !symt->argument &&
-	  symt->info.toklist == (TokenListHeader *)NULL ) {
+      if( !symt->argument ) {
+
+	/* Lookahead kluge: check if this is the first invocation seen
+	   in local scope, and if it may be an internal procedure,
+	   look ahead to find its interface. */
+       if( symt->info.toklist == (TokenListHeader *)NULL ||
+		symt_inherited ) {
 #ifdef DEBUG_LOOKAHEAD
 	if(debug_latest) {
 	  fprintf(list_fd,"\ncall subr %s: file_has_contains=%d",
@@ -523,23 +529,22 @@ call_subr(id,arg)	/* Process call statements */
 #endif
 	if( file_has_contains ) {
 	  ProcInterface interface;
-	  if( (subr_is_internal = search_for_internal(symt->name,&interface)) ) {
+	  if( (lookahead_result = search_for_internal(symt->name,&interface)) ) {
 #ifdef DEBUG_LOOKAHEAD
 	    if(debug_latest) {
 	      fprintf(list_fd,"\n internal %s found",symt->name);
 	    }
 #endif
-	       /* Fill in local symbol table entry with info about subroutine */
-	    symt->type = type_pack(class_SUBPROGRAM,type_SUBROUTINE);
-	    symt->kind = interface.kind;
-	    symt->array_dim = interface.array_dim;
-	    symt->array_var = interface.array;
-	    symt->pointer = interface.pointer;
-	    symt->recursive = interface.recursive;
-	    symt->pure = interface.pure;
-	    symt->elemental = interface.elemental;
+	       /* Fill in local symbol table entry with info about subroutine.
+		  It may actually be a function invoked by CALL so copy the
+		  interface data as is.
+		*/
+
+	    copy_interface_to_symtab(symt,&interface);
+
 	  }
 	}
+       }
       }	/* end look for internal */
 
 		/* It is not intrinsic: install in global table */
@@ -547,8 +552,13 @@ call_subr(id,arg)	/* Process call statements */
       if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
 	gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
 	gsymt->info.arglist = NULL;
+	gsymt->kind = 0;
+		/* If lookahead found it, set appropriate flag */
+	if( lookahead_result == LOOKAHEAD_INTERNAL)
+	  gsymt->internal_subprog = TRUE;
+	else if( lookahead_result == LOOKAHEAD_MODULE )
+	  gsymt->module_subprog = TRUE;
       }
-      gsymt->kind = 0;
 
       call_external(symt,id,arg);
 
@@ -570,6 +580,24 @@ call_subr(id,arg)	/* Process call statements */
 
 }/*call_subr*/
 
+
+    /* Copies information from a procedure interface to symtab.
+       Used by lookahead kluge.
+     */
+PRIVATE
+void copy_interface_to_symtab(Lsymtab *symt, const ProcInterface *interface)
+{
+  symt->type = type_pack(class_SUBPROGRAM,interface->datatype);
+  symt->size = interface->size;
+  symt->kind = interface->kind;
+  symt->kind_is_bogus = interface->kind_is_bogus;
+  symt->array_var = interface->array;
+  symt->array_dim = interface->array_dim;
+  symt->pointer = interface->pointer;
+  symt->elemental = interface->elemental;
+  symt->pure = interface->pure;
+  symt->recursive = interface->recursive;
+}
 		/* check out consistency of intrinsic argument list */
 PRIVATE
 void

@@ -724,7 +724,8 @@ typedef struct lSymtEntry{
 	     result_var : 1, /* variable is result name for a function */
 	     elemental : 1, 	/* ELEMENTAL subprogram */
 	     pure : 1, 		/* PURE subprogram */
-	     recursive : 1; 	/* RECURSIVE subprogram */
+	     recursive : 1, 	/* RECURSIVE subprogram */
+	     kind_is_bogus : 1;	/* kind not determined by lookahead */
 } Lsymtab;
 
 typedef struct gSymtEntry{	/* Global symbol table element */
@@ -742,7 +743,6 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     used_flag: 1,
 	     set_flag: 1,
 	     assigned_flag: 1,
-	     recursive: 1,
 	     library_prog_unit: 1,
 	     internal_entry: 1,	/* entry point other than at the top */
 	     invoked_as_func: 1,
@@ -762,6 +762,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     set_this_file: 1,
 	     invoked_as_func_this_file: 1,
 	     declared_external_this_file: 1,
+	     recursive: 1,	/* RECURSIVE subprogram */
 	     elemental : 1, 	/* ELEMENTAL subprogram */
 	     pure : 1; 		/* PURE subprogram */
 } Gsymtab;
@@ -828,6 +829,11 @@ typedef struct {
 
 SYM_SHARED
 int file_has_contains;	/* init_scan() records presence of CONTAINS stmt */
+
+/* names for return values of search_for_internal */
+#define LOOKAHEAD_NOTFOUND 0
+#define LOOKAHEAD_INTERNAL 1
+#define LOOKAHEAD_MODULE 2
 
 PROTO(int search_for_internal,(const char *name, ProcInterface *interface));
 
