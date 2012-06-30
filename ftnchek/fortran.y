@@ -528,15 +528,16 @@ stmt_list_item	:	ordinary_stmt
 					   stmts have been merged into tok_END.
 					 */
 			  if(curr_stmt_class == tok_END) {
+
+			    pop_block(&($$),$$.tclass,
+				      curr_stmt_name,NO_LABEL);
+
 			    /* END implies RETURN for subprogram except in
 			     * an interface block.
 			     */
 			    if(prev_stmt_class != tok_RETURN && !interface_block)
 			      (void)do_RETURN(current_prog_unit_hash,&($1));
 				
-			    pop_block(&($$),$$.tclass,
-				      curr_stmt_name,NO_LABEL);
-
 			    END_processing(&($$));
 			    goto_flag = prev_goto = FALSE;
 			  }

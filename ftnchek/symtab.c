@@ -1872,10 +1872,12 @@ do_RETURN(hashno,keyword)
 		break;
 	    default:		/* Function return: check whether result
 				   variable has been assigned a value.
-				   All result variables are storage
+				   If function has ENTRY stmts, all
+				   result variables are storage
 				   associated, so only one needs to be set.
 				*/
-	      if(misc_warn) {
+	      if(misc_warn &&
+		 curr_scope_bottom < loc_symtab_top) { /* can't happen but... */
 		int result_set=FALSE;
 		for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
 		  if (loc_symtab[i].result_var && loc_symtab[i].set_flag) {
