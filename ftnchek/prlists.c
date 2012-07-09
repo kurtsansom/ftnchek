@@ -330,6 +330,46 @@ else {
 
 
 			break;/* end case class_NAMELIST*/
+
+		case class_MODULE:
+		    {
+if((gsymt=hashtab[h].glob_symtab) == NULL) {
+    oops_message(OOPS_NONFATAL,NO_LINE_NUM,NO_COL_NUM,
+    "module not in global symtab:");
+    oops_tail(loc_symtab[i].name);
+}
+else {
+		      ModVarListHeader *mvl_head = gsymt->modvarlist;
+		      ModVar *mod_var = NULL;
+		      Lsymtab *symt = NULL;
+		      int k = 0;
+		      int mod_hash;
+
+		      if (mvl_head != NULL) {
+			/* copy each module variable's usage information */
+			while (k < mvl_head->numargs) {
+			  mod_var = &(mvl_head->mod_var_array[k]);
+			  mod_hash = hash_lookup(mod_var->name);
+			  symt = hashtab[mod_hash].loc_symtab;
+
+			  mod_var->used = symt->used_flag;
+			  mod_var->assigned = symt->assigned_flag;
+			  mod_var->set = symt->set_flag;
+			  mod_var->used_before_set = symt->used_before_set;
+			  if (mod_var->used)
+			      mvl_head->any_used = TRUE;
+			  if (mod_var->set)
+			      mvl_head->any_set = TRUE;
+			  k++;
+			}
+		      }
+
+		      /* stub arglist */
+		      gsymt->info.arglist = make_dummy_arg_array(head_ptr->tokenlist);
+}
+		    }
+			break;
+
 	    }/* end switch */
 
         }/* end for (i=0; i<loc_symtab_top; i++) */
@@ -884,5 +924,53 @@ new_comlistheader(VOID)
   return comlisthead_space + (--comlistheadspace_bot);
 }
 
+
+ModVar * 
+new_modvar( unsigned count )
+{
+  static unsigned long modvarspace_bot = 0;
+  static ModVar * modvar_space = NULL;	/* start of storage space */
+
+  modvar_used += count;
+
+  if (modvarspace_bot < count) {
+    unsigned long numalloc = (count > MODVARSZ ? count : MODVARSZ);
+    modvar_space = (ModVar *)calloc(numalloc,sizeof(ModVar));
+    if (modvar_space == (ModVar *)NULL) {
+      oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
+		   "Cannot alloc space for module variable list elements");
+      return (ModVar *)NULL; /*NOTREACHED*/
+    }
+    modvarspace_bot = numalloc;	/* initially offset takes us beyond the
+				   storage block */
+  }
+				/* Slots are allocated from top down */
+  modvarspace_bot -= count;
+  return modvar_space + modvarspace_bot;
+}
+
+	/* Returns pointer to space for one module variables list header */
+
+ModVarListHeader * 
+new_modvarlistheader( void )
+{
+  static unsigned long modvarlistheadspace_bot = 0;
+  static ModVarListHeader *modvarlisthead_space;
+
+  modvarlist_head_used++;
+
+  if (modvarlistheadspace_bot < 1) {
+    modvarlisthead_space = 
+     (ModVarListHeader *)calloc(MODVARLISTHEADSZ,sizeof(ModVarListHeader));
+    if (modvarlisthead_space == (ModVarListHeader *)NULL) {
+      oops_message(OOPS_FATAL,line_num,NO_COL_NUM,
+	  "Cannot alloc space for module variable list header");
+      return (ModVarListHeader *)NULL;
+    }
+    modvarlistheadspace_bot = MODVARLISTHEADSZ;
+  }
+				/* Slots are allocated from top down */
+  return modvarlisthead_space + (--modvarlistheadspace_bot);
+}
 
 #endif /*T_ALLOC*/

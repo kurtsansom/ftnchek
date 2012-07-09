@@ -621,6 +621,7 @@ wrapup(VOID)	/* look at cross references, etc. */
 	check_com_usage();	/* Look for unused common stuff */
 	check_comlists();	/* Look for common block mismatches */
 	check_arglists(-1,not_subprog);	/* Look for subprog defn/call mismatches */
+	check_mod_usage();	/* Look for unused module variables */
 
         if ( htmlcalltree_fd ) 
          { 

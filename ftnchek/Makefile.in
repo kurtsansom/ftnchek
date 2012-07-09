@@ -209,7 +209,8 @@ TXTtoPSOPTS	= @TXTtoPSOPTS@
 OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o dtypes.o exprtype.o \
 		  forlex.o ftnchek.o include.o intake.o intrins.o \
 		  iokeywds.o keywords.o labels.o \
-		  loccheck.o makedcls.o makehtml.o message.o options.o pgsymtab.o \
+		  loccheck.o makedcls.o makehtml.o message.o \
+		  modcheck.o options.o pgsymtab.o \
 		  plsymtab.o prlists.o prlocsym.o project.o \
 		  symspace.o symtab.o symutils.o utils.o
 
@@ -243,7 +244,8 @@ SRCS            = advance.c advance.h argcheck.c block_match.h \
 		  include.c intake.c intrins.c intrins.h iokeywds.h \
 		  iokeywds_enum.h iokeywds.c \
 		  keywords.c labels.c \
-		  loccheck.c loccheck.h makedcls.c makehtml.c message.c options.c \
+		  loccheck.c loccheck.h makedcls.c makehtml.c message.c \
+		  modcheck.c options.c \
 		  options.h pgsymtab.c pgsymtab.h plsymtab.c plsymtab.h \
 		  prlists.c prlocsym.c project.c symspace.c \
 		  symspace.h symtab.c symtab.h symutils.c symutils.h tokdefs.h \
@@ -681,6 +683,8 @@ makedcls.o:	config.h ftnchek.h plsymtab.h symtab.h
 makehtml.o:     config.h ftnchek.h plsymtab.h symtab.h tokdefs.h advance.h
 
 message.o:	config.h ftnchek.h
+
+modcheck.o:	config.h ftnchek.h symtab.h pgsymtab.h
 
 options.o:	config.h ftnchek.h options.h utils.h
 

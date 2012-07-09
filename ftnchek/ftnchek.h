@@ -661,6 +661,12 @@ PROTO(VOID exit,(int));
 #ifndef COMLISTELTSZ
 #define COMLISTELTSZ	1000 /* SMALL_MACHINE common elts per chunk */
 #endif
+#ifndef MODVARLISTHEADSZ
+#define MODVARLISTHEADSZ	200 /* SMALL_MACHINE module variables list headers per chunk */
+#endif
+#ifndef MODVARSZ
+#define MODVARSZ	1000 /* SMALL_MACHINE module variable list elts per chunk */
+#endif
 #ifndef PTRSPACESZ
 #define PTRSPACESZ	200  /* SMALL_MACHINE ptrs-to-arraydim per chunk */
 #endif
@@ -711,6 +717,12 @@ PROTO(VOID exit,(int));
 #ifndef COMLISTELTSZ
 #define COMLISTELTSZ	4000 /* MEDIUM_MACHINE common elts per chunk */
 #endif
+#ifndef MODVARLISTHEADSZ
+#define MODVARLISTHEADSZ	1000 /* MEDIUM_MACHINE module variables list headers per chunk */
+#endif
+#ifndef MODVARSZ
+#define MODVARSZ	4000 /* MEDIUM_MACHINE module variable list elts per chunk */
+#endif
 #ifndef PTRSPACESZ
 #define PTRSPACESZ	400 /* MEDIUM_MACHINE Max number of ptrs to arraydim */
 #endif
@@ -757,6 +769,12 @@ PROTO(VOID exit,(int));
 #endif
 #ifndef COMLISTELTSZ
 #define COMLISTELTSZ	50000 /* LARGE_MACHINE common elts per chunk */
+#endif
+#ifndef MODVARLISTHEADSZ
+#define MODVARLISTHEADSZ	10000 /* LARGE_MACHINE module variables list headers per chunk */
+#endif
+#ifndef MODVARSZ
+#define MODVARSZ	50000 /* LARGE_MACHINE module variable list elts per chunk */
 #endif
 #ifndef PTRSPACESZ
 #define PTRSPACESZ	2000 /* LARGE_MACHINE Max number of ptrs to arraydim */
@@ -1136,6 +1154,8 @@ OPT(int,usage_ext_undefined,USAGE_ALL);	/* used but not defined (= -external fla
 OPT(int,usage_ext_unused,USAGE_ALL);	/* defined but not used (like -library flag) */
 OPT(int,usage_label_undefined,USAGE_ALL);  /* label used but undefined */
 OPT(int,usage_label_unused,USAGE_ALL);     /* label defined but unused */
+OPT(int,usage_mod_var_unset,USAGE_ALL);		/* module variables unset */
+OPT(int,usage_mod_var_unused,USAGE_ALL);	/* module variables unused */
 OPT(int,usage_var_set_unused,USAGE_ALL);	/* set but not used */
 OPT(int,usage_var_uninitialized,USAGE_ALL);	/* used before set */
 OPT(int,usage_var_unused,USAGE_ALL);		/* declared but not used */
@@ -1279,7 +1299,9 @@ SHARED unsigned long
     arglist_element_used,	/* arg array elements used */
     arglist_head_used,		/* arg heads used (1 per call) */
     comlist_element_used,	/* com array elements used */
-    comlist_head_used;		/* com heads used (1 per defn) */
+    comlist_head_used,		/* com heads used (1 per defn) */
+    modvar_used,		/* modvar array elements used */
+    modvarlist_head_used;	/* modvar heads used (1 per defn) */
 SHARED long
     max_loc_symtab,	/* number of local symtab entries used */
     max_glob_symtab;	/* number of global symtab entries used */
@@ -1364,6 +1386,9 @@ PROTO(char* ulongtostr, (unsigned long num));
 
 /* used in blockstack to differentiate module and internal subprograms */
 typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
+
+	/* in modcheck.c */
+PROTO(void check_mod_usage, ( void ));
 
 	/* in pgsymtab.c */
 PROTO(void check_arglists, ( int hashno, SUBPROG_TYPE limit ));

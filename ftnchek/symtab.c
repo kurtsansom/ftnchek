@@ -1482,6 +1482,45 @@ def_intrins_name(id)		/* Process intrinsic lists */
 	symt->declared_external = TRUE;
 }/*def_intrins_name*/
 
+/* Create a symbol table entries for a module that was inherited by a
+ * USE statement
+ */
+void def_module(Token *id, Token *only, int only_list_mode)
+{
+    int h = id->value.integer;
+    Lsymtab *symt = NULL;
+    Gsymtab *gsymt = NULL;
+    TokenListHeader *TH_ptr;
+
+    if( (symt = hashtab[h].loc_symtab) == NULL || !in_curr_scope(symt) ) {
+	symt = install_local(h, type_MODULE, class_MODULE);
+	symt->size = size_DEFAULT;
+	symt->kind = 0;
+	symt->line_declared = id->line_num;
+	symt->file_declared = inctable_index;
+    }
+
+    if( (gsymt = hashtab[h].glob_symtab) == NULL ) {
+	gsymt = install_global(h, type_MODULE, class_MODULE);
+	gsymt->size = size_DEFAULT;
+	gsymt->kind = 0;
+	gsymt->info.arglist = NULL;	/* not used */
+	gsymt->modvarlist = NULL;
+	gsymt->internal_subprog = FALSE;
+	gsymt->module_subprog = FALSE;
+    }
+
+    /* create a stub token list */
+    TH_ptr=make_TL_head(id);
+
+    TH_ptr->tokenlist = NULL;
+    TH_ptr->next = symt->info.toklist;
+
+    symt->info.toklist = TH_ptr;
+
+    read_module_file(h, only, only_list_mode);
+}
+
 void
 #if HAVE_STDC
 def_namelist(Token *id, Token *list)		/* Process NAMELIST declaration */

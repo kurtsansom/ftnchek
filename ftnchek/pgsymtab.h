@@ -50,6 +50,8 @@ PROTO(int argcmp_error_head,(const char *name, ArgListHeader *alh, const char *m
 PROTO(void arg_error_report, (ArgListHeader *alh,const char *argtype,int i,const char *msg));
 
 PROTO(void sort_gsymbols ,( Gsymtab *glist[], int n ));
+PROTO(int modcmp_error_head, (const char *name, ModVarListHeader *mvlh, const char *msg));
+PROTO(void mod_error_report,(ModVarListHeader *mvlh, const char *msg));
 
 PG_SHARED int cmp_error_count;
 

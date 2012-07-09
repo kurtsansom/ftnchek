@@ -2659,15 +2659,15 @@ module_nature   :   tok_INTRINSIC
 
 use_spec:	module_name
 		{
-		  read_module_file($1.value.integer,(Token *)NULL,FALSE);
+		  def_module(&($1), (Token *)NULL, FALSE);
 		}
-		| module_name_comma use_only
+	|	module_name_comma use_only
 		{
-		  read_module_file($1.value.integer,&($2),TRUE);
+		  def_module(&($1), &($2), TRUE);
 		}
-		| module_name_comma rename_list
+	|	module_name_comma rename_list
 		{
-		  read_module_file($1.value.integer,&($2),FALSE);
+		  def_module(&($1), &($2), FALSE);
 		}
 	;
 

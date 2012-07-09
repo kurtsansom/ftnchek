@@ -102,7 +102,7 @@ PROTO(PRIVATE void comblocks_out, (FILE *fd, Gsymtab *sym_list[], Gsymtab *modul
 PROTO(PRIVATE void clist_out,( Gsymtab *gsymt, ComListHeader *c, FILE *fd ));
 PROTO(PRIVATE void com_info_in,( FILE *fd, const char *filename, const char *modulename, Token *item_list, int only_list_mode ));
 PROTO(PRIVATE void mod_type_in,(FILE *fd, const char *module_name, const char *filename, Token * item_list, int only_list_mode));
-PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename, Token *item_list, int only_list_mode));
+PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename, Token *item_list, int only_list_mode, ModVar *modvar, int in_module));
 PROTO(PRIVATE ComListHeader *comblock_used_by,(ComListHeader *clist, Gsymtab *module));
 PROTO(PRIVATE void initialize_typemap, (VOID));
 PROTO(PRIVATE int map_type, (int t_in));
@@ -426,14 +426,17 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
   WRITE_NUM(" type",get_type(lsymt));
   WRITE_NUM(" kind",lsymt->kind);
   WRITE_NUM(" size",lsymt->size);
-  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d %d",
 		lsymt->parameter,
 		lsymt->array_var,
 		lsymt->common_var,
 		lsymt->allocatable,
 		lsymt->pointer,
 		lsymt->target,
-		0,0);		/* for future use */
+		lsymt->used_flag,
+		lsymt->set_flag,
+		lsymt->assigned_flag,
+		lsymt->used_before_set);
   if(lsymt->array_var) {
     NEXTLINE;
     WRITE_NUM(" dims",array_dims(lsymt->array_dim));
@@ -1007,6 +1010,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      fprintf(list_fd,"\nWarning: module name %s differs from file stem %s",
 	     modulename,module_filename);
    }
+
 		/* Save filename in permanent storage */
    READ_STR(" file",buf);
    topfilename = new_global_string(buf);
@@ -1038,15 +1042,98 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      int numvars,ivar;
      char sentinel[5];
 
+     Gsymtab *gsymt;
+     Lsymtab *symt;
+     ModVarListHeader *mvl_head;
+     ModVar *mod_var;
+     int in_mod = FALSE;
+
      READ_NUM(" locals",numvars);
      NEXTLINE;
 #ifdef DEBUG_PROJECT
  if(debug_latest) printf("read locals %d\n",numvars);
 #endif
-				/* Read local variables */
-     for(ivar=0; ivar<numvars; ivar++) {
-       mod_var_in(fd,topfilename,item_list,only_list_mode);
+
+     /* def_module should have created a global entry if there was none
+      */
+     gsymt = hashtab[h].glob_symtab;
+     symt = hashtab[h].loc_symtab;
+     mvl_head = gsymt->modvarlist;
+
+     /* first reference to module from use statment */
+     if (mvl_head == NULL) {
+       /* A module variable list header representing the usage information
+	* in the module itself is needed.  This information will later
+	* enable allow us to check whether a variable from a module was set
+	* with a value in the module itself.  This header is created when
+	* a USE statement is encountered for the first time.  
+	*/
+       mvl_head = new_modvarlistheader();
+       gsymt->modvarlist = mvl_head;
+
+       mvl_head->prog_unit = hashtab[h].glob_symtab;
+       mvl_head->in_module = TRUE;
+       in_mod = TRUE;
      }
+     else {
+       /* A module variable list header representing the usage information
+	* in a prog unit is placed in the front of the list of headers.
+	*/
+       mvl_head = new_modvarlistheader();
+       mvl_head->next = gsymt->modvarlist;
+       gsymt->modvarlist = mvl_head;
+
+       mvl_head->prog_unit = hashtab[current_prog_unit_hash].glob_symtab;
+       mvl_head->in_module = FALSE;
+     }
+
+     mvl_head->numargs = numvars;
+     mvl_head->line_num = symt->line_declared;
+     mvl_head->top_line_num = top_file_line_num;
+     mvl_head->mod_var_array = new_modvar(numvars);
+     mvl_head->filename = current_filename;
+     mvl_head->topfile = top_filename;
+
+     /* Read local variables */
+     for(ivar=0; ivar<numvars; ivar++) {
+       mod_var = &(mvl_head->mod_var_array[ivar]);
+       mod_var_in(fd,topfilename,item_list,only_list_mode,mod_var,in_mod);
+     }
+
+     /* if a header for the module was created, we need to create a
+      * header for the prog unit
+      */
+     if (in_mod) {
+       ModVarListHeader *mvl_mod = mvl_head;
+       int i;
+
+       mvl_head = new_modvarlistheader();
+       mvl_head->next = gsymt->modvarlist;
+       gsymt->modvarlist = mvl_head;
+
+       mvl_head->prog_unit = hashtab[current_prog_unit_hash].glob_symtab;
+       mvl_head->in_module = FALSE;
+       mvl_head->numargs = numvars;
+       mvl_head->line_num = symt->line_declared;
+       mvl_head->top_line_num = top_file_line_num;
+       mvl_head->mod_var_array = new_modvar(numvars);
+       mvl_head->filename = current_filename;
+       mvl_head->topfile = top_filename;
+
+       for (i = 0; i < mvl_mod->numargs; i++) {
+	 mvl_head->mod_var_array[i].name = mvl_mod->mod_var_array[i].name;
+
+	 /* setting the any_set and any_used flags for the variables in
+	  * the module itself
+	  */
+	 if (mvl_mod->mod_var_array[i].set)
+	     mvl_mod->any_set = TRUE;
+	 if (mvl_mod->mod_var_array[i].used)
+	     mvl_mod->any_used = TRUE;
+       }
+
+     }
+
      fscanf(fd,"%5s",sentinel);
 #ifdef DEBUG_PROJECT
  if(debug_latest) printf("read sentinel %s\n",sentinel);
@@ -1312,7 +1399,7 @@ map_type(int t_in)
 
 
 PRIVATE void
-mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
+mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode, ModVar *mod_var, int in_module)
 {
   char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
@@ -1325,8 +1412,10 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
     id_allocatable,
     id_pointer,
     id_target,
-    id_dummy1,
-    id_dummy2;
+    id_used,
+    id_set,
+    id_assigned,
+    id_used_before_set;
   int id_array_dims;
   unsigned long id_array_elts;
   int use_this_item, in_list;
@@ -1336,15 +1425,17 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
   READ_LONG(" type",id_type);
   READ_KIND(" kind",id_kind);
   READ_LONG(" size",id_size);
-  fscanf(fd," flags %d %d %d %d %d %d %d %d",
+  fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d",
 	 &id_param,
 	 &id_array_var,
 	 &id_common_var,
 	 &id_allocatable,
 	 &id_pointer,
 	 &id_target,
-	 &id_dummy1,
-	 &id_dummy2);
+	 &id_used,
+	 &id_set,
+	 &id_assigned,
+	 &id_used_before_set);
 
   local_name = id_name;
   if (item_list == NULL) {/* no RENAME ONLY list : use everything */
@@ -1377,6 +1468,16 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode)
     symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
     symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
     symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
+    mod_var->name = symt->name;
+
+    /* only copy usage information for header that represents the module
+    */
+    if (in_module) {
+      mod_var->used = id_used;
+      mod_var->set = id_set;
+      mod_var->assigned = id_assigned;
+      mod_var->used_before_set = id_used_before_set;
+    }
   }
 
     if( id_array_var ) {

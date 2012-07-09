@@ -87,6 +87,7 @@ this Software without prior written authorization from the author.
 #define class_LABEL 4
 #define class_NAMELIST 5
 #define class_DTYPE 6  /* derived type */
+#define class_MODULE 7
 
 	/* Data types for variables, consts, and externals */
 	/* N.B. 0 thru 7 are wired into lookup tables in exprtype.c */
@@ -274,6 +275,8 @@ char *class_name[]
 	"stmt fun",
 	"label",
 	"namelist",
+	"derivedtype",
+	"module"
 }
 #endif
 ;
@@ -572,6 +575,28 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 	  is_defn:1;
 } TokenListHeader;
 
+typedef struct {	/* ModVar: holds module var data */
+	char *name;		/* name of module var */
+	unsigned		/* copies of flags from symtab */
+	  used:1,
+	  set:1,
+	  assigned:1,
+	  used_before_set:1,
+	  marked:1;		/* for listing of offenders */
+} ModVar;
+
+typedef struct MVHead {	/* ModVarListHeader: head node of module var list */
+	short numargs;		/* number of module vars */
+	LINENO_t line_num,top_line_num;	/* location of USE stmt */
+	ModVar *mod_var_array;	/* list of module vars */
+	struct gSymtEntry *prog_unit;	/* prog unit that USEs module */
+	const char *filename,*topfile;	/* location of USEing prog unit */
+	struct MVHead *next;
+	unsigned
+	  in_module:1,		/* usage information from module */
+	  any_used:1,		/* any of its vars accessed in prog unit*/
+	  any_set:1;		/* any of its vars set in prog unit */
+} ModVarListHeader;
 
 			/* Structure for intrinsic-function info */
 
@@ -735,6 +760,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	  struct childlist *child_list; /* List of callees (for prog unit) */
 	  struct gSymtEntry *prog_unit; /* Prog unit (for interior entry) */
 	} link;
+	ModVarListHeader *modvarlist;	/* List of module variables */
 	long size;
 	type_t  type;		/* Type & storage class: see macros below */
 	kind_t kind;		/* Kind parameter */
@@ -1148,6 +1174,10 @@ PROTO(void check_seq_header,( Token *t ));
 PROTO(Token * append_token,( Token *tlist, Token *t ));
 PROTO(void process_forall_construct,(Token *t));
 
+			/* in prlists.c */
+PROTO(ModVar * new_modvar,( unsigned count ));
+PROTO(ModVarListHeader * new_modvarlistheader,( void ));
+
 			/* in prlocsym.c */
 PROTO(void print_loc_symbols,( void ));
 
@@ -1186,6 +1216,7 @@ PROTO(void def_ext_name,( Token *id ));
 PROTO(void def_function,( int datatype, long size, char *size_text, kind_t kind,
 		   Token *id, Token *args, SUBPROG_TYPE subprogtype ));
 PROTO(void def_intrins_name,( Token *id ));
+PROTO(void def_module,( Token *id, Token *only, int only_list_mode ));
 PROTO(void def_namelist,( Token *id, Token *list ));
 PROTO(void def_namelist_item,( Token *id ));
 PROTO(void def_parameter,( Token *id, Token *val, int noparen ));

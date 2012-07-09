@@ -39,13 +39,14 @@ as the "MIT License."
     Shared functions defined:
 	argcmp_error_head	prints intro to argument mismatch
 	comcmp_error_head	prints intro to common mismatch
+	modcmp_error_head	prints intro to module variables usage
 	arg_error_report	Follow-on message about an argument mismatch
 	sub_error_report	Error message line about one subprogram
 				   invocation
 	com_error_report	Error message line about one common block
-				   declaration
 	comvar_error_report	Error message line about one common var
 				   mismatch
+	mod_error_report	Error message line about one module variable
 	sort_gsymbols		sort a list of Gsymtab ptrs alphabetically
 
 */
@@ -65,6 +66,7 @@ PROTO(PRIVATE void arg_error_locate,( ArgListHeader *alh ));
 PROTO(PRIVATE int cmp_error_head,(const char *name, const char *tag, const char *filename,
 				  LINENO_t lineno, const char *msg ));
 PROTO(PRIVATE void com_error_locate,( ComListHeader *clh ));
+PROTO(PRIVATE void mod_error_locate,(ModVarListHeader *mvlh));
 PROTO(PRIVATE void error_report,( const char *prog_unit_name,
 				  const char *filename, LINENO_t lineno,
 				  const char *topfile, LINENO_t top_lineno,
@@ -119,6 +121,17 @@ comcmp_error_head(name, clh, msg)
 			  clh->line_num,
 			  msg);
 }
+
+		/* Intro line of warning about module variable usage */
+int
+modcmp_error_head(const char *name, ModVarListHeader *mvlh, const char *msg)
+{
+    return cmp_error_head(name,"Variables of module",
+			  mvlh->filename,
+			  mvlh->line_num,
+			  msg);
+}
+
 
 		/* Follow-on message about an argument mismatch */
 void
@@ -190,6 +203,15 @@ comvar_error_report(clh, i, msg)
 		 i,"Variable",clh->com_list_array[i].name,msg);
 }
 
+		/* Formats an error message line about one module variable.
+		*/
+void
+mod_error_report(ModVarListHeader *mvlh, const char *msg)
+{
+    report_intro(mvlh->filename,mvlh->line_num,mvlh->topfile,mvlh->top_line_num);
+    msg_tail(msg);
+    mod_error_locate(mvlh);
+}
 
 /**** Definitions of private functions ****/
 
@@ -362,6 +384,21 @@ com_error_locate(clh)
 	novice_err_locate(clh->filename,clh->line_num);
 				/* Location where included */
 	novice_inc_locate(clh->filename,clh->topfile,clh->top_line_num);
+    }
+}
+
+PRIVATE void
+mod_error_locate(ModVarListHeader *mvlh)
+{
+				/* Prog unit (subprogram) containing the error.
+				   This gets printed in both modes. */
+    prog_unit_locate(mvlh->prog_unit->name);
+
+    if( novice_help ) {
+				/* Error location itself */
+	novice_err_locate(mvlh->filename,mvlh->line_num);
+				/* Location where included */
+	novice_inc_locate(mvlh->filename,mvlh->topfile,mvlh->top_line_num);
     }
 }
 
