@@ -119,6 +119,10 @@ PROTO(PRIVATE srcPosn read_int_const,(srcPosn pos, int *value));
 
 /* Lookahead kluge routines */
 
+PROTO(PRIVATE void nextStmt,(srcPosn* p));
+
+PROTO(PRIVATE void reset_attrs,(void));
+
 PROTO(PRIVATE srcPosn parse_subprog_stmt,(srcPosn pos));
 
 PROTO(PRIVATE srcPosn parse_subprog_keywd,(srcPosn pos));
@@ -141,17 +145,38 @@ PROTO(PRIVATE srcPosn parse_kind_selector,(srcPosn pos, int datatype));
 
 PROTO(PRIVATE srcPosn parse_char_selector,(srcPosn pos));
 
-
 PROTO(PRIVATE srcPosn parse_size_spec,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_array_spec,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_array_bound_expr,(srcPosn pos, int *bound, int *status));
+
+PROTO(PRIVATE srcPosn parse_array_bound,(srcPosn pos, int *size));
+
+PROTO(PRIVATE srcPosn parse_attr_spec_list,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn skip_double_colon,(srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_entity_decl_item,(const char *name, ProcInterface *interface, srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_entity_decl_list,(const char *name, ProcInterface *interface, srcPosn pos));
+
+PROTO(PRIVATE srcPosn parse_type_decl,(const char *name, ProcInterface *interface, srcPosn pos));
 
 /* next routines do not use srcPosn for sake of efficiency */
 PROTO(PRIVATE int skip_label,(const char *line, int i));
 
 PROTO(PRIVATE srcLine *scan_for_contains,(srcLine *start_srcLine, int stop_at_end));
 
+PROTO(PRIVATE srcPosn get_internal_interface,(const char *name, ProcInterface *interface, srcPosn pos));
+
+PROTO(PRIVATE void get_result_decls,(const char *resultname, ProcInterface *interface, srcPosn pos));
+
 PROTO(PRIVATE int get_alhead_defn,(Gsymtab *gsymt));
 
 PROTO(PRIVATE void populate_interface,(ProcInterface *interface));
+
+PROTO(PRIVATE void update_interface,(ProcInterface *interface));
 
 #ifdef ALLOW_UNIX_CPP
 PROTO(PRIVATE int take_cpp_line,( srcLine *Buf ));
@@ -1709,7 +1734,6 @@ void mark_prog_unit_srcline( LINENO_t line_num )
  * that checking code knows to suppress warnings.
 
 To do:
-  parse size specs in CHARACTER*([LEN=]len) and REAL*8 et al.
   find type and attrs of result var declared below FUNCTION stmt
  */
 
@@ -1733,6 +1757,7 @@ int parsed_subprog_class,	/* keyword class of subprog that was found */
   kind_is_bogus,		/* set if KIND spec is present */
   parsed_array_attr,		/* has array attributes */
   parsed_pointer_attr,		/* has POINTER attribute */
+  parsed_target_attr,		/* has TARGET attribute */
   parsed_recursive_attr,		/* RECURSIVE attribute */
   parsed_pure_attr,			/* PURE attribute */
   parsed_elemental_attr;		/* ELEMENTAL attribute */
@@ -1774,6 +1799,51 @@ struct keywd_list prefix_keywd[] = {
 };
 #define NUM_PREFIX_KEYWDS (sizeof(prefix_keywd)/sizeof(prefix_keywd[0]))
 #define NUM_TYPE_KEYWDS 7	/* includes TYPE */
+
+/* List of attribute keywords.  Includes only those allowable for a
+   function result variable.
+ */
+PRIVATE
+struct keywd_list attr_keywd[] = {
+  {"DIMENSION",tok_DIMENSION},
+  {"POINTER",tok_POINTER},
+  {"TARGET",tok_TARGET},
+};
+#define NUM_ATTR_KEYWDS (sizeof(attr_keywd)/sizeof(attr_keywd[0]))
+
+
+/* Function to advance a srcPosn location to next statement.  Mainly
+   this advances p->Line to p->Line->next, but also skips continuation lines
+   of current statement and comment lines.  Must have p->Line != NULL
+   initially, but it may be NULL upon return if end of source is reached.
+ */
+PRIVATE void
+nextStmt(srcPosn* p)
+{
+    for( p->Line=p->Line->next;
+	 p->Line != (srcLine *)NULL && (p->Line->comment || p->Line->contin);
+	 p->Line=p->Line->next )
+      continue;
+
+    p->idx = p->Line->start_index;
+}
+
+/* Routine to initialize attribute values to defaults prior to parsing. */
+PRIVATE
+void reset_attrs(void)
+{
+  parsed_datatype = type_UNDECL;
+  parsed_size = size_DEFAULT; /* will be changed to 1 if CHARACTER */
+  parsed_kind_param = kind_DEFAULT_UNKNOWN;
+  kind_is_bogus = FALSE;	/* hope it will be default kind */
+  parsed_array_attr = FALSE;
+  parsed_array_dim = array_dim_info(0,0); /* scalar */
+  parsed_pointer_attr = FALSE;
+  parsed_target_attr = FALSE;
+  parsed_recursive_attr = FALSE;	/* prefix keywords that may be seen */
+  parsed_pure_attr = FALSE;
+  parsed_elemental_attr = FALSE;
+}
 
 /* Routine that looks for a subprogram keyword (in subprog_keywd list)
    and returns pos at the next nonspace location after it.  Sets
@@ -1890,8 +1960,14 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
 	/* For CHARACTER type, look for *size or (char-selector) */
       case tok_CHARACTER:
 	parsed_size = 1;	/* default size for character */
-	if( CHAR_AT(pos) == '*' )
+	if( CHAR_AT(pos) == '*' ) {
 	  pos = parse_size_spec(pos);
+  /* standard allows optional comma after CHARACTER*len */
+	  if( CHAR_AT(pos) == ',' ) {
+	    stepPosn(&pos);		/* eat the ',' */
+	    SKIP_SPACE;
+	  }
+	}
 	else
 	  pos = parse_char_selector(pos);
 	break;
@@ -1926,16 +2002,7 @@ srcPosn parse_subprog_stmt(srcPosn pos)
   srcPosn save_pos;
 
   /* Initialize datatype and attribute values */
-  parsed_datatype = type_UNDECL;
-  parsed_size = size_DEFAULT; /* will be changed to 1 if CHARACTER */
-  parsed_kind_param = kind_DEFAULT_UNKNOWN;
-  kind_is_bogus = FALSE;	/* hope it will be default kind */
-  parsed_array_attr = FALSE;
-  parsed_array_dim = array_dim_info(0,0); /* scalar */
-  parsed_pointer_attr = FALSE;
-  parsed_recursive_attr = FALSE;	/* prefix keywords that may be seen */
-  parsed_pure_attr = FALSE;
-  parsed_elemental_attr = FALSE;
+  reset_attrs();
 
 #ifdef DEBUG_LOOKAHEAD
   if(debug_latest && getenv("VERBOSE")) {
@@ -2167,7 +2234,7 @@ srcPosn parse_dtype_spec(srcPosn pos)
     }
   }
   return pos;
-}
+}/*parse_dtype_spec*/
 
 
 /* Routine to see if an identifier is at the starting position.  If
@@ -2201,28 +2268,31 @@ srcPosn parse_identifier(srcPosn pos)
     SKIP_SPACE;			/* move to following text */
 
   return pos;
-}
+}/*parse_identifier*/
 
-/* Routine to parse a size-spec if present.  This is either the
-   standard conforming but deprecated CHARACTER*len or the vendor
-   extension e.g. REAL*8.  In either case the size must be an integer
-   constant, which we can interpret.  This should only be called when
-   '*' is seen at current position.
+/* Routine to parse a size-spec if present.  Called when '*' is seen
+   at pos.  For CHARACTER type, it may be CHARACTER*(expr), and if the
+   expr is a simple literal constant we will interpret it.
+   Alternatively it may be the standard conforming but deprecated
+   CHARACTER*len, or the vendor extension for numeric sizes
+   e.g. REAL*8.  In either case the size must be an integer constant,
+   which we can interpret.
  */
 PRIVATE
 srcPosn parse_size_spec(srcPosn pos)
 {
   stepPosn(&pos);		/* eat the '*' */
   SKIP_SPACE;
-  pos = read_int_const(pos, &parsed_size); /* get the size */
-
-  /* standard allows optional comma after CHARACTER*len */
-  if( CHAR_AT(pos) == ',' ) {
-    stepPosn(&pos);		/* eat the ',' */
+  if( CHAR_AT(pos) == '(' ) {
+    stepPosn(&pos);
     SKIP_SPACE;
+    pos = parse_char_len(pos,FALSE);/* more general than needed here but works */
+  }
+  else {
+    pos = read_int_const(pos, &parsed_size); /* get the size */
   }
   return pos;
-}
+}/*parse_size_spec*/
 
 
 /* Routine that is called inside a kind-selector or char-selector to
@@ -2271,7 +2341,7 @@ srcPosn parse_kind_param(srcPosn pos, int datatype, int keyword_mandatory)
   }
 
   return pos;
-}
+}/*parse_kind_param*/
 
 /* Routine that is called inside a char-selector to parse and
    evaluate, if possible without too much trouble, the length
@@ -2320,12 +2390,27 @@ srcPosn parse_char_len(srcPosn pos, int keyword_mandatory)
     }
   }
   else {
-    parsed_size = size_UNKNOWN; /* give up */
-    pos = see_expression(pos);	/* this will skip to ',' or ')' */
+    if( CHAR_AT(pos) == '*' ) {	/* length-selector= (*) */
+      stepPosn(&pos);
+      SKIP_SPACE;
+      if( CHAR_AT(pos) == ')' ) {
+	parsed_size = size_ADJUSTABLE;
+	stepPosn(&pos);
+	SKIP_SPACE;
+      }
+      else {
+	pos.idx = -1;		/* something is bogus */
+	return pos;
+      }
+    }
+    else {
+      parsed_size = size_UNKNOWN; /* give up */
+      pos = see_expression(pos);	/* this will skip to ',' or ')' */
+    }
   }
 
   return pos;
-}
+}/*parse_char_len*/
 
 
 /* Routine to parse a kind-spec if present.  It is to be called with
@@ -2366,7 +2451,7 @@ srcPosn parse_kind_selector(srcPosn pos, int datatype)
     }
   }
   return pos;
-}
+}/*parse_kind_selector*/
 
 /* Routine to parse a char-selector if present.  This is of form
    ([LEN=]len[,[KIND=]kind]) or (KIND=kind,LEN=len)
@@ -2460,8 +2545,352 @@ srcPosn parse_char_selector(srcPosn pos)
     }
   }
   return pos;
+}/*parse_char_selector*/
+
+
+/* Routine to parse a possibly empty array bound expression at pos.
+   If empty, sets status=ARRAY_BOUND_ABSENT.  If present, then if it
+   can be evaluated, sets status=ARRAY_BOUND_KNOWN and bound=value; if
+   it cannot be evaluated, sets status=ARRAY_BOUND_PRESENT.  If bound
+   is '*', sets status=ARRAY_BOUND_ASSUMED_SIZE.  Returns pos
+   unchanged if no bound expr seen, otherwise pointing at next
+   nonblank after bound expr.
+ */
+#define ARRAY_BOUND_ABSENT 0	   /* no bound expr present */
+#define ARRAY_BOUND_PRESENT 1	   /* present but not evaluated */
+#define ARRAY_BOUND_KNOWN 2	   /* present and evaluated */
+#define ARRAY_BOUND_ASSUMED_SIZE 3 /* present as '*' */
+PRIVATE
+srcPosn parse_array_bound_expr(srcPosn pos, int *bound, int *status)
+{
+  srcPosn save_pos;
+  int c;
+  if( (c=CHAR_AT(pos)) == ',' || c == ')' || c == ':' ) {
+    (*status) = ARRAY_BOUND_ABSENT;
+  }
+  else {
+    save_pos = pos;
+    if( isdigit(CHAR_AT(pos)) ) { /* attempt to read int literal value */
+      pos = read_int_const(pos,bound);
+      /* make sure this is end of expr */
+      if( (c=CHAR_AT(pos)) == ',' || c == ')' || c == ':' ) {
+	(*status) = ARRAY_BOUND_KNOWN;
+	return pos;
+      }
+    }
+    /* Bound present but couldn't evaluate it.  Skip to end of bound expr */
+    if( CHAR_AT(pos) == '*' ) {
+      (*status) = ARRAY_BOUND_ASSUMED_SIZE;
+      stepPosn(&pos);
+      SKIP_SPACE;
+    }
+    else {
+      (*status) = ARRAY_BOUND_PRESENT;
+      save_pos = pos;
+      pos = see_expression(save_pos);	/* this will skip to ':' ',' or ')' */
+      if(pos.idx < 0) {		/* something bogus: bail out */
+	pos = save_pos;
+	while(pos.idx < pos.Line->end_index &&
+	      (c=CHAR_AT(pos)) != ',' && c != ')' && c != ':' )
+	  stepPosn(&pos);
+      }
+    }
+  }
+  return pos;
+}/*parse_array_bound_expr*/
+
+/* Routine to parse an array bound of form [expr][:[expr]] Returns pos
+   at location of comma or right paren following the bound.  The size
+   argument is set to length of bound if [both] expr[s] are literal
+   integer constants, otherwise one of size_UNKNOWN size_ASSUMED_SIZE
+   size_ASSUMED_SHAPE size_DEFERRED.
+ */
+PRIVATE
+srcPosn parse_array_bound(srcPosn pos, int *size)
+{
+  int lbound, ubound;
+  int lbound_status, ubound_status;
+  int colon_present=FALSE;
+  pos = parse_array_bound_expr(pos,&lbound,&lbound_status);
+  if( CHAR_AT(pos) == ':' ) {
+    colon_present = TRUE;
+    stepPosn(&pos);
+    SKIP_SPACE;
+    pos = parse_array_bound_expr(pos,&ubound,&ubound_status);
+  }
+  else {
+    ubound_status = ARRAY_BOUND_ABSENT;
+  }
+  /* Cases:
+     A ( [l:]u ) EXPLICIT SHAPE
+     A ( [l:]* ) ASSUMED SIZE
+     A ( [l]: )  ASSUMED_SHAPE
+   Note that if : is absent, u gets stored in lbound.
+   */
+  if( lbound_status == ARRAY_BOUND_ASSUMED_SIZE || /* no colon */
+      ubound_status == ARRAY_BOUND_ASSUMED_SIZE ) { /* with colon */
+    (*size) = size_ASSUMED_SIZE;
+  }
+  else if( lbound_status == ARRAY_BOUND_KNOWN ) {
+    if( ubound_status == ARRAY_BOUND_ABSENT ) {
+      if( colon_present )
+	(*size) = size_ASSUMED_SHAPE;
+      else
+	(*size) = lbound;	/* explicit shape w/o colon */
+    }
+    else if( ubound_status == ARRAY_BOUND_KNOWN )
+      (*size) = (ubound-lbound+1);
+    else
+      (*size) = size_UNKNOWN;
+  }
+  else {
+    if( colon_present )		/* (:) form */
+      (*size) = size_ASSUMED_SHAPE;
+    else			/* (u) form */
+      (*size) = size_UNKNOWN;
+  }
+
+  return pos;
+}/*parse_array_dim*/
+
+/* Routine to parse an array spec dimensioning an array.  Given pos at
+   the left parenthesis.
+ */
+PRIVATE
+srcPosn parse_array_spec(srcPosn pos)
+{
+  int ndims = 0;
+  int dim_size, array_size = 1;
+  if( CHAR_AT(pos) == '(' ) {
+    stepPosn(&pos);		/* eat the '(' */
+    SKIP_SPACE;
+    for(;;) {			/* loop thru dim bound */
+      pos = parse_array_bound(pos,&dim_size);
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,"\nparse_array_spec: dim %d size %d",ndims,dim_size);
+  }
+#endif
+      if( array_size > 0 ) {
+	if( dim_size > 0 )  /* if size of dim known, figure total */
+	  array_size *= dim_size;
+	else /* first unknown size dim encountered */
+	  array_size = dim_size;	/* size_UNKNOWN or assumed/deferred */
+      }
+      ndims++;			/* count number of dimensions */
+      if( CHAR_AT(pos) == ',' ) {
+	stepPosn(&pos);		/* eat the comma */
+	SKIP_SPACE;
+      }
+      else {
+	if( CHAR_AT(pos) == ')' ) { /* better be there */
+	  stepPosn(&pos);
+	  SKIP_SPACE;
+	}
+	break;			/* end of dims */
+      }
+    }
+    parsed_array_attr = TRUE;
+    parsed_array_dim = array_dim_info(ndims,array_size);
+  }
+  else {
+    pos.idx = -1;
+  }
+  return pos;
+}/*parse_array_spec*/
+
+/* Routine to parse an attribute in a type declaration.  Given pos at
+   the start of the attribute.  Sets pos.idx = -1 if attribute not
+   recognized.  Note that only attributes allowable on function
+   results are recognized.  As side effect, sets parsed_xxx_attr = TRUE if
+   attribute xxx is seen.
+ */
+PRIVATE
+srcPosn parse_attr_spec(srcPosn pos)
+{
+  srcPosn save_pos;
+  int k;
+  for(k=0; k<NUM_ATTR_KEYWDS; k++) {
+    save_pos = pos;
+    pos = see_keyword(pos,attr_keywd[k].keywd);
+    if( pos.idx >= 0 ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_attr_spec found %s",attr_keywd[k].keywd);
+  }
+#endif
+      switch(attr_keywd[k].class) {
+      case tok_DIMENSION:
+	pos = parse_array_spec(pos); /* sets parsed_array_dim */
+	break;
+      case tok_POINTER:
+	parsed_pointer_attr = TRUE;
+	break;
+      case tok_TARGET:
+	parsed_target_attr = TRUE;
+	break;
+      }
+      return pos;		/* success */
+    }
+    else {
+      pos = save_pos;		/* back up & try next keyword */
+    }
+  }
+  pos.idx = -1;			/* no keyword recognized */
+  return pos;
+}/*parse_attr_spec*/
+
+/* Routine to parse a list of attributes in a type declaration.  Given
+   pos at the start of the first attr after comma that follows
+   type-spec.  Sets pos.idx = -1 if list not found.  Otherwise pos is
+   set to next nonblank after last attribute keyword.  As side effect,
+   parsed_array_attr, parsed_array_dim, parsed_pointer_attr, and
+   parsed_target_attr are set if the corresponding attrs are found.
+ */
+PRIVATE
+srcPosn parse_attr_spec_list(srcPosn pos)
+{
+  for(;;) {
+    pos = parse_attr_spec(pos);	/* look for an attr-spec */
+    if( pos.idx >= 0 &&		/* found one */
+	CHAR_AT(pos) == ',') {	/* check for ',' after attr */
+	stepPosn(&pos);		/* eat the ',' */
+	SKIP_SPACE;
+    }
+    else {
+      break;			/* end of the list or unrecognized attr */
+    }
+  }
+
+  /* If last attr was parsed ok, must be a "::" next */
+  if( pos.idx >= 0 )
+    pos = skip_double_colon(pos);
+
+  return pos;
+}/*parse_attr_spec_list*/
+
+PRIVATE
+srcPosn skip_double_colon(srcPosn pos)
+{
+  if(CHAR_AT(pos) == ':') {
+    stepPosn(&pos);
+    SKIP_SPACE;
+    if(CHAR_AT(pos) == ':') {
+      stepPosn(&pos);
+      SKIP_SPACE;
+      return pos;
+    }
+  }
+  pos.idx = -1;
+  return pos;
+}/*skip_double_colon*/
+
+/* Routine to parse an entity-decl item, which is
+   name[(array-spec)][*char-length][initialization] If the entity name
+   matches the given name, the interface is updated with the declared
+   attributes.  The optional initialization is accepted here although
+   invalid for function results, because result may be declared in a
+   statement in same list with local variables which may have it.
+ */
+
+PRIVATE
+srcPosn parse_entity_decl_item(const char *name, ProcInterface *interface, srcPosn pos)
+{
+  srcPosn save_pos;
+  int c;
+  /* Variables to hold attr values declared by statement, which may be
+     overridden for individual items. */
+  int stmt_array_attr = parsed_array_attr, /* stmt may lack DIMENSION */
+    stmt_size = parsed_size;	/* for character type */
+  array_dim_t stmt_array_dim = parsed_array_dim;
+
+  pos = parse_identifier(pos);
+  if( pos.idx >= 0 ) {
+    save_pos = pos;
+    /* Attempt to parse array spec */
+    pos = parse_array_spec(pos);
+    if( pos.idx < 0 )		/* not found: back up */
+      pos = save_pos;
+    if( CHAR_AT(pos) == '*' ) {	/* see *char-length */
+      pos = parse_size_spec(pos);      
+    }
+    if( pos.idx >= 0 ) {
+      if( CHAR_AT(pos) == '=' ) { /* initializer */
+	stepPosn(&pos);		  /* eat the '=' */
+	SKIP_SPACE;
+	if( CHAR_AT(pos) == '>' ) { /* => NULL() form */
+	  while(pos.idx <= pos.Line->end_index &&
+		CHAR_AT(pos) != ',' )
+	    stepPosn(&pos);	   /* skip over ">NULL()" */
+	}
+	else
+	  pos = see_expression(pos); /* ignore contents of initializer */
+      }
+      if( strcmp(parsed_identifier,name) == 0 ) {
+	update_interface(interface);
+      }
+    }
+  }
+
+  /* Restore statement default attr values */
+  parsed_array_attr = stmt_array_attr;
+  parsed_size = stmt_size;
+  parsed_array_dim = stmt_array_dim;
+
+  return pos;
 }
 
+/* Routine to parse an entity-decl-list.
+ */
+PRIVATE
+srcPosn parse_entity_decl_list(const char *name, ProcInterface *interface, srcPosn pos)
+{
+  for(;;) {
+    pos = parse_entity_decl_item(name,interface,pos);
+    if( pos.idx >= 0 && CHAR_AT(pos) == ',' ) {
+      stepPosn(&pos);		/* eat the ',' */
+      SKIP_SPACE;
+    }
+    else {
+      break;			/* end of list */
+    }
+  }
+
+  return pos;
+}/*parse_entity_decl_list*/
+
+/* Routine to attempt to parse a type declaration referring to the
+   named variable.  If no type declaration is found, pos.idx is set to
+   -1.  If a type declaration is found, pos is advanced to end of
+   statement.  If declaration applies to the named variable, the
+   interface is updated with the declaration info.
+ */
+PRIVATE
+srcPosn parse_type_decl(const char *name, ProcInterface *interface, srcPosn pos)
+{
+  srcPosn save_pos;
+  reset_attrs();
+
+  pos = parse_prefix_keywd(pos,TRUE); /* look for type-spec */
+  if( pos.idx >= 0 ) {		      /* type-spec found */
+    if( CHAR_AT(pos) == ',' ) {	      /* Look for ',' indicating attr-spec-list */
+      stepPosn(&pos);		/* eat the ',' */
+      SKIP_SPACE;
+      pos = parse_attr_spec_list(pos); /* get the attributes */
+    }
+    else {
+      save_pos = pos;		/* skip optional :: following type spec */
+      pos = skip_double_colon(pos);
+      if(pos.idx < 0)
+	pos = save_pos;
+    }
+  }
+  if( pos.idx >= 0 ) {
+  /* Now look for identifier in entity-decl-list */
+    pos = parse_entity_decl_list(name,interface,pos);
+  }
+  return pos;
+}/*parse_type_decl*/
 
 /* Routine to skip a statement label (sequence of digits) if any,
    starting at line[i].  It does not skip prior blank space, so should
@@ -2525,7 +2954,7 @@ int get_alhead_defn(Gsymtab *gsymt)
   }
 #endif
   return FALSE;			/* no defn found */
-}
+}/*get_alhead_defn*/
 
 /* Routine called when a possible prefix keyword ELEMENTAL, PURE, or
    RECURSIVE is seen.  It calls parse_subprog_stmt to see if the
@@ -2605,13 +3034,101 @@ PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
   return (srcLine *)NULL;			/* not found */
 } /* scan_for_contains */
 
+/* Routine to get interface of named internal or module procedure.
+   Provide pos.Line = line preceding where function or subroutine
+   statement is expected (e.g. on CONTAINS stmt or END of previous
+   procedure).  Declaration will be parsed to pick up info, and if
+   name agrees with given, the interface arg will be populated.
+   Otherwise routine scans to end of procedure and tries the next,
+   till end of CONTAINS section is reached.  If success, returns pos
+   with pos.idx >= 0.  If end of CONTAINS is reached without finding
+   target, pos.idx = -1 with pos.Line containing the END statement closing
+   the host subprogram.  If search runs off the end of the source code
+   (an error condition), pos has Line=NULL.
+ */
+PRIVATE
+srcPosn get_internal_interface(const char *name, ProcInterface *interface, srcPosn pos)
+{
+      while( nextStmt(&pos), (pos.Line != (srcLine *)NULL) ) { /* advance to next stmt */
+	srcPosn save_pos;
+	pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+	save_pos = pos;
+	pos = parse_subprog_stmt(pos);
+	if( pos.idx >= 0 ) {	/* found a subprog statement*/
+	  if( strcmp(name,parsed_procname) == 0 ) { /* matches the one we seek */
+	    populate_interface(interface); /* copy parsed values to ProcInterface struct */
+
+	    /* If it is a function, need to scan for specification
+	       stmts that may declare type and other attributes of
+	       result.
+	     */
+	    if(parsed_datatype != type_SUBROUTINE)
+	      get_result_decls(parsed_resultvar, interface, pos);
+
+	    return pos;	   /* found internal procedure */
+	  }
+	  else {			/* not the one we seek: scan to END stmt */
+#ifdef DEBUG_LOOKAHEAD
+	    if(debug_latest && getenv("VERBOSE")) {
+	      fprintf(list_fd,"\nsearch_for_internal scanning for END");
+	    }
+#endif
+	    while( nextStmt(&pos), (pos.Line != (srcLine *)NULL) ) {
+	      pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+	      pos = parse_end_subprog(pos);
+	      if( pos.idx >= 0 )
+		break;
+	    }
+	    if( pos.Line == (srcLine *)NULL ) { /* protect against hitting end of source */
+	      break;				/* quit main while loop */
+	    }
+	  }
+	}/* end found subprog stmt */
+	else {			/* catch end of CONTAINS */
+	  pos = parse_end_subprog(save_pos); /* i.e. see another END not subprog header */
+	  if( pos.idx >= 0 ) {
+	    break;
+	  }
+	}
+      }	/* end while pos.Line != NULL */
+
+      pos.idx = -1;		/* target not found */
+      return pos;
+}/*get_internal_interface*/
+
+/* Routine that scans procedure body for type/attribute declarations
+   referring to result variable.  Attributes so defined replace those
+   in interface.
+*/
+PRIVATE
+void get_result_decls(const char *resultname, ProcInterface *interface, srcPosn pos)
+{
+  srcPosn save_pos;
+#ifdef DEBUG_LOOKAHEAD
+	    if(debug_latest && getenv("VERBOSE")) {
+	      fprintf(list_fd,"\nscanning for specif stmts...");
+	    }
+#endif
+
+  while( nextStmt(&pos), (pos.Line != (srcLine *)NULL) ) {
+    pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+    save_pos = pos;
+    pos = parse_type_decl(resultname,interface,pos);
+    if( pos.idx < 0 ) {
+      pos = parse_end_subprog(save_pos);
+      if( pos.idx >= 0 )
+      break;
+    }
+  }
+}
+
 /* Routine that searches for an internal or module procedure with the
    given name that could satisfy a call at the current source line.
    Returns LOOKAHEAD_NOTFOUND if none found, LOOKAHEAD_INTERNAL if an
    internal procedure is found, and LOOKAHEAD_MODULE if a module
    procedure is found.
 
-   There are two contexts in which the call can occur:
+   There are three contexts in which the call can occur:
 
    (1) a program unit (main program, external subroutine, or
    external function) or a module procedure (subroutine or function)
@@ -2622,7 +3139,10 @@ PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
    or external function), referencing a peer (internal or module
    respectively) procedure in the same CONTAINS section.
 
-   A call from a module procedure can be of either kind, in which case
+   (3) an internal procedure of a module procedure referencing a peer
+   of the module procedure.
+
+   A call from a module procedure can be of either (1) or (2), in which case
    (1) prevails.
 */
 
@@ -2642,38 +3162,15 @@ int search_for_internal(const char *name, ProcInterface *interface)
 
     if( pos.Line != (srcLine *)NULL ) { /* CONTAINS was found */
 
-      while( (pos.Line=pos.Line->next) != (srcLine *)NULL ) { /* advance to next stmt */
-	srcPosn save_pos;
-	pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
-	save_pos = pos;
-	pos = parse_subprog_stmt(pos);
-	if( pos.idx >= 0 ) {	/* found a subprog statement*/
-	  if( strcmp(name,parsed_procname) == 0 ) { /* matches the one we seek */
-	    populate_interface(interface); /* copy parsed values to ProcInterface struct */
-	    return LOOKAHEAD_INTERNAL;	   /* found internal procedure */
-	  }
-	  else {			/* not the one we seek: scan to END stmt */
-#ifdef DEBUG_LOOKAHEAD
-	    if(debug_latest && getenv("VERBOSE")) {
-	      fprintf(list_fd,"\nsearch_for_internal scanning for END");
-	    }
-#endif
-	    while( (pos.Line=pos.Line->next) != (srcLine *)NULL ) {
-	      pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
-	      pos = parse_end_subprog(pos);
-	      if( pos.idx >= 0 )
-		break;
-	    }
-	    if( pos.Line == (srcLine *)NULL ) /* protect against hitting end of source */
-	      return LOOKAHEAD_NOTFOUND;
-	  }
-	}/* end found subprog stmt */
-	else {			/* catch end of CONTAINS */
-	  pos = parse_end_subprog(save_pos); /* i.e. see another END not subprog header */
-	  if( pos.idx >= 0 )
-	    return LOOKAHEAD_NOTFOUND;
-	}
-      }	/* end while pos.Line != NULL */
+      pos = get_internal_interface(name, interface, pos);
+
+      if( pos.idx >= 0 )	/* success */
+	return LOOKAHEAD_INTERNAL;
+
+      /* in case of running off the end */
+      if( pos.Line == (srcLine *)NULL )
+	return LOOKAHEAD_NOTFOUND;
+
     }/* end if CONTAINS found */
   }/* end if !internal_subprog */
 
@@ -2688,10 +3185,9 @@ int search_for_internal(const char *name, ProcInterface *interface)
        previous lookahead and we cannot do any better. */
     int h = hash_lookup(name);
     Gsymtab *gsymt;
-    if( (gsymt = hashtab[h].glob_symtab) != (Gsymtab *)NULL ) {
+    if( (gsymt = hashtab[h].glob_symtab) != (Gsymtab *)NULL && 
       /* Verify that the found item is a peer. */
-      if( (host_gsymt->internal_subprog && gsymt->internal_subprog) ||
-	  (host_gsymt->module_subprog && gsymt->module_subprog) ) {
+       (gsymt->internal_subprog || gsymt->module_subprog) ) {
 #ifdef DEBUG_LOOKAHEAD
   if(debug_latest) {
     fprintf(list_fd,"\nglobal symtab entry found");
@@ -2707,12 +3203,51 @@ int search_for_internal(const char *name, ProcInterface *interface)
 		  LOOKAHEAD_INTERNAL:
 		  LOOKAHEAD_MODULE);
 	}
+    }
+    else {
+
+    /* No luck finding global symtab entry.  Search ahead for a peer. */
+      if( host_gsymt->internal_subprog ) {
+    /* If call is from internal proc, scan to END to align same as above */
+	pos.Line = next_srcLine;
+	while( pos.Line != (srcLine *)NULL ) {
+	  pos.idx = skip_label(pos.Line->line,pos.Line->start_index);
+	  pos = parse_end_subprog(pos);
+	  if( pos.idx >= 0 )
+	    break;
+	  nextStmt(&pos);
+	}
+	if(pos.Line == (srcLine *)NULL) /* oops, hit end of source */
+	  return LOOKAHEAD_NOTFOUND;
+      }
+
+      if( pos.Line != (srcLine *)NULL ) {
+
+	pos = get_internal_interface(name, interface, pos);
+
+	if( pos.idx >= 0 ) {	/* success */
+	  return (host_gsymt->internal_subprog?
+		  LOOKAHEAD_INTERNAL:
+		  LOOKAHEAD_MODULE);
+	}
+	/* Check if case (3) applies.  Call is from an internal procedure and
+	   scope stack depth is 3 so caller must be in a module procedure.
+	   If entry is in global symtab, it was already found, so here
+	   just look ahead in rest of module CONTAINS section.
+	 */
+	else if( host_gsymt->internal_subprog && loc_scope_top == 3 ) {
+	  pos = get_internal_interface(name, interface, pos);
+	  if( pos.idx >= 0 ) {
+	    return LOOKAHEAD_MODULE;
+	  }
+	}
       }
     }
   }/* end if internal or module subprog */
 
   return LOOKAHEAD_NOTFOUND;			/* not found */
 }
+
 
 /* Copy parsed subprogram characteristics to interface struct. */
 PRIVATE
@@ -2735,9 +3270,44 @@ void populate_interface(ProcInterface *i)
   i->kind_is_bogus = kind_is_bogus;
   i->array = parsed_array_attr;
   i->pointer = parsed_pointer_attr;
+  i->target = parsed_target_attr;
   i->elemental = parsed_elemental_attr;
   i->pure = parsed_pure_attr;
   i->recursive = parsed_recursive_attr;
 }
+
+/* Routine called by parse_type_decl to update interface attribute
+   values with newly acquired ones from type or attribute declaration
+   of the function.  Differs from populate_interface in that only
+   non-default values, i.e. values parsed from declaration, are copied
+   over.  Also, since elemental, pure, recursive can only be declared
+   in FUNCTION or SUBROUTINE statement, they are not updated.
+ */
+PRIVATE
+void update_interface(ProcInterface *i)
+{
+  if(parsed_datatype != type_UNDECL)
+    i->datatype = parsed_datatype;
+  if(parsed_size != size_DEFAULT)
+    i->size = parsed_size;
+  if(parsed_kind_param != kind_DEFAULT_UNKNOWN) {
+    i->kind = parsed_kind_param;
+    i->kind_is_bogus = kind_is_bogus;
+  }
+  else {			/* set default kind based on datatype */
+    if(parsed_datatype != type_UNDECL)
+      i->kind = default_kind(parsed_datatype);
+  }
+  if(parsed_array_attr) {
+    i->array = parsed_array_attr;
+    i->array_dim = parsed_array_dim;
+  }
+  if(parsed_pointer_attr)
+    i->pointer = parsed_pointer_attr;
+  if(parsed_target_attr)
+    i->target = parsed_target_attr;
+}
+
+
 
 /* End of module Advance */

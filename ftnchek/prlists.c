@@ -101,8 +101,7 @@ process_lists(curmodhash)  /* Places pointer to linked list of arrays in
 
 	for (i=curr_scope_bottom; i<loc_symtab_top; i++){
 				/* Skip things which are not true externals */
-	    if(loc_symtab[i].argument || loc_symtab[i].intrinsic ||
-		   loc_symtab[i].array_var)
+	    if(loc_symtab[i].argument || loc_symtab[i].intrinsic)
 		      continue;
 
 	    head_ptr = loc_symtab[i].info.toklist;

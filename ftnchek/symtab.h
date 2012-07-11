@@ -760,6 +760,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	  struct childlist *child_list; /* List of callees (for prog unit) */
 	  struct gSymtEntry *prog_unit; /* Prog unit (for interior entry) */
 	} link;
+	struct gSymtEntry *mask;	/* entry masked by internal */
 	ModVarListHeader *modvarlist;	/* List of module variables */
 	long size;
 	type_t  type;		/* Type & storage class: see macros below */
@@ -847,6 +848,7 @@ typedef struct {
     kind_is_bogus:1,		/* unable to determine kind */
     array:1,			/* function returns an array */
     pointer:1,			/* function returns a pointer */
+    target:1,			/* function returns a target */
     elemental:1,		/* elemental procedure */
     pure:1,			/* pure procedure */
     recursive:1;		/* recursive procedure */

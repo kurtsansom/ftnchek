@@ -277,7 +277,7 @@ call_func(id,arg)	/* Process function invocation */
 	   symt_inherited = TRUE;
 	}
 	else {			/* protect ourself against nonsense */
-	   if( symt->array_var || symt->parameter ) {
+	   if( symt->parameter ) {
 	      syntax_error(id->line_num,id->col_num,
 		   "identifier was previously declared a non-function:");
 	      msg_tail(symt->name);
@@ -390,7 +390,9 @@ call_func(id,arg)	/* Process function invocation */
 		if( (lookahead_result = search_for_internal(symt->name,&interface)) != LOOKAHEAD_NOTFOUND ) {
 #ifdef DEBUG_LOOKAHEAD
 		  if(debug_latest) {
-		    fprintf(list_fd,"\n internal %s found",symt->name);
+		    fprintf(list_fd,"\n %s %s found",
+		      lookahead_result==LOOKAHEAD_INTERNAL?"internal":"module",
+		      symt->name);
 		  }
 #endif
 	       /* Fill in local symbol table entry with info about function */
@@ -401,7 +403,10 @@ call_func(id,arg)	/* Process function invocation */
 	    }
 	  }
 	  symt->external = TRUE;
-	  if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
+	  if((!symt->argument) &&
+	     ((gsymt=(hashtab[h].glob_symtab)) == NULL ||
+	      (lookahead_result == LOOKAHEAD_INTERNAL && !gsymt->internal_subprog) ||
+	      (lookahead_result == LOOKAHEAD_MODULE && !gsymt->module_subprog)) ) {
 		gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
 		gsymt->info.arglist = NULL;
 		/* If lookahead found it, set appropriate flag */
@@ -532,7 +537,9 @@ call_subr(id,arg)	/* Process call statements */
 	  if( (lookahead_result = search_for_internal(symt->name,&interface)) ) {
 #ifdef DEBUG_LOOKAHEAD
 	    if(debug_latest) {
-	      fprintf(list_fd,"\n internal %s found",symt->name);
+	      fprintf(list_fd,"\n %s %s found",
+		      lookahead_result==LOOKAHEAD_INTERNAL?"internal":"module",
+		      symt->name);
 	    }
 #endif
 	       /* Fill in local symbol table entry with info about subroutine.
@@ -549,7 +556,10 @@ call_subr(id,arg)	/* Process call statements */
 
 		/* It is not intrinsic: install in global table */
       symt->external = TRUE;
-      if((!symt->argument) && (gsymt=(hashtab[h].glob_symtab)) == NULL) {
+      if((!symt->argument) &&
+	     ((gsymt=(hashtab[h].glob_symtab)) == NULL ||
+	      (lookahead_result == LOOKAHEAD_INTERNAL && !gsymt->internal_subprog) ||
+	      (lookahead_result == LOOKAHEAD_MODULE && !gsymt->module_subprog)) ) {
 	gsymt = install_global(h,type_UNDECL,class_SUBPROGRAM);
 	gsymt->info.arglist = NULL;
 	gsymt->kind = 0;
@@ -917,8 +927,7 @@ def_array_dim(id,arg)	/* Process dimension lists */
 	   symt->file_declared = inctable_index;
 	}
 	else {           /* Symbol has been seen before: check it */
-	   if(storage_class_of(symt->type) != class_VAR ||
-	       symt->parameter || symt->entry_point) {
+	   if(storage_class_of(symt->type) != class_VAR) {
 	      syntax_error(id->line_num,id->col_num,
 		"Entity cannot be dimensioned: ");
 		msg_tail(symt->name);
@@ -1243,7 +1252,7 @@ def_ext_name(id)		/* Process external lists */
 	    msg_tail(symt->name);
 	    return;
 	}
-	else if(symt->array_var || symt->parameter){ /* worse nonsense */
+	else if(symt->parameter){ /* worse nonsense */
 	    syntax_error(id->line_num,id->col_num,
 		"Identifier was previously declared non-external:");
 	    msg_tail(symt->name);
@@ -1341,8 +1350,13 @@ void def_function(int datatype, long int size, char *size_text, kind_t kind,
 	    symt->external = FALSE;
 	}
 
-	if((gsymt = (hashtab[h].glob_symtab)) == NULL) {
-			/* Symbol is new to global symtab: install it */
+			/* Symbol is new to global symtab: install it.  If it is
+			   an internal or module subprog that masks an external
+			   of same name, install it.
+			 */
+	if((gsymt = (hashtab[h].glob_symtab)) == NULL ||
+	   (subprogtype == module_subprog && !gsymt->module_subprog) ||
+	   (subprogtype == internal_subprog && !gsymt->internal_subprog)) {
 	  gsymt = install_global(h,datatype,storage_class);
 	  gsymt->size = size;
 	  gsymt->kind = kind;
@@ -1593,7 +1607,7 @@ def_parameter(id,val,noparen)	/* Process parameter_defn_item */
 	   symt->file_declared = inctable_index;
 	}
 	else {			/* protect ourself against nonsense */
-	   if( symt->array_var || symt->external || symt->intrinsic 
+	   if( symt->external || symt->intrinsic 
 	       || symt->entry_point ) {
 	      syntax_error(id->line_num,id->col_num,
 		   "identifier cannot be a parameter:");
@@ -2399,13 +2413,18 @@ Recompile me with LARGE_MACHINE option\n"
 		);
 	}
 	else {
-			/* Store symtab pointer in hash table */
-	    if(storage_class == class_COMMON_BLOCK)
-		hashtab[h].com_glob_symtab = gsymt;
-	    else
-		hashtab[h].glob_symtab = gsymt;
-
 	    clear_symtab_entry(gsymt);
+
+			/* Store symtab pointer in hash table */
+	    if(storage_class == class_COMMON_BLOCK) {
+		gsymt->mask = hashtab[h].com_glob_symtab;
+		hashtab[h].com_glob_symtab = gsymt;
+	    }
+	    else {
+		gsymt->mask = hashtab[h].glob_symtab;
+		hashtab[h].glob_symtab = gsymt;
+	    }
+
 
 	 		/* Duplicate copy of string into global stringspace */
 	    gsymt->name = new_global_string(hashtab[h].name);
@@ -4108,9 +4127,9 @@ if (debug_latest) {
 			/* clear the hashtable entry too */
 			h = hash_lookup(glob_symtab[i].name);
 			if(datatype_of(glob_symtab[i].type) == type_COMMON_BLOCK)
-			  hashtab[h].com_glob_symtab = NULL;
+			  hashtab[h].com_glob_symtab = glob_symtab[i].mask;
 			else
-			  hashtab[h].glob_symtab = NULL;
+			  hashtab[h].glob_symtab = glob_symtab[i].mask;
 		}
 	  }
 	}

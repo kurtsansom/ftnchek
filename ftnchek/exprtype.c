@@ -1593,8 +1593,11 @@ func_ref_expr(id,args,result)
 	result->next_token = (Token *)NULL;
 
 	/* transfer pointer/target attributes to token */
-      if(symt->pointer)
+      if(symt->pointer) {
 	make_true(POINTER_EXPR,result->TOK_flags);
+	make_true(ASSOCIATED_EXPR,result->TOK_flags); /* assume result is assoc'd */
+	make_true(ALLOCATED_EXPR,result->TOK_flags); /* assume result is alloc'd */
+      }
       else
 	make_false(POINTER_EXPR,result->TOK_flags);
       if(symt->target)
@@ -1609,6 +1612,8 @@ func_ref_expr(id,args,result)
       }
       else {			/* non-ELEMENTAL: use declared shape */
 	result->array_dim = symt->array_dim;
+	if(symt->array_var)
+	  make_true(ARRAY_EXPR,result->TOK_flags);
       }
 
 #ifdef DEBUG_EXPRTYPE

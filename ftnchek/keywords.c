@@ -495,11 +495,14 @@ Oops: assertion MAXIDSIZE < MAX_SRC_TEXT
 				   class, so that arrays can be distinguished
 				   from functions in the grammar.  However,
 				   mask out possible name in enclosing scope
-				   if this is a component name.
+				   if this is a component name.  If
+				   it is an array-valued function then it
+				   is lexed as a plain identifier.
 				*/
 		    if(prev_token_class != '%' &&
 		       (symt=hashtab[h].loc_symtab) != NULL
-		       && symt->array_var) {
+		       && symt->array_var &&
+		       storage_class_of(symt->type) != class_SUBPROGRAM ) {
 		      token->tclass = tok_array_identifier;
 		    }
 	}
