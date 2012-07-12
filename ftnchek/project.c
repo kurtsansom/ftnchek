@@ -94,7 +94,7 @@ PROTO(PRIVATE int find_types, (Lsymtab *sym_list[]));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
 PROTO(PRIVATE void mod_type_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE void mod_var_out,(Lsymtab *symt,FILE *fd));
-PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist)));
+PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),int module_mode));
 PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
 PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
 PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns ));
@@ -263,7 +263,7 @@ write_module_file(int h)
   {
     Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
     int i,numdefns;
-    numdefns = find_prog_units(gsym_list,has_defn);
+    numdefns = find_prog_units(gsym_list,has_defn,/*module_mode=*/TRUE);
     WRITE_NUM(" entries",numdefns);
     NEXTLINE;
     for(i=0; i<numdefns; i++) {
@@ -308,7 +308,7 @@ proj_file_out(fd)
 
 		/* List all subprogram defns, then all calls */
 
-      numdefns = find_prog_units(sym_list,has_defn);
+      numdefns = find_prog_units(sym_list,has_defn,/*module_mode=*/FALSE);
 
       WRITE_NUM(" entries",numdefns);
       NEXTLINE;
@@ -317,7 +317,7 @@ proj_file_out(fd)
       }
       NEXTLINE;
 
-      numcalls = find_prog_units(sym_list,has_call);
+      numcalls = find_prog_units(sym_list,has_call,/*module_mode=*/FALSE);
 
       if(proj_trim_calls)
 	numcalls = trim_calls(numcalls,sym_list);
@@ -454,11 +454,20 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
 	 has_call.
        */
 PRIVATE int
-find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist))
+find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),
+	int module_mode)
 {
     int i,num_entries;
     ArgListHeader *alist;
-    for(i=num_entries=0;i<glob_symtab_top;i++) {
+    int start_i;
+    /* To avoid storing things defined outside module, start global
+     * symtab scan at current module.  For project file, store everything. */
+    if(module_mode)
+      start_i = hashtab[current_prog_unit_hash].glob_symtab - glob_symtab;
+    else
+      start_i = 0;
+    num_entries=0;
+    for(i=start_i;i<glob_symtab_top;i++) {
 #ifdef DEBUG_PROJECT
   if(debug_latest) {
       fprintf(list_fd,"\n%d %s",i,glob_symtab[i].name);

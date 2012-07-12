@@ -1154,8 +1154,9 @@ OPT(int,usage_ext_undefined,USAGE_ALL);	/* used but not defined (= -external fla
 OPT(int,usage_ext_unused,USAGE_ALL);	/* defined but not used (like -library flag) */
 OPT(int,usage_label_undefined,USAGE_ALL);  /* label used but undefined */
 OPT(int,usage_label_unused,USAGE_ALL);     /* label defined but unused */
-OPT(int,usage_mod_var_unset,USAGE_ALL);		/* module variables unset */
-OPT(int,usage_mod_var_unused,USAGE_ALL);	/* module variables unused */
+OPT(int,usage_mod_var_set_unused,USAGE_ALL);	/* module variables set,unused */
+OPT(int,usage_mod_var_uninitialized,USAGE_ALL);	/* module variables used,unset */
+OPT(int,usage_mod_var_unused,USAGE_ALL);	/* module variables unused,unset */
 OPT(int,usage_var_set_unused,USAGE_ALL);	/* set but not used */
 OPT(int,usage_var_uninitialized,USAGE_ALL);	/* used before set */
 OPT(int,usage_var_unused,USAGE_ALL);		/* declared but not used */

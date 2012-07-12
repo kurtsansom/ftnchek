@@ -27,6 +27,10 @@ Makefile, which is specified by --enable-devel.  (This by default
 builds the "devel" target, which turns on some debugging features.)
   $ ./configure --enable-devel
 
+3a. On some systems (e.g. some MacOS) it may be necessary to use
+  $ ./configure --enable-devel --disable-submodel
+in order to get it to build.
+
 4. Now build the executable.  First run of "make" will fail out due to
 tokdefs.h being created new.  This is normal.  Re-run.
   $ make

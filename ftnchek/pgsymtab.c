@@ -126,7 +126,7 @@ comcmp_error_head(name, clh, msg)
 int
 modcmp_error_head(const char *name, ModVarListHeader *mvlh, const char *msg)
 {
-    return cmp_error_head(name,"Variables of module",
+    return cmp_error_head(name,"Variables from module",
 			  mvlh->filename,
 			  mvlh->line_num,
 			  msg);
