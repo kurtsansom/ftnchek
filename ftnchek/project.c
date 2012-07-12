@@ -1006,8 +1006,8 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 		/* read module name (should be same as upcased file stem) */
    READ_STR("module",buf);
    modulename = new_global_string(buf);
-   if( strncasecmp(modulename,module_filename,strlen(modulename)) != 0 ) {
-     fprintf(list_fd,"\nWarning: module name %s differs from file stem %s",
+   if( strncasecmp(modulename,hashtab[h].name,strlen(modulename)) != 0 ) {
+     fprintf(list_fd,"\nWarning: module name %s differs from file stem of %s",
 	     modulename,module_filename);
    }
 
