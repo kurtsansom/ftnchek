@@ -163,6 +163,8 @@ PROTO(PRIVATE srcPosn parse_entity_decl_list,(const char *name, ProcInterface *i
 
 PROTO(PRIVATE srcPosn parse_type_decl,(const char *name, ProcInterface *interface, srcPosn pos));
 
+PROTO(PRIVATE srcPosn parse_attr_decl,(const char *name, ProcInterface *interface, srcPosn pos));
+
 /* next routines do not use srcPosn for sake of efficiency */
 PROTO(PRIVATE int skip_label,(const char *line, int i));
 
@@ -1962,11 +1964,9 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
 	parsed_size = 1;	/* default size for character */
 	if( CHAR_AT(pos) == '*' ) {
 	  pos = parse_size_spec(pos);
-  /* standard allows optional comma after CHARACTER*len */
-	  if( CHAR_AT(pos) == ',' ) {
-	    stepPosn(&pos);		/* eat the ',' */
-	    SKIP_SPACE;
-	  }
+  /* Standard allows optional comma here after CHARACTER*len but only
+     in non-attr-based type decl.  Too much trouble to check context,
+     and expect only modern code, so don't accept it.  */
 	}
 	else
 	  pos = parse_char_selector(pos);
@@ -2797,7 +2797,6 @@ PRIVATE
 srcPosn parse_entity_decl_item(const char *name, ProcInterface *interface, srcPosn pos)
 {
   srcPosn save_pos;
-  int c;
   /* Variables to hold attr values declared by statement, which may be
      overridden for individual items. */
   int stmt_array_attr = parsed_array_attr, /* stmt may lack DIMENSION */
@@ -2818,13 +2817,11 @@ srcPosn parse_entity_decl_item(const char *name, ProcInterface *interface, srcPo
       if( CHAR_AT(pos) == '=' ) { /* initializer */
 	stepPosn(&pos);		  /* eat the '=' */
 	SKIP_SPACE;
-	if( CHAR_AT(pos) == '>' ) { /* => NULL() form */
-	  while(pos.idx <= pos.Line->end_index &&
-		CHAR_AT(pos) != ',' )
-	    stepPosn(&pos);	   /* skip over ">NULL()" */
+	if( CHAR_AT(pos) == '>' ) { /* => form */
+	    stepPosn(&pos);	   /* eat the '>' */
+	SKIP_SPACE;
 	}
-	else
-	  pos = see_expression(pos); /* ignore contents of initializer */
+	pos = see_expression(pos); /* ignore contents of initializer */
       }
       if( strcmp(parsed_identifier,name) == 0 ) {
 	update_interface(interface);
@@ -2891,6 +2888,55 @@ srcPosn parse_type_decl(const char *name, ProcInterface *interface, srcPosn pos)
   }
   return pos;
 }/*parse_type_decl*/
+
+/* Routine to attempt to parse an attr declaration referring to the
+   named variable.  If no attr declaration is found, pos.idx is set to
+   -1.  If an attr declaration is found, pos is advanced to end of
+   statement.  If declaration applies to the named variable, the
+   interface is updated with the declaration info.
+ */
+PRIVATE
+srcPosn parse_attr_decl(const char *name, ProcInterface *interface, srcPosn pos)
+{
+  srcPosn save_pos;
+  int k;
+  reset_attrs();
+
+  /* Try to parse an attr */
+  save_pos = pos;
+  for(k=0; k<NUM_ATTR_KEYWDS; k++) {
+    pos = see_keyword(save_pos,attr_keywd[k].keywd);
+    if( pos.idx >= 0 ) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest && getenv("VERBOSE")) {
+    fprintf(list_fd,"\nparse_attr_decl found %s",attr_keywd[k].keywd);
+  }
+#endif
+      save_pos = pos;		/* skip optional :: following attr spec */
+      pos = skip_double_colon(pos);
+      if(pos.idx < 0)
+	pos = save_pos;
+
+      switch(attr_keywd[k].class) {
+      case tok_DIMENSION:
+	/* No action needed: no stmt array dim info, info will be set on
+	   decl items */
+	break;
+      case tok_POINTER:
+	parsed_pointer_attr = TRUE;
+	break;
+      case tok_TARGET:
+	parsed_target_attr = TRUE;
+	break;
+      }
+  /* Now look for identifier in entity-decl-list */
+      pos = parse_entity_decl_list(name,interface,pos);
+      return pos;
+    }
+  }
+  pos.idx = -1;
+  return pos;
+}/*parse_attr_decl*/
 
 /* Routine to skip a statement label (sequence of digits) if any,
    starting at line[i].  It does not skip prior blank space, so should
@@ -3115,9 +3161,12 @@ void get_result_decls(const char *resultname, ProcInterface *interface, srcPosn 
     save_pos = pos;
     pos = parse_type_decl(resultname,interface,pos);
     if( pos.idx < 0 ) {
-      pos = parse_end_subprog(save_pos);
-      if( pos.idx >= 0 )
-      break;
+      pos = parse_attr_decl(resultname,interface,save_pos);
+      if( pos.idx < 0 ) {
+	pos = parse_end_subprog(save_pos);
+	if( pos.idx >= 0 )
+	  break;
+      }
     }
   }
 }
