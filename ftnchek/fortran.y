@@ -2660,14 +2660,17 @@ module_nature   :   tok_INTRINSIC
 use_spec:	module_name
 		{
 		  def_module(&($1), (Token *)NULL, FALSE);
+		  read_module_file($1.value.integer, (Token *)NULL, FALSE);
 		}
 	|	module_name_comma use_only
 		{
 		  def_module(&($1), &($2), TRUE);
+		  read_module_file($1.value.integer, &($2), TRUE);
 		}
 	|	module_name_comma rename_list
 		{
 		  def_module(&($1), &($2), FALSE);
+		  read_module_file($1.value.integer, &($2), FALSE);
 		}
 	;
 

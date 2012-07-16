@@ -1497,7 +1497,9 @@ def_intrins_name(id)		/* Process intrinsic lists */
 }/*def_intrins_name*/
 
 /* Create a symbol table entries for a module that was inherited by a
- * USE statement
+ * USE statement.  Note that inheritance may be implicit, i.e. if
+ * statement is USE B, and module B contains USE A, then A is also
+ * inherited.
  */
 void def_module(Token *id, Token *only, int only_list_mode)
 {
@@ -1531,8 +1533,6 @@ void def_module(Token *id, Token *only, int only_list_mode)
     TH_ptr->next = symt->info.toklist;
 
     symt->info.toklist = TH_ptr;
-
-    read_module_file(h, only, only_list_mode);
 }
 
 void
@@ -2499,6 +2499,7 @@ Recompile me with LARGE_MACHINE option\n"
 	    symt->equiv_link = symt;	/* equivalenced only to self */
 	    symt->common_block = (Gsymtab*)NULL;
 	    symt->common_index = 0;
+	    symt->home_unit = hashtab[current_prog_unit_hash].glob_symtab;
 	    if(incdepth > 0)
 	      symt->defined_in_include = TRUE;
 	    symt->line_declared = symt->line_set = symt->line_used = NO_LINE_NUM;

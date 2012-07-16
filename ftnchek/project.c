@@ -423,6 +423,7 @@ PRIVATE void
 mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
   WRITE_STR(" var",lsymt->name);
+  WRITE_STR(" home",lsymt->home_unit->name);
   WRITE_NUM(" type",get_type(lsymt));
   WRITE_NUM(" kind",lsymt->kind);
   WRITE_NUM(" size",lsymt->size);
@@ -983,9 +984,24 @@ if (debug_latest) {
 void read_module_file(int h, Token *item_list, int only_list_mode)
 {
   FILE *fd;
-  char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
+  Lsymtab *symt;		/* symbol table entries for module */
+  Gsymtab *gsymt;
 
-  char *module_filename = make_module_filename(hashtab[h].name);
+  char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
+  char *module_filename;
+
+     /* def_module should have created symtab entries if first encounter
+      */
+  symt = hashtab[h].loc_symtab;
+  gsymt = hashtab[h].glob_symtab;
+  if( gsymt == (Gsymtab*)NULL ) {
+    oops_message(OOPS_FATAL,proj_line_num,NO_COL_NUM,
+		 "module not in symbol table");
+    return;
+  }
+  modulename = gsymt->name;	/* use ptr to permanent stringspace */
+
+  module_filename = make_module_filename(modulename);
 
   if( (fd = fopen(module_filename,"r")) == (FILE *)NULL ) {
     (void)fflush(list_fd);
@@ -1012,12 +1028,13 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
   }
 
 
-		/* read module name (should be same as upcased file stem) */
+		/* Read module name (should be same as USE name: if
+		   different, indicates module file was hacked) */
    READ_STR("module",buf);
-   modulename = new_global_string(buf);
-   if( strncasecmp(modulename,hashtab[h].name,strlen(modulename)) != 0 ) {
-     fprintf(list_fd,"\nWarning: module name %s differs from file stem of %s",
-	     modulename,module_filename);
+   if( strcasecmp(modulename,buf) != 0 ) {
+     oops_message(OOPS_FATAL,proj_line_num,NO_COL_NUM,
+		  "module name in file differs from USE name");
+     return;
    }
 
 		/* Save filename in permanent storage */
@@ -1051,8 +1068,6 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      int numvars,ivar;
      char sentinel[5];
 
-     Gsymtab *gsymt;
-     Lsymtab *symt;
      ModVarListHeader *mvl_head;
      ModVar *mod_var;
      int in_mod = FALSE;
@@ -1063,10 +1078,6 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
  if(debug_latest) printf("read locals %d\n",numvars);
 #endif
 
-     /* def_module should have created a global entry if there was none
-      */
-     gsymt = hashtab[h].glob_symtab;
-     symt = hashtab[h].loc_symtab;
      mvl_head = gsymt->modvarlist;
 
      /* first reference to module from use statment */
@@ -1410,7 +1421,7 @@ map_type(int t_in)
 PRIVATE void
 mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode, ModVar *mod_var, int in_module)
 {
-  char id_name[MAXNAME+1], id_param_text[MAXNAME+1];
+  char id_name[MAXNAME+1], id_home[MAXNAME+1], id_param_text[MAXNAME+1];
   long id_type;
   kind_t id_kind;
   int mapped_type;		/* type from map_type array */
@@ -1431,6 +1442,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
   char *local_name;
 
   READ_STR(" var",id_name);
+  READ_STR(" home",id_home);
   READ_LONG(" type",id_type);
   READ_KIND(" kind",id_kind);
   READ_LONG(" size",id_size);
@@ -1470,13 +1482,28 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
  {
   Lsymtab *symt;
   if (use_this_item) {
-    /* Install decl, masking any existing. */
     int h = hash_lookup(local_name);
-    symt = install_local(h,mapped_type,class_VAR);
-    symt->size = id_size;
-    symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
-    symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
-    symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
+    int home_h = hash_lookup(id_home);
+
+    /* if home module does not exist, create L&G symtab entries for it */
+    if( hashtab[home_h].glob_symtab == (Gsymtab*)NULL ) {
+      Token t;
+      implied_id_token(&t,id_home);
+      t.line_num = NO_LINE_NUM;
+      def_module(&t,(Token *)NULL,FALSE);
+    }
+
+    /* Install decl, masking any existing from different home. */
+    symt = hashtab[h].loc_symtab;
+    if( symt == (Lsymtab*)NULL ||
+	strcmp(symt->home_unit->name,id_home) != 0 ) {
+      symt = install_local(h,mapped_type,class_VAR);
+      symt->home_unit = hashtab[home_h].glob_symtab;
+      symt->size = id_size;
+      symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
+      symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
+      symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
+    }
     mod_var->name = symt->name;
 
     /* only copy usage information for header that represents the module
