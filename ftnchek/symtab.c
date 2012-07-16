@@ -3715,6 +3715,27 @@ typespec(t,has_size, size, has_len, len)
     return buf;
 }
 
+	/* Used by global routines to report derived type names as they
+	 * were originally defined as of reporting the renamed alias
+	 */
+char *
+global_typespec(int t, int has_size, long size, int has_len, long len)
+{
+			/* Size of buffer allows 3 digits for each byte,
+			   which is slightly more than necessary.
+			 */
+    static char buf[MAX_TYPESPEC];
+    strncpy(buf,global_type_name(t),4); buf[4] = '\0';
+    if(has_size) {
+	(void) sprintf(buf+strlen(buf),"*%ld",size);
+    }
+    if(has_len) {
+	(void) sprintf(buf+strlen(buf),"(%ld)",len);
+    }
+    
+    return buf;
+}
+
 /* Routine to print out kind qualifier that goes before type spec in warnings. */
 void
 report_kind(kind_t k)
@@ -4115,8 +4136,9 @@ if (debug_latest) {
 	curr_i = hashtab[hashno].glob_symtab - &glob_symtab[0];
 	for (i = curr_i; i < glob_symtab_top; i++) {
 	  if(glob_symtab[i].valid) {
-	    if((limit == internal_subprog && glob_symtab[i].internal_subprog)||
-			(limit == module_subprog && glob_symtab[i].module_subprog)) {
+	    if( (limit == internal_subprog && glob_symtab[i].internal_subprog) ||
+		(limit == module_subprog && glob_symtab[i].module_subprog) ||
+		(limit == from_module && glob_symtab[i].from_module) ) {
 	      int h;
 #ifdef DEBUG_GLOBAL
 if (debug_latest) {

@@ -1386,7 +1386,7 @@ PROTO(char* ulongtostr, (unsigned long num));
 #define MAX_ULONGTOSTR (3*sizeof(unsigned long))
 
 /* used in blockstack to differentiate module and internal subprograms */
-typedef enum {not_subprog, module_subprog, internal_subprog} SUBPROG_TYPE;
+typedef enum {not_subprog, module_subprog, internal_subprog, from_module} SUBPROG_TYPE;
 
 	/* in modcheck.c */
 PROTO(void check_mod_usage, ( void ));

@@ -223,6 +223,10 @@ visit_children(int wrapup)
 	visit_child(main_prog_unit,0,wrapup);
       ++num_mains;
     }
+
+    /* visit subprograms inherited from USE stmt */
+    if (!wrapup && glob_symtab[i].valid && glob_symtab[i].from_module)
+	visit_child(&glob_symtab[i],0,wrapup);
   }
 				/* If no main program found at wrapup, give
 				   warning unless -noextern was set */

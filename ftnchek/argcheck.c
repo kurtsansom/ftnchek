@@ -154,7 +154,7 @@ arg_array_cmp(name,args1,args2)
 		arg_error_report(args1,args1->is_defn? "Dummy arg": "Actual arg",i,
 				 "is type");
 		if( t1 != type_LABEL ) /*label arg: only print storage class*/
-		  msg_tail(typespec(t1,!defsize1,(long)s1,FALSE,0));
+		  msg_tail(global_typespec(t1,!defsize1,(long)s1,FALSE,0));
 		if( is_derived_type(t1) ) {/*print line number for derived types */
 		  report_dtype_line_declared(dtype_table[t1]->line_declared);
 		}
@@ -163,7 +163,7 @@ arg_array_cmp(name,args1,args2)
 		arg_error_report(args2,args2->is_defn? "Dummy arg": "Actual arg",i,
 				 "is type");
 		if( t2 != type_LABEL ) /*label arg: only print storage class*/
-		  msg_tail(typespec(t2,!defsize2,(long)s2,FALSE,0L));
+		  msg_tail(global_typespec(t2,!defsize2,(long)s2,FALSE,0L));
 		if( is_derived_type(t2) ) {/*print line number for derived types */
 		  report_dtype_line_declared(dtype_table[t2]->line_declared);
 		}
@@ -215,10 +215,10 @@ arg_array_cmp(name,args1,args2)
 				break;
 
 		    arg_error_report(args1,"Dummy arg",i,"is type");
-		    msg_tail(typespec(t1,TRUE,(long)s1,dims1>0,size1));
+		    msg_tail(global_typespec(t1,TRUE,(long)s1,dims1>0,size1));
 
 		    arg_error_report(args2,"Actual arg",i,"is type");
-		    msg_tail(typespec(t2,TRUE,(long)s2,dims2>0,size2));
+		    msg_tail(global_typespec(t2,TRUE,(long)s2,dims2>0,size2));
 
 		  }/*end if char size mismatch*/
 		}/*end if type==char*/
@@ -677,6 +677,7 @@ if(debug_latest) {
 	  if (glob_symtab[i].valid) {
 		if ((limit == module_subprog && glob_symtab[i].module_subprog) ||
 		  (limit == internal_subprog && glob_symtab[i].internal_subprog) ||
+		  (limit == from_module && glob_symtab[i].from_module) ||
 		  (limit == not_subprog && !glob_symtab[i].internal_subprog
 		   	&& !glob_symtab[i].module_subprog)) {
 		/****************************************************************/
@@ -858,7 +859,7 @@ if(debug_latest) {
 						     "Invoked");
 				  msg_tail("as type");
 				  if( k1 != k2 && !kind_is_default(k1) ) report_kind(k1);
-				  msg_tail(typespec(t1,!defsize1,(long)s1,
+				  msg_tail(global_typespec(t1,!defsize1,(long)s1,
 					   FALSE, 0L));
 				}
 
@@ -868,7 +869,7 @@ if(debug_latest) {
 						 "Invoked");
 				msg_tail("as type");
 				if( k1 != k2 && !kind_is_default(k2) ) report_kind(k2);
-				msg_tail(typespec(t2,!defsize2,(long)s2,
+				msg_tail(global_typespec(t2,!defsize2,(long)s2,
 					 FALSE, 0L));
 			  }
 			}

@@ -321,6 +321,7 @@ PRIVATE void block_stack_top_swap();
 %token tok_hollerith
 %token tok_edit_descriptor
 %token tok_letter
+%token tok_defined_op	/* user defined operator eg .MYOP. */
 %token tok_relop	/* .EQ. .NE. .LT. .LE. .GT. .GE. */
 %token tok_AND
 %token tok_OR
@@ -2762,11 +2763,7 @@ generic_spec    :   symbolic_name
 
 operator    :   tok_power | '*' | '/' | '+' | '-' | tok_concat 
         | tok_relop | tok_NOT | tok_AND | tok_OR | tok_EQV | tok_NEQV 
-			/*        | defined_operator */
-            {
-                /* defined unary or binary operator of the form
-                   .myoperator. */
-            }
+	| tok_defined_op
         ;
 
 defined_io_generic_spec :   tok_READ '(' symbolic_name ')'
@@ -5001,7 +4998,7 @@ parameter_expr	:	/* arith, char, or logical */ expr
 		;
 
 /* 76 following the text of the standard, not the diagrams */
-expr		:	log_expr
+expr		:	defined_binary_expr
 			{
 #ifdef DEBUG_PARSER
 			    if(debug_parser) {
@@ -5014,14 +5011,18 @@ expr		:	log_expr
 			}
 		;
 
+defined_binary_expr:	log_expr
+		|	expr tok_defined_op log_expr
+		;
+
 log_expr	:	log_disjunct
 
-		|	expr tok_EQV log_disjunct
+		|	log_expr tok_EQV log_disjunct
 			{
 			    do_binexpr(&($1),&($2),&($3)
 					 ,&($$));
 			}
-		|	expr tok_NEQV log_disjunct
+		|	log_expr tok_NEQV log_disjunct
 			{
 			    do_binexpr(&($1),&($2),&($3)
 					 ,&($$));
@@ -5114,13 +5115,17 @@ factor		:	char_expr
 			}
 		;
 
-char_expr	:	primary
+char_expr	:	defined_unary_expr
 
-		|	char_expr tok_concat primary
+		|	char_expr tok_concat defined_unary_expr
 			{
 			  do_binexpr(&($1),&($2),&($3)
 					 ,&($$));
 			}
+		;
+
+defined_unary_expr:	primary
+		|	tok_defined_op primary
 		;
 
 primary		:	data_object
@@ -6446,6 +6451,9 @@ END_processing(t)
 	  check_arglists(current_prog_unit_hash,internal_subprog);
 	  clean_globals(current_prog_unit_hash,internal_subprog);
 	}
+	visit_children(/*wrapup=*/FALSE);
+	check_arglists(current_prog_unit_hash,from_module);
+	clean_globals(current_prog_unit_hash,from_module);
 			/* Reset local symbol table */
 	init_symtab();
 

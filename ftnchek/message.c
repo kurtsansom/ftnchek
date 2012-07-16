@@ -212,7 +212,6 @@ global_message(filename,lineno,s)
 	char *s;
 #endif /* HAVE_STDC */
 {
-	++warning_count;
 	error_message(filename,lineno,GLOBAL_NO_COL_NUM,s,NULL);
 }
 

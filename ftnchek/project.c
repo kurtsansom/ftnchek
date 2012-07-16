@@ -1692,6 +1692,8 @@ id_name,id_class,id_type);
       gsymt->size = id_size;
       gsymt->kind = id_kind;
       new_module = TRUE;
+      if (module)
+	  gsymt->from_module = TRUE;	/* inherited through USE stmt */
     }
     else if(is_defn) {
       gsymt->size = id_size;

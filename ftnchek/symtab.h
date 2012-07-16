@@ -785,6 +785,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     module_subprog: 1,
 	     valid: 1,
 	     private: 1,	/* accessibility of module subprogs */
+	     from_module: 1,	/* procedure imported via USE stmt */
 			/* The following flags are for project-file use.
 			   They get reset when a file is opened and accumulate
 			   values as file is read.  */
@@ -1271,6 +1272,7 @@ PROTO(void set_implicit_type,( int type, long size, char *len_text, int c1, int 
 PROTO(void stmt_function_stmt,( Token *id ));
 PROTO(char * token_name,( Token *t ));
 PROTO(char * type_name,( int t ));
+PROTO(char * global_type_name,( int t ));
 PROTO(void undef_do_variable,( int h ));
 PROTO(void use_actual_arg,( Token *id ));
 PROTO(void use_implied_do_index,( Token *id ));
@@ -1286,6 +1288,8 @@ PROTO(void do_allocate,( Token *id ));
 PROTO(void do_deallocate,( Token *id ));
 PROTO(void do_nullify,( Token *id ));
 PROTO(char* typespec, ( int t, int has_size, long size,
+			int has_len, long len));
+PROTO(char* global_typespec, ( int t, int has_size, long size,
 			int has_len, long len));
 				/* The following size is conservative,
 				   to make sure no buffer overruns occur.

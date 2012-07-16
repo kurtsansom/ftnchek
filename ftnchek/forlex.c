@@ -538,7 +538,7 @@ get_dotted_keyword(token)
 	Token *token;
 #endif /* HAVE_STDC */
 {
-	int i,
+	int i, h,
 	    has_embedded_space,	/* Spaces inside keyword */
 	    space_seen_lately;	/* Flag for catching embedded space */
 	initial_flag = FALSE;
@@ -600,6 +600,20 @@ get_dotted_keyword(token)
 			return;
 		}
 	}
+
+	/* It could be a defined operator in generic spec */
+	src_text_buf[src_text_len] = '\0';
+	token->tclass = tok_defined_op;
+	token->value.integer = h = hash_lookup(src_text_buf);
+	token->src_text = hashtab[h].name;
+
+#ifdef DEBUG_FORLEX
+			if(debug_lexer)
+			   (void)fprintf(list_fd,"\nDefined operator:\t\t%s",
+						token->src_text);
+#endif
+	return;
+
 			/* Match not found: signal an error */
 	lex_error("Unknown logical/relational operator or constant");
 	get_illegal_token(token);

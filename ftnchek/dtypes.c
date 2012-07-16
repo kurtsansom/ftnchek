@@ -331,6 +331,19 @@ char *type_name(int t)
    }
 }
 
+/* Routine used in global checking to return type name. For derived types,
+ * it always returns the name in dtype table.
+ */
+char *global_type_name(int t)
+{
+  if(is_elementary_type(t)) {		/* elementary type */
+      return elementary_type_name[t];
+   }
+   else {
+       return dtype_table[t]->name;
+   }
+}
+
 /* Returns index of duplicate dtype in dtype_table if derived type
  * definition already exists.  This is called for a derived type whose
  * definition has been processed and an entry in dtype_table created,
