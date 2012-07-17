@@ -700,7 +700,7 @@ typedef struct lSymtEntry{
 	long common_index;
 				/* Prog unit where variable declared.  For
 				   module variables it is original source. */
-	struct gSymtEntry *home_unit;
+	char *home_unit;
 	long size;		/* Size of object in bytes */
 		/* Object can be referenced in an include file. Next fields
 		   are line numbers within file where object is referred

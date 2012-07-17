@@ -2499,7 +2499,11 @@ Recompile me with LARGE_MACHINE option\n"
 	    symt->equiv_link = symt;	/* equivalenced only to self */
 	    symt->common_block = (Gsymtab*)NULL;
 	    symt->common_index = 0;
-	    symt->home_unit = hashtab[current_prog_unit_hash].glob_symtab;
+	    if(current_prog_unit_hash == -1 || /* prog unit, hash not yet set */
+	       storage_class == class_MODULE ) /* module's home is module */
+	      symt->home_unit = hashtab[h].name;
+	    else		/* variables, home is containing prog unit */
+	      symt->home_unit = hashtab[current_prog_unit_hash].name;
 	    if(incdepth > 0)
 	      symt->defined_in_include = TRUE;
 	    symt->line_declared = symt->line_set = symt->line_used = NO_LINE_NUM;

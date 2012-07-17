@@ -85,10 +85,11 @@ as the "MIT License."
 PROTO(PRIVATE char *make_module_filename,(const char *module_name));
 PROTO(PRIVATE int count_com_defns,( ComListHeader *clist ));
 PROTO(PRIVATE char *getstrn,(char s[], int n, FILE *fd));
+PROTO(PRIVATE int for_mod,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
-PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int do_defns ));
+PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int mode ));
 PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn, int module, Token *item_list, int only_list_mode));
 PROTO(PRIVATE int find_types, (Lsymtab *sym_list[]));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
@@ -96,7 +97,7 @@ PROTO(PRIVATE void mod_type_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE void mod_var_out,(Lsymtab *symt,FILE *fd));
 PROTO(PRIVATE int find_prog_units,(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),int module_mode));
 PROTO(PRIVATE int trim_calls,(int orig_num, Gsymtab *sym_list[]));
-PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int do_defns));
+PROTO(PRIVATE void prog_unit_out,(Gsymtab* gsymt, FILE *fd, int mode));
 PROTO(PRIVATE void find_comblocks, (Gsymtab *sym_list[], Gsymtab *module, int *blocks, int *defns ));
 PROTO(PRIVATE void comblocks_out, (FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int numdefns));
 PROTO(PRIVATE void clist_out,( Gsymtab *gsymt, ComListHeader *c, FILE *fd ));
@@ -109,6 +110,20 @@ PROTO(PRIVATE int map_type, (int t_in));
 PROTO(int name_in_only_list, (const char *name, const Token *tlist, char **local_name));
 PROTO(void print_token_list, (const Token *tlist));
 
+
+PRIVATE int
+for_mod(ArgListHeader *alist)		/* Returns TRUE if list has defns */
+{
+  /* use this routine in module mode to test if item has defn, ignoring
+     file where it was defined.
+   */
+  while( alist != NULL ) {
+    if(alist->is_defn)
+      return TRUE;
+    alist = alist->next;
+  }
+  return FALSE;
+}
 
 PRIVATE int
 #if HAVE_STDC
@@ -167,7 +182,10 @@ count_com_defns(clist)		/* Returns number of common decls in list  */
 #define WRITE_NUM(LEADER,NUM)	(void)(fprintf(fd,LEADER), fprintf(fd," %ld",(long)(NUM)))
 #define NEXTLINE		(void)fprintf(fd,"\n")
 
-
+/* macros for prog_unit_out mode */
+#define MODE_PROJ_CALLS 0	/* project file, calls */
+#define MODE_PROJ_DEFNS 1	/* project file, defns */
+#define MODE_MODULE 2		/* module file, defns */
 
 /* Routine to create filename of form [path/]module_name.fkm, allocating
    permanent space for it.  Module name is lowercased in filename.
@@ -263,11 +281,11 @@ write_module_file(int h)
   {
     Gsymtab *gsym_list[GLOBSYMTABSZ]; /* temp. list of global symtab entries to print */
     int i,numdefns;
-    numdefns = find_prog_units(gsym_list,has_defn,/*module_mode=*/TRUE);
+    numdefns = find_prog_units(gsym_list,for_mod,/*module_mode=*/TRUE);
     WRITE_NUM(" entries",numdefns);
     NEXTLINE;
     for(i=0; i<numdefns; i++) {
-      prog_unit_out(gsym_list[i],fd,/*do_defns=*/TRUE);
+      prog_unit_out(gsym_list[i],fd,MODE_MODULE);
     }
     NEXTLINE;
   }
@@ -313,7 +331,7 @@ proj_file_out(fd)
       WRITE_NUM(" entries",numdefns);
       NEXTLINE;
       for(i=0; i<numdefns; i++) {
-	prog_unit_out(sym_list[i],fd,/*do_defns=*/TRUE);
+	prog_unit_out(sym_list[i],fd,MODE_PROJ_DEFNS);
       }
       NEXTLINE;
 
@@ -325,7 +343,7 @@ proj_file_out(fd)
       WRITE_NUM(" externals",numcalls);
       NEXTLINE;
       for(i=0; i<numcalls; i++) {
-	prog_unit_out(sym_list[i],fd,/*do_defns=*/FALSE);
+	prog_unit_out(sym_list[i],fd,MODE_PROJ_CALLS);
       }
       NEXTLINE;
 
@@ -423,7 +441,7 @@ PRIVATE void
 mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
   WRITE_STR(" var",lsymt->name);
-  WRITE_STR(" home",lsymt->home_unit->name);
+  WRITE_STR(" home",lsymt->home_unit);
   WRITE_NUM(" type",get_type(lsymt));
   WRITE_NUM(" kind",lsymt->kind);
   WRITE_NUM(" size",lsymt->size);
@@ -513,12 +531,27 @@ trim_calls(int orig_num, Gsymtab *sym_list[])
       
 
 PRIVATE void
-prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
+prog_unit_out(Gsymtab* gsymt, FILE *fd, int mode)
 {
-	  if(do_defns)
+	  if(mode == MODE_PROJ_DEFNS || mode == MODE_MODULE)
 	    WRITE_STR(" entry",gsymt->name);
 	  else
 	    WRITE_STR(" external",gsymt->name);
+
+	  if(mode == MODE_MODULE) {
+	    /* for module files, home is where prog unit defined */
+	    char *home;
+	    Lsymtab* symt=hashtab[hash_lookup(gsymt->name)].loc_symtab;
+	    if( symt != NULL )
+	      home = symt->home_unit; /* inherited from subordinate module */
+	    else
+	      home = hashtab[current_prog_unit_hash].name; /* it's our own */
+	    WRITE_STR(" home",home);
+	  }
+	  else {
+	    /* for project files, home is prog unit name */
+	    WRITE_STR(" home",gsymt->name);
+	  }
 
 	  WRITE_NUM(" class",storage_class_of(gsymt->type)); /* values as in global symtab */
 	  WRITE_NUM(" type",datatype_of(gsymt->type));
@@ -540,7 +573,7 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int do_defns)
 		  gsymt->pure,
 		  0);	/* Flags for possible future use */
 	  NEXTLINE;
-	  alist_out(gsymt,fd,do_defns);
+	  alist_out(gsymt,fd,mode);
 }
 
 /* Routine to scan list of common block headers to find a declaration
@@ -630,19 +663,23 @@ comblocks_out(FILE *fd, Gsymtab *sym_list[], Gsymtab *module, int numblocks, int
 	   project or module file. */
 
 PRIVATE void
-alist_out(Gsymtab *gsymt, FILE *fd, int do_defns)
+alist_out(Gsymtab *gsymt, FILE *fd, int mode)
 
 {
   ArgListHeader *a=gsymt->info.arglist;
   ArgListElement *arg;
   int i,n;
   Gsymtab *last_calling_prog_unit;
-  int locally_defined = do_defns || has_defn(a); /* (avoid call if unnecessary) */
+  int do_defns = (mode == MODE_PROJ_DEFNS || mode == MODE_MODULE);
+  int locally_defined = TRUE;;
+
+  if( mode == MODE_PROJ_CALLS )
+    locally_defined = has_defn(a); /* (avoid call if unnecessary) */
 
 		/* This loop runs thru only those arglists that were
 		    created in the current top file. */
     last_calling_prog_unit = NULL;
-    while( a != NULL && a->topfile == top_filename) {
+    while( a != NULL && (mode == MODE_MODULE || a->topfile == top_filename)) {
 		/* do_defns mode: output only definitions */
     if( (do_defns && a->is_defn) || (!do_defns && !a->is_defn) ) {
 		/* keep only externals not satisfied in this file in -lib
@@ -1037,9 +1074,14 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      return;
    }
 
-		/* Save filename in permanent storage */
+		/* Save filename in permanent storage.  If same as current
+		   filename, use that pointer.
+		 */
    READ_STR(" file",buf);
-   topfilename = new_global_string(buf);
+   if(strcmp(buf,top_filename) == 0)
+     topfilename = top_filename;
+   else
+     topfilename = new_global_string(buf);
    NEXTLINE;
 #ifdef DEBUG_PROJECT
    if(debug_latest) { printf("\nModule is %s from file %s\n",modulename,topfilename);
@@ -1496,9 +1538,9 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
     /* Install decl, masking any existing from different home. */
     symt = hashtab[h].loc_symtab;
     if( symt == (Lsymtab*)NULL ||
-	strcmp(symt->home_unit->name,id_home) != 0 ) {
+	strcmp(symt->home_unit,id_home) != 0 ) {
       symt = install_local(h,mapped_type,class_VAR);
-      symt->home_unit = hashtab[home_h].glob_symtab;
+      symt->home_unit = hashtab[home_h].name;
       symt->size = id_size;
       symt->line_declared = NO_LINE_NUM;	/* NEED TO CARRY THIS INFO OVER */
       symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
@@ -1582,11 +1624,12 @@ arg_info_in(fd,filename,is_defn,item_list)
 #endif /* HAVE_STDC */
 {
     char id_name[MAXNAME+1],prog_unit_name[MAXNAME+1],sentinel[6];
+    char id_home[MAXNAME+1];
     char file_name[MAXNAME+1];
     char arg_name[MAXNAME+1];
     int new_module=FALSE; 	/* module not seen before this module-file */
     int use_this_item;		/* entity in only_list */
-
+    int seen_before=FALSE;	/* prog unit was in a previously read module */
 #ifndef KEEP_ARG_NAMES
     static char var[]="var",	/* text strings to use for now */
 	        expr[]="expr";
@@ -1640,6 +1683,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 	READ_STR(" entry",id_name); /* Entry point name */
     else
 	READ_STR(" external",id_name); /* External name */
+    READ_STR(" home",id_home);	       /* home prog unit */
     READ_NUM(" class",id_class); /* class as in symtab */
     READ_NUM(" type",id_type); /* type as in symtab */
     READ_KIND(" kind",id_kind); /* kind as in symtab */
@@ -1684,10 +1728,19 @@ id_name,id_class,id_type);
 #endif
 
   if ( !module || use_this_item ) {
-
+    Lsymtab* symt;
 				/* Create global symtab entry */
     h = hash_lookup(local_name);
-    if( (gsymt = hashtab[h].glob_symtab) == NULL) {
+				/* See if this procedure was gotten earlier
+				   e.g. from a previously read module.  Must
+				   match home unit.
+				 */
+    if( module ) {
+      symt = hashtab[h].loc_symtab;
+      if( symt != NULL && strcmp(id_home,symt->home_unit) == 0 )
+	seen_before = TRUE;
+    }
+    if( (gsymt = hashtab[h].glob_symtab) == NULL || (module && !seen_before) ) {
       gsymt = install_global((int)h,mapped_type,class_SUBPROGRAM);
       gsymt->size = id_size;
       gsymt->kind = id_kind;
@@ -1762,8 +1815,9 @@ id_name,id_class,id_type);
     /* If this is a module, we need to create a local symbol table
        entry defining the subprogram, to hold its type.
      */
-    if(module && use_this_item) {
+    if(module && use_this_item && !seen_before) {
       Lsymtab *symt = install_local(h,mapped_alist_type,class_SUBPROGRAM);
+      symt->home_unit = id_home;
       symt->kind = alist_kind;
       symt->size = alist_size;
       symt->line_declared = alist_line;
