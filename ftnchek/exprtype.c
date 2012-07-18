@@ -1595,8 +1595,15 @@ func_ref_expr(id,args,result)
 	/* transfer pointer/target attributes to token */
       if(symt->pointer) {
 	make_true(POINTER_EXPR,result->TOK_flags);
-	make_true(ASSOCIATED_EXPR,result->TOK_flags); /* assume result is assoc'd */
-	make_true(ALLOCATED_EXPR,result->TOK_flags); /* assume result is alloc'd */
+
+	  /* NULL intrinsic should make pointer disassociated and
+	     deallocated.  For other functions assume result is both
+	     assoc'd and alloc'd.
+	   */
+	if ( !(defn->intrins_flags & I_NULL) ) {
+	  make_true(ASSOCIATED_EXPR,result->TOK_flags);
+	  make_true(ALLOCATED_EXPR,result->TOK_flags);
+	}
       }
       else
 	make_false(POINTER_EXPR,result->TOK_flags);
@@ -1669,7 +1676,6 @@ symt->name,sized_typename(rettype,retsize));
 	      make_false(EVALUATED_EXPR,result->TOK_flags);
 	    }
 	  copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
-
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {

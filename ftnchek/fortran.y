@@ -6977,7 +6977,7 @@ PRIVATE void set_attr_flags( Token *t, Token *result )
 	make_false(ALLOCATABLE_EXPR,result->TOK_flags);
 
       /* non-allocatable targets are treated as allocated */
-      if(symt->allocated_flag || (symt->target && !symt->allocatable))
+      if(symt->allocated_flag)
 	make_true(ALLOCATED_EXPR,result->TOK_flags);
       else
 	make_false(ALLOCATED_EXPR,result->TOK_flags);

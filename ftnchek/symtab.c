@@ -3192,6 +3192,7 @@ use_variable(id)		/* Set the use-flag of variable. */
 {
 	int h=id->value.integer;
 	Lsymtab *symt;
+	int update_line_used = FALSE;
 
 	if( (symt=hashtab[h].loc_symtab) == NULL) {
 	   symt = install_local(h,type_UNDECL,class_VAR);
@@ -3208,16 +3209,14 @@ use_variable(id)		/* Set the use-flag of variable. */
                         /* handle allocatable variable here */
         if (symt->allocatable || symt->pointer){
 	   if (!symt->allocated_flag){
-		symt->line_allocd = id->line_num;
-	        symt->file_allocd = inctable_index;
+		update_line_used = TRUE; /* update usage line for err mesg */
 		symt->used_before_allocation = TRUE;
 	   }
 	}
                         /* handle pointer variable here */
         if (symt->pointer){
 	   if (!symt->associated_flag){
-		symt->line_assocd = id->line_num;
-	        symt->file_assocd = inctable_index;
+		update_line_used = TRUE;
 		symt->used_before_associated = TRUE;
 	   }
 	}
@@ -3226,7 +3225,7 @@ use_variable(id)		/* Set the use-flag of variable. */
     {		/* set flags for all equivalenced vars */
       Lsymtab *equiv=symt;
       do{
-	if(! equiv->used_flag) { /* record first line where used */
+	if( !equiv->used_flag || update_line_used) { /* record first line where used */
 	    equiv->line_used = id->line_num;
 	    equiv->file_used = inctable_index;
 	}
@@ -3252,6 +3251,7 @@ use_pointer(id)
         Token *id;
 #endif /* HAVE_STDC */
 {
+#if 0	     /* nothing to do; usage check is in use_variable */
 		/* Is this a variable? (could be pointer function ref) */
 	if( is_true(ID_EXPR,id->TOK_flags) ) {
 	  int h=id->value.integer;
@@ -3259,13 +3259,16 @@ use_pointer(id)
 
 	  symt=hashtab[h].loc_symtab;
 
-	  if(!(symt->associated_flag || symt->allocated_flag)) {
+	  if(!symt->associated_flag) {
 	    symt->used_before_associated = TRUE;
-	    symt->used_before_allocation = TRUE;
+	    symt->line_used = id->line_num; /* update location to fault */
 	  }
-
+	  if(!symt->allocated_flag) {
+	    symt->used_before_allocation = TRUE;
+	    symt->line_used = id->line_num; /* update location to fault */
+	  }
 	}
-
+#endif
 }/*use_pointer*/
 
 
@@ -3303,6 +3306,12 @@ use_pointer_lvalue(Token *id, Token *rhs)
       } while(equiv != symt);
     }
 
+    if( is_true(ALLOCATED_EXPR,id->TOK_flags) &&
+	!is_true(ASSOCIATED_EXPR,rhs->TOK_flags) ) {
+	    warning(id->line_num,id->col_num,
+		    "Disassociating an allocated pointer: ");
+	    msg_expr_tree(id);
+    }
 	
       /* propagate pointer association status to lvalue */
   if(  (is_true(POINTER_EXPR,rhs->TOK_flags) || is_true(TARGET_EXPR,rhs->TOK_flags)) ) {
@@ -3312,10 +3321,12 @@ use_pointer_lvalue(Token *id, Token *rhs)
 					/* record 1st place assoc'd */
     if( symt->associated_flag && symt->line_assocd == NO_LINE_NUM ) {
       symt->line_assocd = id->line_num;
+      symt->file_assocd = inctable_index;
     }
 					/* record 1st place alloc'd */
     if( symt->allocated_flag && symt->line_allocd == NO_LINE_NUM ) {
       symt->line_allocd = id->line_num;
+      symt->file_allocd = inctable_index;
     }
   }
 
@@ -3377,18 +3388,14 @@ do_allocate(id)		/* Process ALLOCATE statement */
                      "Reallocating an allocated variable: ");
 		   msg_expr_tree(next_id);
                 }
-
-                if (!symt->associated_flag){
+		if( symt->pointer ) {
+                  if (!symt->associated_flag){
 	           symt->associated_flag = TRUE;
 				/* record first line where set */
 		   symt->line_assocd = next_id->line_num;
 		   symt->file_assocd = inctable_index;
-                }
-                else{
-                   warning(next_id->line_num,next_id->col_num,
-                     "Reassociating an associated pointer: ");
-		   msg_expr_tree(next_id);
-                }
+		  }
+		}
 	   }
   next_id = next_id->next_token;
   }

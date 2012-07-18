@@ -344,7 +344,8 @@ print_loc_symbols(VOID)
 	    check_flags(sym_list,n,1,1,1,
 		      "Variables may be used before set:",progunit_name);
                            /* handle errors for pointer/allocatable */
-	    check_pointer_flags(sym_list,n,1,1,1,"Variables used before allocation:",progunit_name);
+	    check_pointer_flags(sym_list,n,1,1,1,
+		 "Variables may be used unassociated/unallocated:",progunit_name);
 	  }
 
 	}/*end if(usage_...)*/
