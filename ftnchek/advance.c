@@ -168,7 +168,7 @@ PROTO(PRIVATE srcPosn parse_attr_decl,(const char *name, ProcInterface *interfac
 /* next routines do not use srcPosn for sake of efficiency */
 PROTO(PRIVATE int skip_label,(const char *line, int i));
 
-PROTO(PRIVATE srcLine *scan_for_contains,(srcLine *start_srcLine, int stop_at_end));
+PROTO(PRIVATE srcLine *scan_for_contains,(srcLine *start_srcLine, int stop_at_end, int* found));
 
 PROTO(PRIVATE srcPosn get_internal_interface,(const char *name, ProcInterface *interface, srcPosn pos));
 
@@ -243,8 +243,7 @@ init_scan(VOID)			/* Starts reading a file */
 	   consulted by call_func and call_subr to decide whether to look
 	   ahead for an internal defn to satisfy the call.
 	*/
-	file_has_contains =
-	  (scan_for_contains(next_srcLine,FALSE) != (srcLine *)NULL);
+	(void)scan_for_contains(next_srcLine,FALSE,&file_has_contains);
 }
 
 void
@@ -2954,22 +2953,38 @@ int skip_label(const char *line, int i)
       return i;
 }
 
-/* Routine to find an ArgListHeader record with is_defn set for the
+/* Routine to find an ArgListHeader record for the
    given global symbol table entry.  If found, the values of interface
    variables are set from those in the definition, and returns TRUE.
    Otherwise returns FALSE.
+
+   Prefer entry with is_defn set, as these reflect fully parsed
+   procedure that was processed earlier.  If not, then use is_call
+   since this will have the same info as scanning forward would do.
  */
 PRIVATE
 int get_alhead_defn(Gsymtab *gsymt)
 {
-  ArgListHeader *alhead = gsymt->info.arglist;
+  ArgListHeader *alhead = gsymt->info.arglist,
+    *call_head=(ArgListHeader *)NULL; /* holds ptr to a call */
 
   /* If procedure was seen by host unit, a global symtab entry was
      created, but it will not have been processed yet, so check to
-     make sure there is an arglist header. */
+     make sure there is an arglist header.  Scan to find defn, or
+     if no defn, then call.
+  */
   while( alhead != (ArgListHeader *)NULL ) {
+    if( alhead->is_defn )
+      break;			/* found defn: use it */
+    else if( alhead->is_call && call_head == (ArgListHeader *)NULL)
+      call_head = alhead;	/* save in case no defn found */
+    alhead = alhead->next;	/* not defn: follow list */
+  }
 
-    if( alhead->is_defn ) {
+  if( alhead == (ArgListHeader *)NULL ) /* defn was not found */
+    alhead = call_head;			/* use call as backup */
+
+  if( alhead != (ArgListHeader *)NULL ) { /* an alhead was found */
       parsed_datatype = datatype_of(alhead->type);
       parsed_size = alhead->size;
       parsed_kind_param = alhead->kind;
@@ -2990,10 +3005,7 @@ int get_alhead_defn(Gsymtab *gsymt)
 #endif
       return TRUE;		/* success */
     }
-    else {
-      alhead = alhead->next;	/* not defn: follow list */
-    }
-  }
+
 #ifdef DEBUG_LOOKAHEAD
   if(debug_latest) {
     fprintf(list_fd,": defn not found");
@@ -3034,7 +3046,8 @@ looking_at_prefix()
 
 /* Routine that searches from given starting line forward
    to find a CONTAINS statement.  It returns the srcLine where found,
-   or NULL if not found.  If stop_at_end is true, it will stop the
+   or where scan stopped.  The argument found is set to TRUE if CONTAINS
+   found, FALSE if not.  If stop_at_end is true, it will stop the
    scan at the next END of a subprogram.  With stop_at_end = FALSE,
    this is called by init_scan() to set file_has_contains, which is
    used to decide whether to look ahead for internal subprogram
@@ -3049,7 +3062,8 @@ looking_at_prefix()
    fooled by a continued statement with CONTAINS by itself on first
    line and e.g. = 0 on continuation line.
  */
-PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
+PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine,
+				   int stop_at_end, int *found)
 {
   srcLine *Line = start_srcLine;
   int len = strlen("CONTAINS");
@@ -3062,7 +3076,8 @@ PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
       /* Look for a line beginning with the string CONTAINS */
       if(strncasecmp(&(Line->line[i]),"CONTAINS",len) == 0 &&
 	 i+len > Line->end_index) { /* verify nothing follows */
-	  return Line;				/* found */
+	  (*found) = TRUE;	    /* found */
+	  return Line;
       }
       /* No success: go to next line unless stop_at_end==TRUE and
          and end subprogram statement is here. */
@@ -3077,7 +3092,8 @@ PRIVATE srcLine *scan_for_contains(srcLine *start_srcLine, int stop_at_end)
     }
     Line = Line->next;
   }
-  return (srcLine *)NULL;			/* not found */
+  (*found) = FALSE;		/* not found */
+  return Line;			/* return line where search ended */
 } /* scan_for_contains */
 
 /* Routine to get interface of named internal or module procedure.
@@ -3205,11 +3221,17 @@ int search_for_internal(const char *name, ProcInterface *interface)
    */
   host_gsymt = hashtab[current_prog_unit_hash].glob_symtab;
   if( !host_gsymt->internal_subprog ) {
+    int has_contains;
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nsearch_for_internal (1)looking for own internal...");
+    }
+#endif
 
 	/* Case (1) search for proc in CONTAINS section within current unit*/
-    pos.Line = scan_for_contains(next_srcLine,TRUE);
+    pos.Line = scan_for_contains(next_srcLine,TRUE,&has_contains);
 
-    if( pos.Line != (srcLine *)NULL ) { /* CONTAINS was found */
+    if( has_contains ) { /* CONTAINS was found */
 
       pos = get_internal_interface(name, interface, pos);
 
@@ -3230,10 +3252,15 @@ int search_for_internal(const char *name, ProcInterface *interface)
     /* First, we may be lucky and the reference is to a previously
        parsed procedure.  In that case we have full interface info in
        global symbol table.  Or, the global entry may be from a
-       call from the host.  In that case the gsymt info is from a
+       call from peer of same host.  In that case the gsymt info is from a
        previous lookahead and we cannot do any better. */
     int h = hash_lookup(name);
     Gsymtab *gsymt;
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nsearch_for_internal (2a)looking for gsymt entry...");
+    }
+#endif
     if( (gsymt = hashtab[h].glob_symtab) != (Gsymtab *)NULL && 
       /* Verify that the found item is a peer. */
        (gsymt->internal_subprog || gsymt->module_subprog) ) {
@@ -3256,6 +3283,11 @@ int search_for_internal(const char *name, ProcInterface *interface)
     else {
 
     /* No luck finding global symtab entry.  Search ahead for a peer. */
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nsearch_for_internal (2b)looking for peer...");
+    }
+#endif
       if( host_gsymt->internal_subprog ) {
     /* If call is from internal proc, scan to END to align same as above */
 	pos.Line = next_srcLine;
@@ -3285,6 +3317,11 @@ int search_for_internal(const char *name, ProcInterface *interface)
 	   just look ahead in rest of module CONTAINS section.
 	 */
 	else if( host_gsymt->internal_subprog && loc_scope_top == 3 ) {
+#ifdef DEBUG_LOOKAHEAD
+    if(debug_latest && getenv("VERBOSE")) {
+      fprintf(list_fd,"\nsearch_for_internal (3)looking for peer of host...");
+    }
+#endif
 	  pos = get_internal_interface(name, interface, pos);
 	  if( pos.idx >= 0 ) {
 	    return LOOKAHEAD_MODULE;
@@ -3335,8 +3372,15 @@ void populate_interface(ProcInterface *i)
 PRIVATE
 void update_interface(ProcInterface *i)
 {
-  if(parsed_datatype != type_UNDECL)
+  if(parsed_datatype != type_UNDECL) {
+#ifdef DEBUG_LOOKAHEAD
+  if(debug_latest) {
+    fprintf(list_fd,"\ntype %d(%s)",parsed_datatype,type_name(parsed_datatype));
+    fprintf(list_fd," kind %d size %d",parsed_kind_param,parsed_size);
+  }
+#endif
     i->datatype = parsed_datatype;
+  }
   if(parsed_size != size_DEFAULT)
     i->size = parsed_size;
   if(parsed_kind_param != kind_DEFAULT_UNKNOWN) {
