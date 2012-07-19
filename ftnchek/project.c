@@ -1336,6 +1336,7 @@ if (use_this_item) {
 #endif
     duplicate_dtype = TRUE;
 
+    home_h = hash_lookup(id_home);
 
     /* if home module does not exist, create L&G symtab entries for it */
     if (hashtab[home_h].glob_symtab == (Gsymtab*)NULL) {
@@ -1351,7 +1352,6 @@ if (use_this_item) {
 			 * assign this type a new type id.
 			 */
 
-    home_h = hash_lookup(id_home);
     symt = hashtab[h].loc_symtab;
     if( symt == NULL || strcmp(symt->home_unit, id_home) != 0 ) {
       symt = install_local(h,mapped_type,class_DTYPE);
