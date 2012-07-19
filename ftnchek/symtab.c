@@ -2992,6 +2992,17 @@ use_actual_arg(id)	/* like use_lvalue except does not set assigned_flag */
 	    equiv->file_set = inctable_index;
 	}
 	equiv->set_flag = TRUE;
+	if(symt->allocatable && ! equiv->allocated_flag) { /* record first line where set */
+	    equiv->line_allocd = id->line_num;
+	    equiv->file_allocd = inctable_index;
+	}
+	if(symt->pointer && ! equiv->associated_flag) { /* record first line where set */
+	    equiv->line_assocd = id->line_num;
+	    equiv->file_assocd = inctable_index;
+	}
+	equiv->set_flag = TRUE;
+	equiv->allocated_flag = TRUE;
+	equiv->associated_flag = TRUE;
 	equiv = equiv->equiv_link;
       } while(equiv != symt);
     }
@@ -3465,7 +3476,9 @@ do_nullify(id)		/* Process NULLIFY statement */
 	       h = next_id->value.integer;
 	       symt=hashtab[h].loc_symtab;
 
-	       if (symt->allocated_flag){
+	       if (symt->allocated_flag &&
+		   /* don't warn if the pointer is a dtype component */
+		   !is_true(DTYPE_COMPONENT,id->TOK_flags) ){
 		   warning(next_id->line_num,next_id->col_num,
 			   "Disassociating an allocated pointer: ");
 		   msg_expr_tree(next_id);
@@ -4200,7 +4213,9 @@ Recompile me with LARGE_MACHINE option\n"
 	}
 	else {
 	  (*symt) = (*enclosing_symt); /* copy the masked entry */
-	  symt->info.toklist = NULL;	 /* clear argument list */
+
+	  if(!symt->intrinsic)
+	    symt->info.toklist = NULL;	 /* clear argument list */
 
 	  symt->mask = enclosing_symt;	 /* mask the outer entry */
 	  hashtab[h].com_loc_symtab = symt;
