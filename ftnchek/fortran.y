@@ -508,12 +508,12 @@ stmt_list_item	:	ordinary_stmt
 			       block_stack[block_depth-2].first_line == $1.line_num) {
 			      block_stack_top_swap();
 				/* If said block construct has pushed local scope,
-				   (currently only applies to TYPE statement)
+				   (mainly INTERFACE and TYPE statements)
 				   then the scope stack likewise needs to have
 				   its top two entries swapped so the %MAIN is
 				   outside the construct's scope.
 				 */
-			      if( curr_scope_bottom != 0 ) {
+			      if( loc_scope_top != 1 ) {
 				move_outside_scope(hashtab[current_prog_unit_hash].loc_symtab);
 				/* Fix the value of hash_num saved on
 				   scope stack when scope was pushed
@@ -2872,7 +2872,13 @@ derived_type_keyword    :   tok_TYPE
         ;
 
 end_derived_type_stmt:   tok_ENDTYPE EOS
+		{
+		  curr_stmt_name = (char *)NULL;
+		}
         |   tok_ENDTYPE symbolic_name
+		{
+		  curr_stmt_name = hashtab[$1.value.integer].name;
+		}
         ;
 
 /*
@@ -6724,8 +6730,15 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
     else {			/* structured block closers */
       int matching_class;
 
-      must_check_name = TRUE;
-
+      switch(stmt_class) {
+      case tok_ENDTYPE:
+      case tok_ENDINTERFACE:
+	must_check_name = FALSE;
+	break;
+      default:
+	must_check_name = TRUE;
+	break;
+      }
 				/* Look up the correct matching opener class */
       if( stmt_class < MIN_CLOSER || stmt_class > MAX_CLOSER ||
 	  (matching_class = block_match[stmt_class-MIN_CLOSER]) == 0 ) {

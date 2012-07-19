@@ -1430,14 +1430,17 @@ get_punctuation(token)
 		src_text_buf[src_text_len++] = curr_char;
 	}
             /* recognize beginning of array constructor (/ */
-        else if(curr_char == '(' && next_char == '/') {
+		/* Don't be fooled by OPERATOR (/) */
+        else if(curr_char == '(' && next_char == '/' &&
+		prev_token_class != tok_OPERATOR ) {
                 token->tclass = tok_l_ac_delimiter;
                 multichar = TRUE;
                 advance();
 		src_text_buf[src_text_len++] = curr_char;
 	}
             /* recognize end of array constructor /) */
-        else if(curr_char == '/' && next_char == ')') {
+        else if(curr_char == '/' && next_char == ')' &&
+		prev_token_class != '(' ) {
                 token->tclass = tok_r_ac_delimiter;
                 multichar = TRUE;
                 advance();

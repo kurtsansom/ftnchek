@@ -425,7 +425,7 @@ typedef struct tokstruct Token;
 
 
 SYM_SHARED
-long loc_symtab_top,	/* Next avail spot in local symbol table */
+int loc_symtab_top,	/* Next avail spot in local symbol table */
    curr_scope_bottom	/* Start in local symbol table of innermost scope */
 #ifdef SYMTAB
 = -1

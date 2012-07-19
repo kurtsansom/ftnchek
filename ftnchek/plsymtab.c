@@ -546,8 +546,8 @@ print_arg_array(arglist)	/* prints type and flag info for arguments */
 		if(a[i].array_var)
 		    (void)fprintf(list_fd,
 			    ":%ldD(%ld)",
-			    array_dims(a[i].array_dim),
-			    array_size(a[i].array_dim)
+			    (long)(array_dims(a[i].array_dim)),
+			    (long)(array_size(a[i].array_dim))
 		    );
 		(void)fprintf(list_fd,
 			" lval%d set%d asg%d ubs%d ary%d are%d ext%d do%d",
@@ -619,8 +619,8 @@ print_com_array(cmlist)
 		    array_size(c[i].dimen_info) != 1 )
 		    (void)fprintf(list_fd,
 			    ":%ldD(%ld)",
-			    array_dims(c[i].dimen_info),
-			    array_size(c[i].dimen_info)
+			    (long)(array_dims(c[i].dimen_info)),
+				  (long)(array_size(c[i].dimen_info))
 		    );
 		(void)fprintf(list_fd,
 			" use%d set%d ubs%d asg%d",
@@ -709,16 +709,16 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 	    if(hashtab[i].name != NULL) {
 	      (void)fprintf(list_fd,"\n%4d %s",i,hashtab[i].name);
 	      if(hashtab[i].loc_symtab != NULL)
-		(void)fprintf(list_fd," loc %d",hashtab[i].loc_symtab-loc_symtab);
+		(void)fprintf(list_fd," loc %ld",(long)(hashtab[i].loc_symtab-loc_symtab));
 	      if(hashtab[i].glob_symtab != NULL)
 		(void)fprintf(list_fd,
-			" glob %d",hashtab[i].glob_symtab-glob_symtab);
+			      " glob %ld",(long)(hashtab[i].glob_symtab-glob_symtab));
 	      if(hashtab[i].com_loc_symtab != NULL)
 		(void)fprintf(list_fd,
-			" Cloc %d",hashtab[i].com_loc_symtab-loc_symtab);
+			      " Cloc %ld",(long)(hashtab[i].com_loc_symtab-loc_symtab));
 	      if(hashtab[i].com_glob_symtab != NULL)
 		(void)fprintf(list_fd,
-			" Cglob %d",hashtab[i].com_glob_symtab-glob_symtab);
+			      " Cglob %ld",(long)(hashtab[i].com_glob_symtab-glob_symtab));
 	    }
 	}
     }

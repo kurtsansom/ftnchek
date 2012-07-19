@@ -139,6 +139,7 @@ void
 apply_attr(Token *id,		/* token of variable to apply attr to */
 	   int attr)		/* token class of attr to apply */
 {
+  if( is_true(ID_EXPR,id->TOK_flags) ) { /* protect ourself */
 	int h=id->value.integer;
 	Lsymtab *symt;
 
@@ -220,6 +221,7 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	       check_and_set_attr(optional);
 	       break;
 	}
+  }
 #undef check_and_set_attr
 #undef check_and_set_attr2
 }
@@ -3936,7 +3938,7 @@ void push_loc_scope(void)
 if (debug_latest) {
     fprintf(list_fd, "\npush: loc_scope_top=%d", loc_scope_top);
     fprintf(list_fd, "\npush: curr_scope_bottom=%d", curr_scope_bottom);
-    fprintf(list_fd, "\npush: curr_scope_top   =%d", loc_symtab_top);
+    fprintf(list_fd, "\npush: loc_symtab_top   =%d", loc_symtab_top);
 }
 #endif
 
@@ -3971,7 +3973,7 @@ int pop_loc_scope(void)
 if (debug_latest) {
     fprintf(list_fd, "\npop: loc_scope_top=%d", loc_scope_top);
     fprintf(list_fd, "\npop: curr_scope_bottom=%d", curr_scope_bottom);
-    fprintf(list_fd, "\npop: curr_scope_top   =%d", loc_symtab_top);
+    fprintf(list_fd, "\npop: loc_symtab_top   =%d", loc_symtab_top);
 }
 #endif
     if (loc_scope_top <= 0) {
