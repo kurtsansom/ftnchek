@@ -398,6 +398,7 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
   int i, num_components;
 
   WRITE_STR(" dtype",lsymt->name);
+  WRITE_STR(" home",lsymt->home_unit);
   WRITE_NUM(" type",(type_index=get_type(lsymt)));
   WRITE_STR(" module",dtype_table[type_index]->module_name);
   WRITE_NUM(" size",lsymt->size);
@@ -1252,6 +1253,7 @@ PRIVATE void
 mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item_list, int only_list_mode)
 {
   char dtype_name[MAXNAME+1], 
+       id_home[MAXNAME+1],
        type_module[MAXNAME+1],
        component_name[MAXNAME+1];
   int dtype_type, component_type;
@@ -1279,13 +1281,14 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   int duplicate_dtype = FALSE;
   Dtype *dtype;
   DtypeComponent *curr;
-  int h;
+  int h, home_h;
   Lsymtab *symt;
   int mapped_type;		/* type from map_type array */
   int use_this_item, in_list;
   char *local_name;
 
   READ_STR(" dtype",dtype_name);
+  READ_STR(" home",id_home);
   READ_NUM(" type",dtype_type);
   READ_STR(" module",type_module);
   READ_LONG(" size",dtype_size);
@@ -1334,15 +1337,28 @@ if (use_this_item) {
     duplicate_dtype = TRUE;
 
 
+    /* if home module does not exist, create L&G symtab entries for it */
+    if (hashtab[home_h].glob_symtab == (Gsymtab*)NULL) {
+      Token t;
+      implied_id_token(&t,id_home);
+      t.line_num = NO_LINE_NUM;
+      def_module(&t,(Token *)NULL,FALSE);
+    }
+
 			/* Create a symbol table entry for this type.
 			 * If duplicate of previously seen module
 			 * type, give it the existing type.  If new,
 			 * assign this type a new type id.
 			 */
 
-    symt = install_local(h,mapped_type,class_DTYPE);
-    symt->line_declared = proj_line_num; /* THIS IS WRONG */
-    symt->file_declared = inctable_index;
+    home_h = hash_lookup(id_home);
+    symt = hashtab[h].loc_symtab;
+    if( symt == NULL || strcmp(symt->home_unit, id_home) != 0 ) {
+      symt = install_local(h,mapped_type,class_DTYPE);
+      symt->line_declared = proj_line_num; /* THIS IS WRONG */
+      symt->file_declared = inctable_index;
+      symt->home_unit = hashtab[home_h].name;
+    }
     type_map[dtype_type] = mapped_type;	/* use the pre-existing number in this program */
     dtype = dtype_table[mapped_type];
     dtype->symt = symt;
