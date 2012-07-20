@@ -636,6 +636,8 @@ check_intrins_args(id, arg)
 	if( (numargs >= 0 && (args_given != (unsigned)numargs))
 			/* 1 or 2 arguments allowed */
 	 || (numargs == I_1or2 && (args_given != 1 && args_given != 2))
+	 		/* 2 or 3 arguments allowed */
+	 || (numargs == I_2or3 && (args_given != 2 && args_given != 3))
 			/* numargs == -2: 2 or more */
 	 || (numargs == I_2up && (args_given < 2))
 			/* 1 2 or 3 arguments allowed */

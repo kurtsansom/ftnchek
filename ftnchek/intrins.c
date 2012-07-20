@@ -69,11 +69,13 @@ as the "MIT License."
 
 PROTO(PRIVATE int ii_abs,( Token *args ));
 PROTO(PRIVATE int ii_dim,( Token *args ));
+PROTO(PRIVATE int ii_dot_product,( Token *args ));
 PROTO(PRIVATE int ii_ichar,( Token *args ));
 PROTO(PRIVATE int ii_index,( Token *args ));
 PROTO(PRIVATE int ii_kind,( Token *args ));
 PROTO(PRIVATE int ii_lbound,( Token *args ));
 PROTO(PRIVATE int ii_len,( Token *args ));
+PROTO(PRIVATE int ii_matmul,( Token *args ));
 PROTO(PRIVATE int ii_max,( Token *args ));
 PROTO(PRIVATE int ii_maxloc,( Token *args ));
 PROTO(PRIVATE int ii_merge,( Token *args ));
@@ -287,13 +289,22 @@ TRIM (STRING)                      Remove trailing blank characters
 VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 */
 
+{"ACHAR",	1,	I,	type_STRING,	I_F95|I_ELEM|I_CHAR,NULL},
+{"ADJUSTL",	1,	STR,	type_STRING,	I_F95|I_ELEM,NULL},
+{"ADJUSTR",	1,	STR,	type_STRING,	I_F95|I_ELEM,NULL},
 {"CHAR",	1,	I,	type_STRING,	I_F77|I_ELEM|I_NOTARG|I_CHAR,NULL},
+{"IACHAR",	1,	STR,	type_INTEGER,	I_F95|I_ELEM,ii_ichar},
 {"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_ichar},
 {"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_ELEM,ii_index},
+{"LEN_TRIM", 	1,	STR,	type_INTEGER,	I_F95|I_ELEM,NULL},
 {"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"REPEAT", 	2,	STR|I,	type_STRING,	I_F95|I_MIXED_ARGS,NULL},
+{"SCAN", 	I_2or3,	STR|I|L,type_INTEGER,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
+{"TRIM", 	1,	STR,	type_STRING,	I_F95,NULL},
+{"VERIFY", 	I_2or3,	STR|L,	type_INTEGER,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
 
 /*
 13.11.5 Character inquiry function
@@ -320,6 +331,7 @@ SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
 LOGICAL (L [, KIND])               Convert between objects of type logical with
                                       different kind type parameters
 */
+{"LOGICAL", 	1,	L,	type_LOGICAL,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
 
 /*
 13.11.8 Numeric inquiry functions
@@ -348,6 +360,7 @@ TINY (X)                           Smallest positive number of the model
 13.11.9 Bit inquiry function
 BIT_SIZE (I)                       Number of bits of the model
 */
+{"BIT_SIZE",	1,	I,	type_INTEGER,	I_F95|I_INQ,NULL},
 
 /*
 13.11.10 Bit manipulation functions
@@ -380,6 +393,9 @@ TRANSFER (SOURCE, MOLD [, SIZE])   Treat first argument as if
                                       of type of second argument
 */
 
+    /* TRANSFER ( GENERIC, GENERIC, INTEGER ) */
+{"TRANSFER",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
+
 /*
 13.11.12 Floating-point manipulation functions
 EXPONENT (X)                       Exponent part of a model number
@@ -394,11 +410,22 @@ SPACING (X)                        Absolute spacing of model numbers near given
                                    number
 */
 
+{"EXPONENT",	1,	R|D,	type_INTEGER,	I_F95|I_ELEM,NULL},
+{"FRACTION",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
+{"NEAREST",	2,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
+{"RRSPACING",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
+{"SCALE",	2,	R|D|I,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
+{"SET_EXPONENT",2,	R|D|I,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
+{"SPACING",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
+
 /*
 13.11.13 Vector and matrix multiply functions
 DOT_PRODUCT (VECTOR_A, VECTOR_B)   Dot product of two rank-one arrays
 MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication
 */
+
+{"DOT_PRODUCT",	2,	I|R|D|C|L,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ARRY,ii_dot_product},
+{"MATMUL",	2,	I|R|D|C|L,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ARRY,ii_matmul},
 
 /*
 13.11.14 Array reduction functions
@@ -462,6 +489,10 @@ EOSHIFT (ARRAY, SHIFT [, BOUNDARY, DIM]) End-off shift
 TRANSPOSE (MATRIX)                 Transpose of an array of rank two
 */
 
+{"CSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
+{"EOSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
+{"TRANSPOSE",	1,	ANY,	type_GENERIC,	I_F95,NULL},
+
 /*
 13.11.19 Array location functions
 MAXLOC (ARRAY [, DIM] [, MASK])       Location of a maximum value in an array
@@ -493,11 +524,12 @@ SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
   COUNT_RATE, COUNT_MAX])
 */
 
-{"CPU_TIME",	1,	R,	type_SUBROUTINE,I_F95,NULL},
+{"CPU_TIME",	1,	R|D,	type_SUBROUTINE,I_F95,NULL},
 {"DATE_AND_TIME",I_1to4,I|STR,	type_SUBROUTINE,I_F90|I_MIXED_ARGS,NULL},
 {"MVBITS",	5,	I,	type_SUBROUTINE,I_F90|I_ELEM,NULL},
-{"RANDOM_NUMBER",1,	R,	type_SUBROUTINE,I_F90,NULL},
+{"RANDOM_NUMBER",1,	R|D,	type_SUBROUTINE,I_F90,NULL},
 {"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_F90,NULL},
+{"SYSTEM_CLOCK",I_0or1,	I,	type_SUBROUTINE,I_F95,NULL},
 
 
 				/* Nonstandard intrinsics */
@@ -1161,6 +1193,92 @@ ii_reshape(Token *args)  /* RESHAPE ( SOURCE, SHAPE [,PAD] [,ORDER] ) */
       }
     }
   }
+  return result;
+}
+
+PRIVATE int
+ii_dot_product(Token *args)  /* DOT_PRODUCT (VECTOR_A, VECTOR_B) */
+{
+  int result = 0;
+  Token *a = args->next_token;
+  Token *b = a->next_token;
+
+  /* checking of existence of VECTOR_A and VECTOR_B is done elsewhere */
+  if( !(a == NULL || b == NULL) ) {
+    /* check if a is vector of rank 1 */
+    if (!is_true(ARRAY_EXPR, a->TOK_flags) ||
+	array_dims(a->array_dim) != 1) {
+      syntax_error(a->line_num, a->col_num, "must be 1-dimensional array");
+    }
+    /* check if b is vector of rank 1 */
+    else if (!is_true(ARRAY_EXPR, b->TOK_flags) ||
+	array_dims(b->array_dim) != 1) {
+      syntax_error(b->line_num, b->col_num, "must be 1-dimensional array");
+    }
+    /* check if b has same size as a */
+    else if (array_size(b->array_dim) != array_size(a->array_dim)) {
+      syntax_error(b->line_num, b->col_num, "array size mismatch");
+    }
+    else {
+      /* clear dimension info of scalar result */
+      args->array_dim = array_dim_info(0,0);
+    }
+  }
+
+  /* to prevent cascading of errors */
+  make_false(ARRAY_EXPR,args->TOK_flags);
+
+  return result;
+}
+
+PRIVATE int
+ii_matmul(Token *args)  /* MATMUL (MATRIX_A, MATRIX_B) */
+{
+  int result = 0;
+  Token *a = args->next_token;
+  Token *b = a->next_token;
+
+  /* checking of existence of VECTOR_A and VECTOR_B is done elsewhere */
+  if( !(a == NULL || b == NULL) ) {
+    /* check if a is matrix of rank 1 or 2 */
+    if( !is_true(ARRAY_EXPR, a->TOK_flags) ||
+	( array_dims(a->array_dim) != 1 && 
+	  array_dims(a->array_dim) != 2 ) ) {
+      syntax_error(a->line_num, a->col_num, 
+	  "must be 1 or 2 dimensional array");
+    }
+    /* check if b is matrix of rank 1 or 2 */
+    else if( !is_true(ARRAY_EXPR, b->TOK_flags) ||
+	( array_dims(b->array_dim) != 1 && 
+	  array_dims(b->array_dim) != 2 ) ) {
+      syntax_error(b->line_num, b->col_num, 
+	  "must be 1 or 2 dimensional array");
+    }
+    /* array multiplication rank constraint is not implemented
+     * properly because we don't store length in each dimension */
+    else if( (array_dims(a->array_dim) == 1 && 
+		array_size(a->array_dim) != array_dims(b->array_dim)) ||
+	     (array_dims(a->array_dim) == 2 &&
+		(array_dims(b->array_dim) == 1 &&
+		  array_size(b->array_dim) != 2) ) 
+	     ) {
+      char *a_dims = ulongtostr(array_dims(a->array_dim));
+      char *b_dims = ulongtostr(array_dims(b->array_dim));
+      syntax_error(a->line_num, a->col_num, 
+	  "array rank mismatch:");
+      msg_tail(a_dims);
+      msg_tail("and");
+      msg_tail(b_dims);
+    }
+    else {
+      int result_dim = 
+	( array_dims(a->array_dim) == array_dims(b->array_dim) ) ?
+	2 : 1;
+      args->array_dim = array_dim_info_unk_size(result_dim);
+      make_true(ARRAY_EXPR,args->TOK_flags);
+    }
+  }
+
   return result;
 }
 

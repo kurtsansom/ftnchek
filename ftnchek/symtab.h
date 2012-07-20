@@ -607,6 +607,7 @@ typedef struct MVHead {	/* ModVarListHeader: head node of module var list */
 #define I_0or1	(-3)		/* 0 or 1 argument */
 #define I_1to3	(-4)		/* 1, 2, or 3 arguments */
 #define I_1to4	(-5)		/* 1 to 4 arguments */
+#define I_2or3	(-6)		/* 2 or 3 arguments */
 
 			/* for intrins_flags field */
 
