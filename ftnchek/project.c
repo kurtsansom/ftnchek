@@ -1007,21 +1007,25 @@ int name_in_only_list(const char *name, const Token *tlist, char **local_name)
 
   Token *t = tlist->next_token;
   while (t != NULL) {
-    if( strcmp(name, t->src_text) == 0 ) {
-      if( t->left_token != NULL) {	/* is a rename token */
-	(*local_name) = hashtab[t->left_token->value.integer].name;
+    char *locname, *usename;
+    if( t->left_token != NULL) {	/* is a rename token */
+	/* left_token is the => and children are local-name, use-name */
+      locname =  hashtab[t->left_token->left_token->value.integer].name;
+      usename = hashtab[t->left_token->next_token->value.integer].name;
+    }
+    else {			/* not a rename */
+      locname = usename = hashtab[t->value.integer].name;
+    }
+    if( strcmp(name, usename) == 0 ) { /* a match found */
+      (*local_name) = locname;
 #ifdef DEBUG_PROJECT
 if (debug_latest) {
-  printf("%s found as RENAME item, rename to %s\n", name, *local_name);
+  if( locname != usename )
+    printf("%s found as RENAME item, rename to %s\n", name, *local_name);
+  else
+    printf("%s found as ONLY item\n", name);
+
 }
-#endif
-      }
-#ifdef DEBUG_PROJECT
-      else {
-if (debug_latest) {
-  printf("%s found as ONLY item\n", name);
-}
-      }
 #endif
       return TRUE;
     }
@@ -1200,7 +1204,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 
        for (i = 0; i < mvl_mod->numargs; i++) {
 	 mvl_head->mod_var_array[i].name = mvl_mod->mod_var_array[i].name;
-
+	 mvl_head->mod_var_array[i].usename = mvl_mod->mod_var_array[i].usename;
 	 /* setting the any_set and any_used flags for the variables in
 	  * the module itself
 	  */
@@ -1584,8 +1588,9 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
       symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
     }
   }
+  mod_var->name = new_global_string(local_name);
+  mod_var->usename = new_global_string(id_name);
 
-    mod_var->name = hashtab[hash_lookup(local_name)].name;
 
     /* only copy usage information for header that represents the module
     */

@@ -155,7 +155,7 @@ PRIVATE void mod_var_usage(char *name, ModVarListHeader *mvl_head)
 }/*mod_var_usage*/
 
 		/* Routine to print a list of module variables whose
-		   marked flag has been set.
+		   marked flag has been set.  Print usename, not local name.
 		 */
 PRIVATE void
 print_marked_mod_vars(ModVar *mv, int n)
@@ -164,12 +164,12 @@ print_marked_mod_vars(ModVar *mv, int n)
     COLNO_t col;
     for (i=0,col=78; i<n; i++){
 	if (mv[i].marked){
-	    if( (col += 1+(int)strlen(mv[i].name)) > 78 ) {
+	    if( (col += 1+(int)strlen(mv[i].usename)) > 78 ) {
 		(void)fprintf(list_fd,"\n   ");
-		col = 4+(int)strlen(mv[i].name);
+		col = 4+(int)strlen(mv[i].usename);
 	    }
 	    (void)fprintf(list_fd, " %s",
-			  mv[i].name);
+			  mv[i].usename);
 	}
     }
 }

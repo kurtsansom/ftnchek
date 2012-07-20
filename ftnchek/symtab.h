@@ -576,7 +576,8 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 } TokenListHeader;
 
 typedef struct {	/* ModVar: holds module var data */
-	char *name;		/* name of module var */
+	char *name;		/* local name of module var */
+	char *usename;		/* original name in module */
 	unsigned		/* copies of flags from symtab */
 	  used:1,
 	  set:1,

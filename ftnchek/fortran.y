@@ -2680,11 +2680,11 @@ rename_list :   rename
 
 rename  :   symbolic_name tok_rightarrow symbolic_name
 	    {
-		 $3.left_token = append_token((Token *)NULL,&($1));
-		 $$ = $3;
+	      $$.left_token = add_tree_node(&($2),&($1),&($3));
 	    }
         |   tok_OPERATOR '(' operator ')'
             tok_rightarrow tok_OPERATOR '(' operator ')'
+	    /* FIXME: ACTION CODE NEEDED */
         ;
 
 use_only    :   only_keywd ':' EOS
