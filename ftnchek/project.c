@@ -1208,6 +1208,12 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 	     mvl_mod->any_set = TRUE;
 	 if (mvl_mod->mod_var_array[i].used)
 	     mvl_mod->any_used = TRUE;
+
+	 /* copy flag that tells whether usage information will be checked
+	  * for this program unit
+	  */
+	 mvl_head->mod_var_array[i].check_usage = 
+	     mvl_mod->mod_var_array[i].check_usage;
        }
 
      }
@@ -1577,7 +1583,9 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
       symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
       symt->defined_in_module = TRUE;	/* to suppress local usage warnings */
     }
-    mod_var->name = symt->name;
+  }
+
+    mod_var->name = hashtab[hash_lookup(local_name)].name;
 
     /* only copy usage information for header that represents the module
     */
@@ -1586,8 +1594,8 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
       mod_var->set = id_set;
       mod_var->assigned = id_assigned;
       mod_var->used_before_set = id_used_before_set;
+      mod_var->check_usage = use_this_item;
     }
-  }
 
     if( id_array_var ) {
       NEXTLINE;

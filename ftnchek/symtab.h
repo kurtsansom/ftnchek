@@ -582,7 +582,9 @@ typedef struct {	/* ModVar: holds module var data */
 	  set:1,
 	  assigned:1,
 	  used_before_set:1,
-	  marked:1;		/* for listing of offenders */
+	  marked:1,		/* for listing of offenders */
+	  check_usage;		/* for checking usage , those not in
+				   an ONLY list will not be checked */
 } ModVar;
 
 typedef struct MVHead {	/* ModVarListHeader: head node of module var list */

@@ -351,14 +351,20 @@ else {
 			  mod_hash = hash_lookup(mod_var->name);
 			  symt = hashtab[mod_hash].loc_symtab;
 
-			  mod_var->used = symt->used_flag;
-			  mod_var->assigned = symt->assigned_flag;
-			  mod_var->set = symt->set_flag;
-			  mod_var->used_before_set = symt->used_before_set;
-			  if (mod_var->used)
+			  /* local symbol table entries do not exist
+			   * for module variables not on only list
+			   */
+			  if (symt != NULL) {
+			    mod_var->used = symt->used_flag;
+			    mod_var->assigned = symt->assigned_flag;
+			    mod_var->set = symt->set_flag;
+			    mod_var->used_before_set = symt->used_before_set;
+			    if (mod_var->used)
 			      mvl_head->any_used = TRUE;
-			  if (mod_var->set)
+			    if (mod_var->set)
 			      mvl_head->any_set = TRUE;
+			  }
+
 			  k++;
 			}
 		      }

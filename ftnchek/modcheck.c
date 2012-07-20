@@ -98,7 +98,7 @@ PRIVATE void mod_var_usage(char *name, ModVarListHeader *mvl_head)
 	if( usage_mod_var_unused ) {
 	  var_count = 0;
 	  for(i=0; i<n; i++) {
-	    if( !(mv[i].used || mv[i].set) ) {
+	    if( !(mv[i].used || mv[i].set) && mv[i].check_usage) {
 		mv[i].marked = TRUE;
 		var_count++;
 	    }
@@ -118,7 +118,7 @@ PRIVATE void mod_var_usage(char *name, ModVarListHeader *mvl_head)
 	if( usage_mod_var_set_unused ) {
 	  var_count = 0;
 	  for(i=0; i<n; i++) {
-	    if( mv[i].set && !mv[i].used ) {
+	    if( mv[i].set && !mv[i].used && mv[i].check_usage) {
 		mv[i].marked = TRUE;
 		var_count++;
 	    }
@@ -139,7 +139,7 @@ PRIVATE void mod_var_usage(char *name, ModVarListHeader *mvl_head)
 	if( usage_mod_var_uninitialized ) {
 	  var_count = 0;
 	  for(i=0; i<n; i++) {
-	    if( mv[i].used && !mv[i].set ) {
+	    if( mv[i].used && !mv[i].set && mv[i].check_usage) {
 		mv[i].marked = TRUE;
 		var_count++;
 	    }
