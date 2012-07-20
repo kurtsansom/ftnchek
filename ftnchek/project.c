@@ -180,6 +180,7 @@ count_com_defns(clist)		/* Returns number of common decls in list  */
 #define WRITE_STR(LEADER,S)	(void)(fprintf(fd,LEADER), fprintf(fd," %s",S))
 #define WRITE_ARG(LEADER,S)	(void)(fprintf(fd,LEADER), fprintf(fd," %s",S))
 #define WRITE_NUM(LEADER,NUM)	(void)(fprintf(fd,LEADER), fprintf(fd," %ld",(long)(NUM)))
+#define WRITE_FLOAT(LEADER,FLT)	(void)(fprintf(fd,LEADER), fprintf(fd," %lf",(double)(FLT)))
 #define NEXTLINE		(void)fprintf(fd,"\n")
 
 /* macros for prog_unit_out mode */
@@ -441,9 +442,10 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
 PRIVATE void
 mod_var_out(Lsymtab *lsymt,FILE *fd)
 {
+  int datatype = get_type(lsymt);
   WRITE_STR(" var",lsymt->name);
   WRITE_STR(" home",lsymt->home_unit);
-  WRITE_NUM(" type",get_type(lsymt));
+  WRITE_NUM(" type",datatype);
   WRITE_NUM(" kind",lsymt->kind);
   WRITE_NUM(" size",lsymt->size);
   (void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d %d",
@@ -464,7 +466,20 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
   }
   if(lsymt->parameter) {
     NEXTLINE;
-    WRITE_STR(" value",lsymt->info.param->src_text);
+    switch(datatype) {
+        case type_INTEGER:
+          WRITE_NUM(" value",lsymt->info.param->value.integer);
+          break;
+#ifndef NO_FLOATING_POINT
+        case type_REAL:
+        case type_DP:
+          WRITE_FLOAT(" value",lsymt->info.param->value.dbl);
+          break;
+#endif
+        default:		/* includes type_STRING */
+	  WRITE_STR(" value",lsymt->info.param->src_text);
+          break;
+    }
   }
   NEXTLINE;
 }

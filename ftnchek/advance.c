@@ -1759,6 +1759,7 @@ int parsed_subprog_class,	/* keyword class of subprog that was found */
   parsed_array_attr,		/* has array attributes */
   parsed_pointer_attr,		/* has POINTER attribute */
   parsed_target_attr,		/* has TARGET attribute */
+  parsed_allocatable_attr,	/* has ALLOCATABLE attribute */
   parsed_recursive_attr,		/* RECURSIVE attribute */
   parsed_pure_attr,			/* PURE attribute */
   parsed_elemental_attr;		/* ELEMENTAL attribute */
@@ -1809,6 +1810,7 @@ struct keywd_list attr_keywd[] = {
   {"DIMENSION",tok_DIMENSION},
   {"POINTER",tok_POINTER},
   {"TARGET",tok_TARGET},
+  {"ALLOCATABLE",tok_ALLOCATABLE}, /* legal in F2003 not F95 */
 };
 #define NUM_ATTR_KEYWDS (sizeof(attr_keywd)/sizeof(attr_keywd[0]))
 
@@ -1841,6 +1843,7 @@ void reset_attrs(void)
   parsed_array_dim = array_dim_info(0,0); /* scalar */
   parsed_pointer_attr = FALSE;
   parsed_target_attr = FALSE;
+  parsed_allocatable_attr = FALSE;
   parsed_recursive_attr = FALSE;	/* prefix keywords that may be seen */
   parsed_pure_attr = FALSE;
   parsed_elemental_attr = FALSE;
@@ -2728,6 +2731,9 @@ srcPosn parse_attr_spec(srcPosn pos)
       case tok_TARGET:
 	parsed_target_attr = TRUE;
 	break;
+      case tok_ALLOCATABLE:
+	parsed_allocatable_attr = TRUE;
+	break;
       }
       return pos;		/* success */
     }
@@ -2926,6 +2932,9 @@ srcPosn parse_attr_decl(const char *name, ProcInterface *interface, srcPosn pos)
 	break;
       case tok_TARGET:
 	parsed_target_attr = TRUE;
+	break;
+      case tok_ALLOCATABLE:
+	parsed_allocatable_attr = TRUE;
 	break;
       }
   /* Now look for identifier in entity-decl-list */
@@ -3357,6 +3366,7 @@ void populate_interface(ProcInterface *i)
   i->array = parsed_array_attr;
   i->pointer = parsed_pointer_attr;
   i->target = parsed_target_attr;
+  /* allocatable attr is not passed back since not alloc'able in call context */
   i->elemental = parsed_elemental_attr;
   i->pure = parsed_pure_attr;
   i->recursive = parsed_recursive_attr;
@@ -3399,6 +3409,7 @@ void update_interface(ProcInterface *i)
     i->pointer = parsed_pointer_attr;
   if(parsed_target_attr)
     i->target = parsed_target_attr;
+  /* allocatable attr is not passed back since not alloc'able in call context */
 }
 
 

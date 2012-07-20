@@ -279,6 +279,7 @@ PROTO(PRIVATE void init_io_ctrl_list,( void ));
 PROTO(PRIVATE void record_default_io,( void ));
 PROTO(PRIVATE void process_attrs,(Token *t,Token *dim_bounds));
 PROTO(PRIVATE void process_prefix_attrs,(Token *t));
+PROTO(PRIVATE int kind_expr_value,(Token *t));
 
 #ifdef DEBUG_PARSER
 PROTO(PRIVATE void print_exprlist,( char *s, Token *t ));
@@ -2309,42 +2310,22 @@ unsizeable_type_name:	tok_DOUBLEPRECISION
 			}
 		;
 
-				/* When F90 kind intrinsics are supported,
-				   expr should become int_constant_expr.
-				   For now, keep it lax to avoid spurious
-				   warnings.
-				 */
-kind_selector	:	expr
+
+kind_selector	:	int_constant_expr
 			{
 			  if(f77_attrbased_typedecl) {
 			    nonstandard($1.line_num, $1.col_num,0,0);
 			    msg_tail(": F90-style declaration");
 			  }
 
-			  current_kind = int_expr_value(&($1));
+			  current_kind = kind_expr_value(&($1));
 			}
-		|	symbolic_name '=' expr
+		|	symbolic_name '=' int_constant_expr
 			{
-			  int type_of_kind;
 			  int erroneous=FALSE;
 			  if( strcmp(hashtab[$1.value.integer].name,"KIND")
 			      == 0 ) {
-			    current_kind = int_expr_value(&($3));
-			    type_of_kind = kind_type(current_kind);
-
-			    if( type_of_kind != type_UNDECL &&
-			        current_datatype != type_of_kind ) {
-			      warning($2.line_num,$2.col_num,
-			              "kind parameter defined for");
-			      msg_tail(type_name(type_of_kind));
-			      msg_tail("type used to declare");
-			      msg_tail(type_name(current_datatype));
-			    }
-			    if (port_concrete_kind &&
-			        type_of_kind == type_UNDECL) {
-			      nonportable($2.line_num,$2.col_num,
-			              "declaration uses concrete kind parameter");
-			    }
+			    current_kind = kind_expr_value(&($3));
 			  }
 			  else {
 			    syntax_error($1.line_num,$1.col_num,
@@ -2359,7 +2340,6 @@ kind_selector	:	expr
 
 			}
 		;
-
 
 plain_char_type_name:	tok_CHARACTER
 			{
@@ -5568,6 +5548,7 @@ kind_param	:	tok_integer_const
 			    /* has to be scalar nonnegative integer */
 			    /* the identifier could be undefined */
 			    $$.kind = int_expr_value(&($$));
+			    use_variable(&($1));
 			}
 	   	;
 
@@ -5624,6 +5605,7 @@ int_constant_expr:	/* integer const */ arith_expr
 			      }
 			      else {
 				$$.value.integer = int_expr_value(&($1));
+				make_false(ID_EXPR,$1.TOK_flags);
 			      }
 			    }
 			}
@@ -6998,6 +6980,39 @@ PRIVATE void set_attr_flags( Token *t, Token *result )
   }
 }
 
+/* Routine to evaluate expression defining a kind number and issue
+   warnings if value inappropriate.
+ */
+PRIVATE int kind_expr_value(Token *t)
+{
+  int kind_number;
+  int type_of_kind;
+
+  if( datatype_of(t->TOK_type) != type_INTEGER ) {
+		/* Non-integer warning was given in int_const_expr but avoid
+		   using bogus value. */
+    kind_number = kind_DEFAULT_UNKNOWN; /* safest fallback value */
+  }
+  else {
+    kind_number = t->value.integer; /* was set by int_constant_expr */
+    type_of_kind = kind_type(kind_number);
+
+    if( type_of_kind != type_UNDECL &&
+	current_datatype != type_of_kind ) {
+      warning(t->line_num,t->col_num,
+	      "kind parameter defined for");
+      msg_tail(type_name(type_of_kind));
+      msg_tail("type used to declare");
+      msg_tail(type_name(current_datatype));
+    }
+    if (port_concrete_kind &&
+	type_of_kind == type_UNDECL) {
+      nonportable(t->line_num,t->col_num,
+		  "declaration uses concrete kind parameter");
+    }
+  }
+  return kind_number;
+}
 
 
 SUBPROG_TYPE find_subprog_type(int stmt_class)

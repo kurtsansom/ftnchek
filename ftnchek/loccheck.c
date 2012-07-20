@@ -544,7 +544,8 @@ check_nonpure(sym_list, n, mod_name)
 	com_vars_modified=0,	/* count of common variables which are set */
 	args_modified=0;	/* count of arguments which are set */
     for(i=0; i<n; i++) {
-	if( pure_args && sym_list[i]->argument && sym_list[i]->set_flag ) {
+	if( pure_args && sym_list[i]->argument && sym_list[i]->set_flag &&
+	    !sym_list[i]->intent_out) { /* since -pure is default, may be intent out */
 	    if(sym_list[i]->assigned_flag && sym_list[i]->argument && !CASCADE_LIMIT(args_modified))
 	    {
 		char *filename = choose_filename(sym_list[i],file_set);

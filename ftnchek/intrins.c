@@ -459,7 +459,7 @@ UBOUND (ARRAY [, DIM])             Upper dimension bounds of an array
 {"ALLOCATED",   1,      ANY,	type_LOGICAL,	I_F90|I_INQ,NULL},
 {"LBOUND",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_lbound},
 {"SHAPE",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_shape},
-{"SIZE",	I_0or1, ANY,	type_INTEGER,	I_F90|I_INQ,ii_size},
+{"SIZE",	I_1or2, ANY,	type_INTEGER,	I_F90|I_MIXED_ARGS|I_INQ,ii_size},
 {"UBOUND",	1,	ANY,	type_INTEGER,	I_F90|I_ARRY|I_INQ,ii_ubound},
 
 /*
