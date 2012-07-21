@@ -1778,9 +1778,10 @@ get_string(token)       /* Gets string of form 'aaaa' */
 #endif /*ALLOW_TYPELESS_CONSTANTS*/
 
 	if(len == 0) {
-		warning(line_num,col_num,
-			"Zero-length string not allowed\n");
-		len = 1;
+	  if(f77_string_zero_length) {
+	    nonstandard(line_num,col_num,0,0);
+	    msg_tail(": zero-length string");
+	  }
 	}
 
 	if(quote_char != '\'') { /* Warn if quote is used instead of apost */

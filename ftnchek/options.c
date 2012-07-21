@@ -521,6 +521,8 @@ PRIVATE WarnOptionList
 				"Semicolon as statement separator"},
   {"statement-order",	&f77_stmt_order,
 				"Statement out of order"},
+  {"string-zero-length",&f77_string_zero_length,
+				"Character string of zero length"},
   {"substring-bounds",	&f77_substring_bounds,
 				"Substring indices obey 1<=start<=end<=len"},
   {"typeless-constant",	&f77_typeless_constants,

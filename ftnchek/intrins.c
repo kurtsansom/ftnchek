@@ -289,22 +289,22 @@ TRIM (STRING)                      Remove trailing blank characters
 VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 */
 
-{"ACHAR",	1,	I,	type_STRING,	I_F95|I_ELEM|I_CHAR,NULL},
-{"ADJUSTL",	1,	STR,	type_STRING,	I_F95|I_ELEM,NULL},
-{"ADJUSTR",	1,	STR,	type_STRING,	I_F95|I_ELEM,NULL},
+{"ACHAR",	1,	I,	type_STRING,	I_F90|I_ELEM|I_CHAR,NULL},
+{"ADJUSTL",	1,	STR,	type_STRING,	I_F90|I_ELEM,NULL},
+{"ADJUSTR",	1,	STR,	type_STRING,	I_F90|I_ELEM,NULL},
 {"CHAR",	1,	I,	type_STRING,	I_F77|I_ELEM|I_NOTARG|I_CHAR,NULL},
-{"IACHAR",	1,	STR,	type_INTEGER,	I_F95|I_ELEM,ii_ichar},
+{"IACHAR",	1,	STR,	type_INTEGER,	I_F90|I_ELEM,ii_ichar},
 {"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_ichar},
 {"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_ELEM,ii_index},
-{"LEN_TRIM", 	1,	STR,	type_INTEGER,	I_F95|I_ELEM,NULL},
+{"LEN_TRIM", 	1,	STR,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"LGE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LGT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LLE", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"LLT", 	2,	STR,	type_LOGICAL,	I_F77|I_ELEM|I_NOTARG,NULL},
-{"REPEAT", 	2,	STR|I,	type_STRING,	I_F95|I_MIXED_ARGS,NULL},
-{"SCAN", 	I_2or3,	STR|I|L,type_INTEGER,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
-{"TRIM", 	1,	STR,	type_STRING,	I_F95,NULL},
-{"VERIFY", 	I_2or3,	STR|L,	type_INTEGER,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
+{"REPEAT", 	2,	STR|I,	type_STRING,	I_F90|I_MIXED_ARGS,NULL},
+{"SCAN", 	I_2or3,	STR|I|L,type_INTEGER,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
+{"TRIM", 	1,	STR,	type_STRING,	I_F90,NULL},
+{"VERIFY", 	I_2or3,	STR|L,	type_INTEGER,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
 
 /*
 13.11.5 Character inquiry function
@@ -331,7 +331,7 @@ SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
 LOGICAL (L [, KIND])               Convert between objects of type logical with
                                       different kind type parameters
 */
-{"LOGICAL", 	1,	L,	type_LOGICAL,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
+{"LOGICAL", 	1,	L,	type_LOGICAL,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
 
 /*
 13.11.8 Numeric inquiry functions
@@ -360,7 +360,7 @@ TINY (X)                           Smallest positive number of the model
 13.11.9 Bit inquiry function
 BIT_SIZE (I)                       Number of bits of the model
 */
-{"BIT_SIZE",	1,	I,	type_INTEGER,	I_F95|I_INQ,NULL},
+{"BIT_SIZE",	1,	I,	type_INTEGER,	I_F90|I_INQ,NULL},
 
 /*
 13.11.10 Bit manipulation functions
@@ -394,7 +394,7 @@ TRANSFER (SOURCE, MOLD [, SIZE])   Treat first argument as if
 */
 
     /* TRANSFER ( GENERIC, GENERIC, INTEGER ) */
-{"TRANSFER",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
+{"TRANSFER",	I_2or3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
 
 /*
 13.11.12 Floating-point manipulation functions
@@ -410,13 +410,13 @@ SPACING (X)                        Absolute spacing of model numbers near given
                                    number
 */
 
-{"EXPONENT",	1,	R|D,	type_INTEGER,	I_F95|I_ELEM,NULL},
-{"FRACTION",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
-{"NEAREST",	2,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
-{"RRSPACING",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
-{"SCALE",	2,	R|D|I,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
-{"SET_EXPONENT",2,	R|D|I,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ELEM,NULL},
-{"SPACING",	1,	R|D,	type_GENERIC,	I_F95|I_ELEM,NULL},
+{"EXPONENT",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"FRACTION",	1,	R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
+{"NEAREST",	2,	R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
+{"RRSPACING",	1,	R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
+{"SCALE",	2,	R|D|I,	type_GENERIC,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
+{"SET_EXPONENT",2,	R|D|I,	type_GENERIC,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
+{"SPACING",	1,	R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
 
 /*
 13.11.13 Vector and matrix multiply functions
@@ -424,8 +424,8 @@ DOT_PRODUCT (VECTOR_A, VECTOR_B)   Dot product of two rank-one arrays
 MATMUL (MATRIX_A, MATRIX_B)        Matrix multiplication
 */
 
-{"DOT_PRODUCT",	2,	I|R|D|C|L,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ARRY,ii_dot_product},
-{"MATMUL",	2,	I|R|D|C|L,	type_GENERIC,	I_F95|I_MIXED_ARGS|I_ARRY,ii_matmul},
+{"DOT_PRODUCT",	2,	I|R|D|C|L,	type_GENERIC,	I_F90|I_MIXED_ARGS|I_ARRY,ii_dot_product},
+{"MATMUL",	2,	I|R|D|C|L,	type_GENERIC,	I_F90|I_MIXED_ARGS|I_ARRY,ii_matmul},
 
 /*
 13.11.14 Array reduction functions
@@ -440,13 +440,13 @@ SUM (ARRAY [, DIM] [, MASK])          Sum of array elements
 	/* Note: ordering of array,mask,dim args not enforced.  For type_GENERIC
 	   result will be type of first argument.
 	 */
-{"ALL",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_F90,NULL},
-{"ANY",		I_1or2,	I|L,	type_LOGICAL,	I_MIXED_ARGS|I_F90,NULL},
-{"COUNT",	I_1or2,	I|L,	type_INTEGER,	I_MIXED_ARGS|I_F90,NULL},
-{"MAXVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
-{"MINVAL",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
-{"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
-{"SUM",		I_1to3,	ANY,	type_GENERIC,	I_MIXED_ARGS|I_F90,NULL},
+{"ALL",		I_1or2,	I|L,	type_LOGICAL,	I_F90|I_MIXED_ARGS,NULL},
+{"ANY",		I_1or2,	I|L,	type_LOGICAL,	I_F90|I_MIXED_ARGS,NULL},
+{"COUNT",	I_1or2,	I|L,	type_INTEGER,	I_F90|I_MIXED_ARGS,NULL},
+{"MAXVAL",	I_1to3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
+{"MINVAL",	I_1to3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
+{"PRODUCT",	I_1to3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
+{"SUM",		I_1to3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
 
 /*
 13.11.15 Array inquiry functions
@@ -489,9 +489,9 @@ EOSHIFT (ARRAY, SHIFT [, BOUNDARY, DIM]) End-off shift
 TRANSPOSE (MATRIX)                 Transpose of an array of rank two
 */
 
-{"CSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
-{"EOSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F95|I_MIXED_ARGS,NULL},
-{"TRANSPOSE",	1,	ANY,	type_GENERIC,	I_F95,NULL},
+{"CSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
+{"EOSHIFT",	I_2or3,	ANY,	type_GENERIC,	I_F90|I_MIXED_ARGS,NULL},
+{"TRANSPOSE",	1,	ANY,	type_GENERIC,	I_F90,NULL},
 
 /*
 13.11.19 Array location functions
@@ -529,7 +529,7 @@ SYSTEM_CLOCK ([COUNT,              Obtain data from the system clock
 {"MVBITS",	5,	I,	type_SUBROUTINE,I_F90|I_ELEM,NULL},
 {"RANDOM_NUMBER",1,	R|D,	type_SUBROUTINE,I_F90,NULL},
 {"RANDOM_SEED",	I_0or1,	I,	type_SUBROUTINE,I_F90,NULL},
-{"SYSTEM_CLOCK",I_0or1,	I,	type_SUBROUTINE,I_F95,NULL},
+{"SYSTEM_CLOCK",I_0or1,	I,	type_SUBROUTINE,I_F90,NULL},
 
 
 				/* Nonstandard intrinsics */

@@ -967,6 +967,7 @@ OPT(int,f77_quotemarks,F77_ALL);
 OPT(int,f77_relops,F77_ALL);
 OPT(int,f77_semicolon,F77_ALL);
 OPT(int,f77_stmt_order,F77_ALL);
+OPT(int,f77_string_zero_length,F77_ALL);
 OPT(int,f77_substring_bounds,F77_ALL);
 OPT(int,f77_typeless_constants,F77_ALL);
 OPT(int,f77_typesize,F77_ALL);
