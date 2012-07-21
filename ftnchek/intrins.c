@@ -163,22 +163,22 @@ SIGN (A, B)                        Transfer of sign
 
 {"ABS", 	1,	I|R|D|C|Z,type_GENERIC,	I_F77|I_ELEM|I_C_TO_R,ii_abs},
 {"AIMAG",	1,	C,	type_REAL,	I_F77|I_ELEM,NULL},
-{"AINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
-{"ANINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM,NULL},
-{"CEILING",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM,NULL},
-{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"AINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM|I_OK,NULL},
+{"ANINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM|I_OK,NULL},
+{"CEILING",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM|I_OK,NULL},
+{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_ELEM|I_NOTARG|I_OK,NULL},
 {"CONJG",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
 {"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"DIM",		2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_dim},
 {"DPROD",	2,	R,	type_DP,	I_F77|I_ELEM,NULL},
-{"FLOOR",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM,NULL},
-{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_ELEM|I_NOTARG,NULL},
+{"FLOOR",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM|I_OK,NULL},
+{"INT", 	1,	I|R|D|C|Z,type_INTEGER,	I_F77|I_ELEM|I_NOTARG|I_OK,NULL},
 {"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_max},
 {"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_min},
 {"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_mod},
 {"MODULO",	2,	I|R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
-{"NINT",	1,	R|D,	type_INTEGER,	I_F77|I_ELEM,NULL},
-{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_ELEM|I_NOTARG|I_C_TO_R|I_SP_R,NULL},
+{"NINT",	1,	R|D,	type_INTEGER,	I_F77|I_ELEM|I_OK,NULL},
+{"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_ELEM|I_NOTARG|I_C_TO_R|I_SP_R|I_OK,NULL},
 {"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_sign},
 
 			/* Fortran 66 specific versions */
@@ -292,7 +292,7 @@ VERIFY (STRING, SET [, BACK])      Verify the set of characters in a string
 {"ACHAR",	1,	I,	type_STRING,	I_F90|I_ELEM|I_CHAR,NULL},
 {"ADJUSTL",	1,	STR,	type_STRING,	I_F90|I_ELEM,NULL},
 {"ADJUSTR",	1,	STR,	type_STRING,	I_F90|I_ELEM,NULL},
-{"CHAR",	1,	I,	type_STRING,	I_F77|I_ELEM|I_NOTARG|I_CHAR,NULL},
+{"CHAR",	1,	I,	type_STRING,	I_F77|I_ELEM|I_NOTARG|I_CHAR|I_OK,NULL},
 {"IACHAR",	1,	STR,	type_INTEGER,	I_F90|I_ELEM,ii_ichar},
 {"ICHAR",	1,	STR,	type_INTEGER,	I_F77|I_ELEM|I_NOTARG,ii_ichar},
 {"INDEX",	2,	STR,	type_INTEGER,	I_F77|I_ELEM,ii_index},
@@ -331,7 +331,7 @@ SELECTED_REAL_KIND ([P, R])        Real kind type parameter value,
 LOGICAL (L [, KIND])               Convert between objects of type logical with
                                       different kind type parameters
 */
-{"LOGICAL", 	1,	L,	type_LOGICAL,	I_F90|I_MIXED_ARGS|I_ELEM,NULL},
+{"LOGICAL", 	1,	L,	type_LOGICAL,	I_F90|I_MIXED_ARGS|I_ELEM|I_OK,NULL},
 
 /*
 13.11.8 Numeric inquiry functions
@@ -384,7 +384,7 @@ NOT (I)                            Logical complement
 {"IEOR",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"IOR",		2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"ISHFT",	2,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
-{"ISHFTC",	3,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
+{"ISHFTC",	I_2or3,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 {"NOT",		1,	I,	type_INTEGER,	I_F90|I_ELEM,NULL},
 
 /*
@@ -472,7 +472,7 @@ UNPACK (VECTOR, MASK, FIELD)       Unpack an array of rank one into an array
                                       under a mask
 */
 {"MERGE",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_merge},
-{"PACK",	I_2up,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_pack},
+{"PACK",	I_2or3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_pack},
 {"SPREAD",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_spread},
 {"UNPACK",	3,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_unpack},
 
@@ -480,7 +480,7 @@ UNPACK (VECTOR, MASK, FIELD)       Unpack an array of rank one into an array
 13.11.17 Array reshape function
 RESHAPE (SOURCE, SHAPE[, PAD, ORDER]) Reshape an array
 */
-{"RESHAPE",	I_2up,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_reshape},
+{"RESHAPE",	I_2to4,	ANY,	type_GENERIC,	I_F90|I_ARRY|I_MIXED_ARGS,ii_reshape},
 
 /*
 13.11.18 Array manipulation functions

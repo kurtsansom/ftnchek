@@ -625,27 +625,51 @@ check_intrins_args(id, arg)
 	Lsymtab *symt=hashtab[h].loc_symtab;
 	IntrinsInfo *defn=symt->info.intrins_info;
 	unsigned args_given = ((arg == NULL)?0:arg_count(arg->next_token));
-	int numargs;
-	unsigned short flags;
+	int numargs, numargs_ok, opt_kind_allowed, opt_kind_present;
+	intrins_flags_t flags;
 	Token *t;
 
 	numargs = defn->num_args;
 	flags = defn->intrins_flags;
-
+	opt_kind_allowed = flags&I_OK;
+	opt_kind_present = FALSE;
+		/* Check number of args, allowing one more if optional kind OK */
+		/* Set opt_kind_present only if can tell for sure */
+	switch(numargs) {
+	case I_1or2:			/* 1 or 2 arguments allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 3);
+	  numargs_ok = (args_given == 1 || args_given == 2 || opt_kind_present);
+	  break;
+	case I_2or3:			/* 2 or 3 arguments allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 4);
+	  numargs_ok = (args_given == 2 || args_given == 3 || opt_kind_present);
+	  break;
+	case I_2up:			/* 2 or more allowed */
+	  numargs_ok = (args_given >= 2);
+	  break;
+	case I_1to3:			/* 1 2 or 3 arguments allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 4);
+	  numargs_ok = (args_given >= 1 && args_given <= (opt_kind_allowed? 4: 3));
+	  break;
+	case I_1to4:			/* 1 2 3 or 4 arguments allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 5);
+	  numargs_ok = (args_given >= 1 && args_given <= (opt_kind_allowed? 5: 4));
+	  break;
+	case I_0or1:			/* 0 or 1 argument allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 2);
+	  numargs_ok = (args_given == 0 || args_given == 1 || opt_kind_present);
+	  break;
+	case I_2to4:			/* 2 3 or 4 arguments allowed */
+	  opt_kind_present = (opt_kind_allowed && args_given == 5);
+	  numargs_ok = (args_given >= 2 && args_given <= (opt_kind_allowed? 5: 4));
+	  break;
+	default:		/* positive numargs: must agree */
+	  opt_kind_present = (opt_kind_allowed && args_given == (unsigned)(numargs+1));
+	  numargs_ok = (args_given == (unsigned)numargs || opt_kind_present);			
+	  break;
+	}
 			/* positive numargs: must agree */
-	if( (numargs >= 0 && (args_given != (unsigned)numargs))
-			/* 1 or 2 arguments allowed */
-	 || (numargs == I_1or2 && (args_given != 1 && args_given != 2))
-	 		/* 2 or 3 arguments allowed */
-	 || (numargs == I_2or3 && (args_given != 2 && args_given != 3))
-			/* numargs == -2: 2 or more */
-	 || (numargs == I_2up && (args_given < 2))
-			/* 1 2 or 3 arguments allowed */
-	 || (numargs == I_1to3 && (args_given < 1 || args_given > 3))
-			/* 1 2 3 or 4 arguments allowed */
-	 || (numargs == I_1to4 && (args_given < 1 || args_given > 4))
-			/* 0 or 1 argument allowed */
-	 || (numargs == I_0or1 && (args_given != 0 && args_given != 1)) ){
+	if( !numargs_ok ){
 		LINENO_t linenum;
 		COLNO_t colnum;
 		if(arg==NULL) {linenum=id->line_num; colnum=id->col_num;}
@@ -666,6 +690,7 @@ check_intrins_args(id, arg)
 
 	  Token *prev_t,	/* one operand in type propagation  */
 	         fake_op;	/* operator in binexpr_type call */
+	  int kind_arg_value;	/* set if optional kind is present */
 
 	  t = arg->next_token;
 				/* Copy type & size info into result */
@@ -681,7 +706,18 @@ check_intrins_args(id, arg)
 	  prev_t = t;
 
 	  while(t != NULL) {
-	    if(intrins_arg_cmp(defn,t)) {
+		  /* Allow integer as last argument if function takes optional KIND.
+		     In that case, skip checking and pick up value.
+		     FIXME: When call-by-name supported, change check if last arg
+		     to check for dummy arg being named KIND.
+		   */
+	    if( opt_kind_allowed && t->next_token == NULL &&
+		datatype_of(t->TOK_type) == type_INTEGER ) {
+	      if(opt_kind_present) { /* only take it if we are sure it's KIND */
+		kind_arg_value = int_expr_value(t);
+	      }
+	    }
+	    else if( intrins_arg_cmp(defn,t) ) {
 				/* Propagate data type thru the list.
 				   Resulting type info is stored in
 				   args token.  */
@@ -698,6 +734,16 @@ check_intrins_args(id, arg)
 	    }
 	    t = t->next_token;
 	  }/* end while */
+	/* If optional kind parameter present, set arg kind to its value.  This will
+	   be picked up by func_ref_expr().  I am not sure this is the right way to do this.
+	 */
+	  if(opt_kind_present) {
+	    arg->kind = kind_arg_value;
+	  }
+	  else {
+	    /* otherwise tell func_ref_expr() to use default for its type */
+	    arg->kind = kind_DEFAULT_UNKNOWN;
+	  }
 
 	}/* end arg != NULL */
 }/* check_intrins_args */

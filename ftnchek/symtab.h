@@ -611,6 +611,7 @@ typedef struct MVHead {	/* ModVarListHeader: head node of module var list */
 #define I_1to3	(-4)		/* 1, 2, or 3 arguments */
 #define I_1to4	(-5)		/* 1 to 4 arguments */
 #define I_2or3	(-6)		/* 2 or 3 arguments */
+#define I_2to4	(-7)		/* 2 to 4 arguments */
 
 			/* for intrins_flags field */
 
@@ -640,6 +641,7 @@ typedef struct MVHead {	/* ModVarListHeader: head node of module var list */
 #define I_PTR		0x40000 /* Returns a pointer */
 #define I_ELEM		0x80000	/* Elemental (acts elementwise on arrays) */
 #define I_ARRY		0x100000/* Returns array result diff shape from arg */
+#define I_OK		0x200000/* Takes optional KIND argument */
 
 			/* Define flag type big enough for 6 hex digits */
 #if (SIZEOF_SHORT > 2)

@@ -1562,7 +1562,13 @@ func_ref_expr(id,args,result)
 			rettype = type_DP;
 			retsize = size_DEFAULT;
 		}
-		retkind = default_kind(rettype);
+		/* If function takes an optional kind arg, use value gotten
+		   in check_intrins_args */
+		if(defn->intrins_flags&I_OK &&
+		   args->kind != kind_DEFAULT_UNKNOWN)
+		  retkind = args->kind;
+		else
+		  retkind = default_kind(rettype);
 	    }/* end type_GENERIC */
 	      else {		/* non-generic */
 
@@ -1570,7 +1576,11 @@ func_ref_expr(id,args,result)
 		if(INTRINS_ID(defn->intrins_flags) == I_CHAR) {
 		  retsize = 1;
 		}
-		retkind = default_kind(rettype);
+		if(defn->intrins_flags&I_OK &&
+		   args->kind != kind_DEFAULT_UNKNOWN)
+		  retkind = args->kind;
+		else
+		  retkind = default_kind(rettype);
 	      }
 	}
 	else {			/* non-intrinsic */
@@ -1628,8 +1638,8 @@ if(debug_latest) {
 (void)fprintf(list_fd,"\n%sFunction %s() = %s",
 symt->intrinsic?"Intrinsic ":"",
 symt->name,sized_typename(rettype,retsize));
- (void)fprintf(list_fd," dims %d size %ld",
-    array_dims(result->array_dim),array_size(result->array_dim));
+ (void)fprintf(list_fd," dims %d size %ld kind %d",
+    array_dims(result->array_dim),array_size(result->array_dim),result->kind);
 }
 #endif
 
@@ -1783,7 +1793,7 @@ intrins_arg_cmp(defn,t)
 				/* Check for argument type mismatch.
 				 */
 	    type_OK = ( (1<<a_type) & defn_types );
-	    if(! type_OK) {
+	    if(! type_OK ) {
 	      int ct;/* compatible type */
 				/* Accept compatible types if
 				   sizes agree, e.g. DSQRT(REAL*8).
