@@ -181,7 +181,7 @@ new_tokhead(VOID)
 		   (top down) for string s, and copies it there. */
 char *
 #if HAVE_STDC
-new_global_string(char *s)
+new_global_string(const char *s)
 #else /* K&R style */
 new_global_string(s)
 	char *s;

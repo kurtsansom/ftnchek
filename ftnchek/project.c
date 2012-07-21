@@ -107,7 +107,7 @@ PROTO(PRIVATE void mod_var_in,(FILE *fd, const char *filename, Token *item_list,
 PROTO(PRIVATE ComListHeader *comblock_used_by,(ComListHeader *clist, Gsymtab *module));
 PROTO(PRIVATE void initialize_typemap, (VOID));
 PROTO(PRIVATE int map_type, (int t_in));
-PROTO(int name_in_only_list, (const char *name, const Token *tlist, char **local_name));
+PROTO(int name_in_only_list, (const char *name, const Token *tlist, const char **local_name));
 PROTO(void print_token_list, (const Token *tlist));
 
 
@@ -468,17 +468,25 @@ mod_var_out(Lsymtab *lsymt,FILE *fd)
     NEXTLINE;
     switch(datatype) {
         case type_INTEGER:
+        case type_LOGICAL:
           WRITE_NUM(" value",lsymt->info.param->value.integer);
           break;
-#ifndef NO_FLOATING_POINT
         case type_REAL:
         case type_DP:
-          WRITE_FLOAT(" value",lsymt->info.param->value.dbl);
+	case type_COMPLEX:
+	case type_DCOMPLEX:
+	  /* Value of f.p. types not needed: just put placeholder */
+	  WRITE_STR(" value","0.0");
           break;
-#endif
-        default:		/* includes type_STRING */
+	case type_STRING:
+	  if( lsymt->info.param->value.string == (char *)NULL ) /* shouldn't happen for parameter */
+	    WRITE_STR(" value","(unknown)");
+	  else
+	    WRITE_STR(" value",lsymt->info.param->value.string);
+          break;
+        default:
 	  WRITE_STR(" value",lsymt->info.param->src_text);
-          break;
+	  break;
     }
   }
   NEXTLINE;
@@ -864,7 +872,7 @@ PRIVATE int nil(VOID)/* to make lint happy */
      "error reading module/project file"),nil())
 #define READ_OK nil()
 
-#define READ_FIRST_STR(LEADER,STR) (fscanf(fd,LEADER), \
+#define READ_FIRST_STR(LEADER,STR) ((void)fscanf(fd,LEADER), \
 				    fscanf(fd,"%127s",STR))
 #define READ_STR(LEADER,STR) ((void)((fscanf(fd,LEADER)==0 &&\
 			       fscanf(fd,"%127s",STR)==1)? READ_OK:READ_ERROR))
@@ -1001,20 +1009,21 @@ void print_token_list(const Token *tlist)
    hashtable name entry; if it is needed for the longer term it should
    be copied to global string space.)
  */
-int name_in_only_list(const char *name, const Token *tlist, char **local_name)
+int name_in_only_list(const char *name, const Token *tlist, const char **local_name)
 {
   if (tlist == NULL) return FALSE;
 
   Token *t = tlist->next_token;
   while (t != NULL) {
-    char *locname, *usename;
+    const char *locname, *usename;
     if( t->left_token != NULL) {	/* is a rename token */
 	/* left_token is the => and children are local-name, use-name */
       locname =  hashtab[t->left_token->left_token->value.integer].name;
       usename = hashtab[t->left_token->next_token->value.integer].name;
     }
     else {			/* not a rename */
-      locname = usename = hashtab[t->value.integer].name;
+      locname = name;		/* use same ptr as caller */
+      usename = hashtab[t->value.integer].name;
     }
     if( strcmp(name, usename) == 0 ) { /* a match found */
       (*local_name) = locname;
@@ -1118,7 +1127,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      for(i=0; i<numtypes; i++) {
        mod_type_in(fd,modulename,topfilename,item_list,only_list_mode);
      }
-     fscanf(fd,"%5s",sentinel);
+     (void)fscanf(fd,"%5s",sentinel);
 #ifdef DEBUG_PROJECT
  if(debug_latest) printf("read sentinel %s\n",sentinel);
 #endif
@@ -1222,7 +1231,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 
      }
 
-     fscanf(fd,"%5s",sentinel);
+     (void)fscanf(fd,"%5s",sentinel);
 #ifdef DEBUG_PROJECT
  if(debug_latest) printf("read sentinel %s\n",sentinel);
 #endif
@@ -1310,14 +1319,14 @@ mod_type_in(FILE *fd, const char *module_name, const char *filename, Token *item
   Lsymtab *symt;
   int mapped_type;		/* type from map_type array */
   int use_this_item, in_list;
-  char *local_name;
+  const char *local_name;
 
   READ_STR(" dtype",dtype_name);
   READ_STR(" home",id_home);
   READ_NUM(" type",dtype_type);
   READ_STR(" module",type_module);
   READ_LONG(" size",dtype_size);
-  fscanf(fd," flags %d %d %d %d %d %d %d %d",
+  (void)fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	 &dtype_public,
 	 &dtype_private,
 	 &dtype_private_components,
@@ -1435,7 +1444,7 @@ if (use_this_item) {
     READ_NUM(" type",component_type);
     READ_KIND(" kind",component_kind);
     READ_LONG(" size",component_size);
-    fscanf(fd," flags %d %d %d %d %d %d %d %d",
+    (void)fscanf(fd," flags %d %d %d %d %d %d %d %d",
 	   &component_array,
 	   &component_pointer,
 	   &component_private,
@@ -1522,14 +1531,14 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
   int id_array_dims;
   unsigned long id_array_elts;
   int use_this_item, in_list;
-  char *local_name;
+  const char *local_name;
 
   READ_STR(" var",id_name);
   READ_STR(" home",id_home);
   READ_LONG(" type",id_type);
   READ_KIND(" kind",id_kind);
   READ_LONG(" size",id_size);
-  fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d",
+  (void)fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d",
 	 &id_param,
 	 &id_array_var,
 	 &id_common_var,
@@ -1589,7 +1598,9 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
     }
   }
   mod_var->name = new_global_string(local_name);
-  mod_var->usename = new_global_string(id_name);
+  mod_var->usename = ( (local_name == id_name)?
+		       mod_var->name:
+		       new_global_string(id_name) );
 
 
     /* only copy usage information for header that represents the module
@@ -1611,8 +1622,9 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
         symt->array_dim = array_dim_info(id_array_dims,id_array_elts);
       }
     }
-    else if( id_param ) {
+    if( id_param ) {
       NEXTLINE;
+      /* FIXME: for char param this skips leading blanks, stops at embedded blanks */
       READ_STR(" value",id_param_text);
       if (use_this_item) {
         symt->set_flag = TRUE;
@@ -1623,18 +1635,20 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
         symt->info.param->seq_num = ++parameter_count;
         switch(mapped_type) {
         case type_INTEGER:
+        case type_LOGICAL:
           sscanf(id_param_text,"%ld",&(symt->info.param->value.integer));
           break;
         case type_STRING:
-          id_param_text[strlen(id_param_text)] = '\0'; /* remove trailing quote */
-          symt->info.param->value.string = new_global_string(id_param_text+1); /* skip leading quote */
+          symt->info.param->value.string = new_global_string(id_param_text); /* skip leading quote */
           break;
-#ifndef NO_FLOATING_POINT
         case type_REAL:
         case type_DP:
+#ifdef NO_FLOATING_POINT
+	  symt->info.param->value.dbl = (DBLVAL)0;
+#else
           sscanf(id_param_text,"%lf",&(symt->info.param->value.dbl));
-          break;
 #endif
+          break;
         default:
           symt->info.param->value.integer = 0;
           break;
@@ -1720,7 +1734,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 		arg_active_do_var,
 		arg_intent_in,
 		arg_intent_out;
-    char *local_name;
+    const char *local_name;
     int in_list;
 
     if(is_defn)
@@ -1818,7 +1832,7 @@ id_name,id_class,id_type);
 
   }
 
-   while(   fscanf(fd,"%5s",sentinel),
+   while(   (void)fscanf(fd,"%5s",sentinel),
 #ifdef DEBUG_PROJECT
 	    (debug_latest? printf("sentinel=[%s]\n",sentinel):0),
 #endif
@@ -2109,7 +2123,7 @@ com_info_in(FILE *fd, const char *filename, const char *modulename, Token *item_
     Token toklist;		/* header for list of common block elements */
     int from_this_module;
     int use_this_item, in_list;
-    char *local_name;
+    const char *local_name;
 
     READ_STR(" block",id_name);
     READ_NUM(" class",id_class);

@@ -480,10 +480,12 @@ make_arg_array(t)
 		  }
 		}
 	    }
-	    else {
+	    else {		/* not an ID_EXPR */
+	      if( (arglist[i].array_var = is_true(ARRAY_EXPR,s->TOK_flags)&&1))
+		arglist[i].array_dim = s->array_dim;
+	      else		/* convert scalars */
 		arglist[i].array_dim = array_dim_info(0,1);
-		arglist[i].array_var = FALSE;
-		arglist[i].declared_external = FALSE;
+	      arglist[i].declared_external = FALSE;
 	    }
 
 	    arglist[i].array_element =

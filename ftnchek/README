@@ -1,4 +1,4 @@
-		 README file for ftnchek version 4 alpha 2
+		 README file for ftnchek version 4 beta 0
 
 Author: Robert Moniot
 	Fordham University
@@ -6,7 +6,7 @@ Author: Robert Moniot
 	Telephone: (212) 636-6334
 	URL: http://www.dsm.fordham.edu/~moniot
 
-Date:	May 30, 2012
+Date:	July 23, 2012
 
 Ftnchek (short for Fortran checker) is designed to detect certain
 errors in a Fortran program that a compiler usually does not.  Ftnchek
@@ -35,26 +35,18 @@ ftnchek on your system.
 		   NEW FEATURES
 		   ------------
 
-WARNING WARNING WARNING - this is very much ALPHA
+WARNING WARNING WARNING - this is very much BETA (or really ALPHA)
 
 Ftnchek now supports major Fortran 95 features: especially modules,
 internal subprograms, and derived types.  Many things are still
 missing.  Here is a partial list of some of the more important things
 ftnchek does not yet do:
 
-  -- PARAMETERs may not be array-valued.
-  -- Most intrinsic functions introduced with F90 are not recognized.
-  -- KIND parameters of data types are ignored.  KIND parameters on
-     constants are not recognized.
+  -- PARAMETERs may not be array-valued or of derived type.
   -- NAMELISTs and DATA statements in modules do not get exported.
   -- INTERFACE blocks are not recognized; they generate syntax errors.
-  -- Set/used status of variables defined in modules is not correctly
-     tracked in the using program unit: usage in module subroutines is
-     not taken into account.
-  -- Internal functions' interfaces are not explicit in the containing
-     subprogram's scope as they should be.  This mainly causes bogus
-     warnings if the function's type is not the same as given by
-     implicit rules.
+  -- Optional arguments are not supported: they will generate warnings
+     about inconsistency between function call and definition.
 
 The behavior of ftnchek on source code adhering to the Fortran 77
 standard is unchanged from the previous version, 3.3.1, apart from

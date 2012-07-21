@@ -52,8 +52,10 @@ gulp_srcfile(FILE *fd)
 	       }
 	  }
 
-				/* Allocate a new struct for this line */
-	  if( (thisLine = (srcLine *)malloc(sizeof(srcLine))) == (srcLine *)NULL ||
+				/* Allocate a new struct for this line.
+				   Use calloc so srcLine is zeroed.
+				 */
+	  if( (thisLine = (srcLine *)calloc((size_t)1,sizeof(srcLine))) == (srcLine *)NULL ||
 	       (thisLine->line = (char *)malloc(line_len+1)) == (char *)NULL ) {
 	       fflush(list_fd);
 	       fprintf(stderr,"Oops: Out of memory in gulp_srcfile\n");

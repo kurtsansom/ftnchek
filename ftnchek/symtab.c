@@ -1666,6 +1666,10 @@ if(debug_latest)
 	      symt->name,symt->info.param->value.integer);
 #endif
 			break;
+		case type_LOGICAL:
+			symt->info.param->value.integer = logical_expr_value(val);
+			break;
+
 			/* Character parameter: if declared adjustable
 			   i.e. *(*) then inherit size of const */
 		case type_STRING:
@@ -2562,6 +2566,15 @@ int_expr_value(t)
 				/* Unsuccessful: return value of 0 */
   return 0;
 }/*int_expr_value*/
+
+int
+logical_expr_value(Token *t)
+{
+  if(is_true(LIT_CONST,t->TOK_flags))
+    return (strcmp(t->src_text,".TRUE.") == 0);
+  else
+    return 0;			/* can't figure it out */
+}
 
 DBLVAL
 #if HAVE_STDC

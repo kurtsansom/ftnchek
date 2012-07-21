@@ -218,9 +218,7 @@ DOCS		= README INSTALL LICENSE PATCHES FAQ ToDo project.magic \
 			average.f average.out correct.f \
 			blurb.txt dcl2inc.doc dcl2inc.man dcl2inc.ps \
 			ftnchek.doc ftnchek.hlp ftnchek.man ftnchek.ps html \
-			macro-doc.txt project-doc.tex \
-			$$dirname.lsm
-#		 the above expands to ftnchek-x.y.z.lsm in make tar
+			macro-doc.txt project-doc.tex
 
 UNIX_BUILDFILES	= Makefile.in configure configure.in config.guess config.sub \
 			config.h.in configure.generic install-sh \
@@ -814,7 +812,6 @@ catman.tar: $(CATMAN)
 zip:
 	dirname=`$(PWD_PROG)|$(SED) 's%.*/%%'` ; \
 	dosname=`echo $$dirname|$(SED) -e 's/\./_/g'` ; \
-	$(CP) $$dirname.lsm $$dosname.lsm ; \
 	dirname=$$dosname ; \
 	$(RM) ../$$dirname.zip ; \
 	$(ZIPTEXT) -r ../$$dirname.zip $(ZIPFILES) ; \
