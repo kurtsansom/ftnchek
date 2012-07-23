@@ -38,12 +38,12 @@ changes, from the XFree86 Project.
 */
 
 #define COPYRIGHT_DATE \
-"Copyright (C) 1994, 1997, 2000, 2004 by Robert K. Moniot"
+"Copyright (C) 1994, 1997, 2000, 2004, 2012 by Robert K. Moniot"
 #define COPYRIGHT_NOTICE \
 "This program is free software.  Permission is granted to\n\
 modify it and/or redistribute it, retaining this notice.\n\
 No guarantees accompany this software."
-#define VERSION_NUMBER		"FTNCHEK Version 4.0 February 2012"
+#define VERSION_NUMBER		"FTNCHEK Version 4.beta July 2012"
 #define PATCHLEVEL		"Patch Level 0"
 #define PROJECT_VERSION		"P4" /* Project file format version number */
 #define MODULE_VERSION		"M1" /* Module file format version number */

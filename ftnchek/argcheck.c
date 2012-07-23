@@ -344,26 +344,29 @@ arg_array_cmp(name,args1,args2)
 				arg_error_report(args1,"Dummy arg",i,"has");
 				msg_tail(ulongtostr((unsigned long)dims1));
 				msg_tail(dims1==1?"dim":"dims");
-				msg_tail("size");
-				strcpy(sizebuf,ulongtostr((unsigned long)size1));
-				if(datatype_of(a1[i].type) == type_STRING
-				   && a1[i].size > 0) {
+				if(size1 > 1) { /* report only known size */
+				  msg_tail("size");
+				  strcpy(sizebuf,ulongtostr((unsigned long)size1));
+				  if(datatype_of(a1[i].type) == type_STRING
+				     && a1[i].size > 0) {
 				    strcat(sizebuf,"*");
 				    strcat(sizebuf,ulongtostr((unsigned long)(a1[i].size)));
+				  }
+				  msg_tail(sizebuf);
 				}
-				msg_tail(sizebuf);
-
 				arg_error_report(args2,"Actual arg",i,"has");
 				msg_tail(ulongtostr((unsigned long)dims2));
 				msg_tail(dims2==1?"dim":"dims");
-				msg_tail("size");
-				strcpy(sizebuf,ulongtostr((unsigned long)size2));
-				if(datatype_of(a2[i].type) == type_STRING
-				   && a2[i].size > 0) {
+				if(size2 > 1) {
+				  msg_tail("size");
+				  strcpy(sizebuf,ulongtostr((unsigned long)size2));
+				  if(datatype_of(a2[i].type) == type_STRING
+				     && a2[i].size > 0) {
 				    strcat(sizebuf,"*");
 				    strcat(sizebuf,ulongtostr((unsigned long)(a2[i].size)));
+				  }
+				  msg_tail(sizebuf);
 				}
-				msg_tail(sizebuf);
 			  }/* end if size mismatch */
 			}/* end case I.B. */
 		    }

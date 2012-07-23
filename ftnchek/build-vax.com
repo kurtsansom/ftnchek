@@ -54,6 +54,7 @@ $ @CC loccheck config.h,ftnchek.h,loccheck.h,plsymtab.h,symtab.h
 $ @CC makedcls config.h,ftnchek.h,plsymtab.h,symtab.h
 $ @CC makehtml config.h,ftnchek.h,symtab.h,plsymtab.h,tokdefs.h
 $ @CC message config.h,ftnchek.h
+$ @CC modcheck config.h,ftnchek.h
 $ @CC options config.h,ftnchek.h,options.h
 $ @CC pgsymtab config.h,ftnchek.h,pgsymtab.h,symtab.h
 $ @CC plsymtab config.h,ftnchek.h,plsymtab.h,symtab.h
@@ -67,12 +68,12 @@ $ @CC utils config.h,utils.h
 $ IF F$SEARCH("shell_mung.obj") .EQS. ""
 $ THEN
 $ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
-intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
+intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,modcheck,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils,-
 vaxc/opt
 $ ELSE
 $ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
-intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
+intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,modcheck,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils,-
 shell_mung,vaxc/opt
 $ ENDIF

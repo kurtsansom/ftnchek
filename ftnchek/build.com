@@ -38,6 +38,7 @@ $ @CC loccheck config.h,ftnchek.h,loccheck.h,plsymtab.h,symtab.h  /STANDARD=RELA
 $ @CC makedcls config.h,ftnchek.h,plsymtab.h,symtab.h  /STANDARD=RELAXED_ANSI89
 $ @CC makehtml config.h,ftnchek.h,symtab.h,plsymtab.h,tokdefs.h  /STANDARD=RELAXED_ANSI89
 $ @CC message config.h,ftnchek.h  /STANDARD=RELAXED_ANSI89
+$ @CC modcheck config.h,ftnchek.h  /STANDARD=RELAXED_ANSI89
 $ @CC options config.h,ftnchek.h,options.h  /STANDARD=RELAXED_ANSI89
 $ @CC pgsymtab config.h,ftnchek.h,pgsymtab.h,symtab.h  /STANDARD=RELAXED_ANSI89
 $ @CC plsymtab config.h,ftnchek.h,plsymtab.h,symtab.h  /STANDARD=RELAXED_ANSI89
@@ -51,11 +52,11 @@ $ @CC utils config.h,utils.h  /STANDARD=RELAXED_ANSI89
 $ IF F$SEARCH("shell_mung.obj") .EQS. ""
 $ THEN
 $ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
-intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
+intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,modcheck,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils
 $ ELSE
 $ @LINK ftnchek,advance,argcheck,calltree,comcheck,dtypes,exprtype,forlex,fortran,include,-
-intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,options,-
+intake,intrins,iokeywds,keywords,labels,loccheck,makedcls,makehtml,message,modcheck,options,-
 pgsymtab,plsymtab,prlists,prlocsym,project,symspace,symtab,symutils,utils,-
 shell_mung
 $ ENDIF

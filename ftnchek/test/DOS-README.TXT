@@ -3,6 +3,10 @@ DOS/Win32 test suite for ftnchek
 CHECK.BAT and its associated files provide some checking of FTNCHEK
 compiled for DOS/Win32 similar to the Unix makefile.
 
+The test suite has not been updated to include new test files for
+checking Fortran 90 code and other features that are new with ftnchek
+version 4.  We would welcome a volunteer to add them.
+
 Some tests had to be skipped, mostly because stderr cannot be redirected
 on DOS/Win9x systems and, in particular, cannot be combined with stdout
 (at least I don't know how to do this - hints welcome).

@@ -1,4 +1,4 @@
-		 README file for ftnchek version 4 beta 0
+		 README file for ftnchek version 4 beta
 
 Author: Robert Moniot
 	Fordham University
@@ -35,7 +35,7 @@ ftnchek on your system.
 		   NEW FEATURES
 		   ------------
 
-WARNING WARNING WARNING - this is very much BETA (or really ALPHA)
+WARNING WARNING WARNING - this is very much BETA!!! (or really ALPHA)
 
 Ftnchek now supports major Fortran 95 features: especially modules,
 internal subprograms, and derived types.  Many things are still
@@ -44,9 +44,15 @@ ftnchek does not yet do:
 
   -- PARAMETERs may not be array-valued or of derived type.
   -- NAMELISTs and DATA statements in modules do not get exported.
-  -- INTERFACE blocks are not recognized; they generate syntax errors.
+  -- INTERFACE blocks are parsed but not processed.  This implies that
+     there is no support for defining generic procedures, overloaded
+     operators, or user-defined operators.
   -- Optional arguments are not supported: they will generate warnings
-     about inconsistency between function call and definition.
+     about inconsistency between function call and definition.  This
+     implies that the standard order of arguments must be followed
+     when using intrinsics that take optional arguments, e.g. to
+     specify a range R with SELECTED_REAL_KIND, it is necessary to
+     precede it with the precision P.
 
 The behavior of ftnchek on source code adhering to the Fortran 77
 standard is unchanged from the previous version, 3.3.1, apart from
