@@ -586,13 +586,14 @@ prog_unit_out(Gsymtab* gsymt, FILE *fd, int mode)
 		   read in current run.  When project file is read, flags
 		   will be ORed into Gsymtab as is done in process_lists.
 		*/
-	  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
+	  (void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d",
 		  gsymt->used_this_file,
 		  gsymt->set_this_file,
 		  gsymt->invoked_as_func_this_file,
 		  gsymt->declared_external_this_file,
 		  gsymt->library_prog_unit,
 		  /* next flag values only apply to defn */
+		  gsymt->recursive,
 		  gsymt->elemental,
 		  gsymt->pure,
 		  0);	/* Flags for possible future use */
@@ -729,11 +730,18 @@ alist_out(Gsymtab *gsymt, FILE *fd, int mode)
       WRITE_NUM(" type",datatype_of(a->type));
       WRITE_NUM(" kind",a->kind);
       WRITE_NUM(" size",a->size);
-      (void)fprintf(fd," flags %d %d %d %d",
+      (void)fprintf(fd," flags %d %d %d %d %d",
+	      a->array_result,
 	      a->is_defn,
 	      a->is_call,
 	      a->external_decl,
 	      a->actual_arg);
+      if(a->array_result) {	/* for array-valued function, store array info */
+	NEXTLINE;
+	WRITE_NUM(" dims",array_dims(a->array_dim));
+	WRITE_NUM(" elts",array_size(a->array_dim));
+      }
+ 
       NEXTLINE;
       n=a->numargs;
       if(a->is_defn || a->is_call) {
@@ -1702,6 +1710,7 @@ arg_info_in(fd,filename,is_defn,item_list)
 	      id_invoked,
 	      id_declared,
 	      id_library_prog_unit,
+	      id_recursive,
 	      id_elemental,
 	      id_pure,
 	      future1;
@@ -1710,6 +1719,9 @@ arg_info_in(fd,filename,is_defn,item_list)
     Gsymtab *gsymt, *prog_unit;
     unsigned alist_class,alist_type,alist_is_defn,alist_is_call,
        alist_external_decl,alist_actual_arg;
+    unsigned alist_array_result;
+    int alist_array_dims;
+    unsigned long alist_array_elts;
     int mapped_alist_type;
     unsigned alist_line, alist_topline;
     kind_t alist_kind;
@@ -1746,15 +1758,16 @@ arg_info_in(fd,filename,is_defn,item_list)
     READ_NUM(" type",id_type); /* type as in symtab */
     READ_KIND(" kind",id_kind); /* kind as in symtab */
     READ_LONG(" size",id_size); /* size as in symtab */
-    if(fscanf(fd," flags %d %d %d %d %d %d %d %d",
+    if(fscanf(fd," flags %d %d %d %d %d %d %d %d %d",
 	      &id_used_flag,
 	      &id_set_flag,
 	      &id_invoked,
 	      &id_declared,
 	      &id_library_prog_unit,
+	      &id_recursive,
 	      &id_elemental,
 	      &id_pure,
-	      &future1) != 8) READ_ERROR;
+	      &future1) != 9) READ_ERROR;
     NEXTLINE;
 
     local_name = id_name;
@@ -1825,6 +1838,8 @@ id_name,id_class,id_type);
       gsymt->invoked_as_func = TRUE;
     if(id_declared)
       gsymt->declared_external = TRUE;
+    if(id_recursive)
+      gsymt->recursive = TRUE;
     if(id_elemental)
       gsymt->elemental = TRUE;
     if(id_pure)
@@ -1855,11 +1870,21 @@ id_name,id_class,id_type);
       READ_NUM(" type",alist_type); /* type as in ArgListHeader */
       READ_KIND(" kind",alist_kind);/* kind as in ArgListHeader */
       READ_LONG(" size",alist_size); /* size as in ArgListHeader */
-      if(fscanf(fd," flags %d %d %d %d",
+      if(fscanf(fd," flags %d %d %d %d %d",
+		&alist_array_result,
 		&alist_is_defn,
 		&alist_is_call,
 		&alist_external_decl,
-		&alist_actual_arg) != 4) READ_ERROR;
+		&alist_actual_arg) != 5) READ_ERROR;
+      if(alist_array_result) {
+	NEXTLINE;
+	READ_NUM(" dims",alist_array_dims);
+	READ_LONG(" elts",alist_array_elts);
+      }
+      else {
+	alist_array_dims = 0;	/* result is scalar */
+	alist_array_elts = 0;
+      }
       NEXTLINE;
    mapped_alist_type = map_type(alist_type);
 #ifdef DEBUG_PROJECT
@@ -1878,8 +1903,11 @@ id_name,id_class,id_type);
       symt->home_unit = id_home;
       symt->kind = alist_kind;
       symt->size = alist_size;
+      symt->array_var = alist_array_result;
+      symt->array_dim = array_dim_info(alist_array_dims,alist_array_elts);
       symt->line_declared = alist_line;
       symt->file_declared = inctable_index;	/* WRONG */
+      symt->recursive = id_recursive;
       symt->elemental = id_elemental;
       symt->pure = id_pure;
     }

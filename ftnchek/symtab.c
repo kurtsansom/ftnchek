@@ -998,6 +998,13 @@ def_array_dim(id,arg)	/* Process dimension lists */
 
 	}
 
+	/* If this is a result variable, give the function its array dims */
+	if(symt->result_var && !symt->entry_point) {
+	  Lsymtab *func = hashtab[current_prog_unit_hash].loc_symtab;
+	  func->array_var = symt->array_var;
+	  func->array_dim = symt->array_dim;
+	}
+
 		/* Save text of dimension exprs in a list of strings
 		   in symtab entry.  If array is of type character,
 		   the text of size expression is already in src.text,

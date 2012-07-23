@@ -686,6 +686,12 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 		   "*%ld",
 		   loc_symtab[i].size
 	    );
+	if( loc_symtab[i].array_var )
+	  (void)fprintf(list_fd,
+			" dims %d size %ld",
+			array_dims(loc_symtab[i].array_dim),
+			array_size(loc_symtab[i].array_dim)
+		);
 	if(loc_symtab[i].common_block != NULL)
 	    (void)fprintf(list_fd,
 		    "\n\t  item %ld in block %s",
@@ -695,6 +701,9 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 	switch( storage_class_of(loc_symtab[i].type) ) {
 	case class_SUBPROGRAM:
 	case class_COMMON_BLOCK:
+	  if( html_documents ) /* this replaces toklist by arglist */
+	    (void)fprintf(list_fd,"\nCannot list arguments when -mkhtml is in effect");
+	  else
 	    print_tokenlist(loc_symtab[i].info.toklist);
 	    break;
 	}

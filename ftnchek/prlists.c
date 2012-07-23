@@ -229,6 +229,14 @@ else {
 			         class_SUBPROGRAM,implied_type);
 			  a->size = get_size(&(loc_symtab[i]),implied_type);
 			  a->kind = get_kind(&(loc_symtab[i]),implied_type);
+			  if( loc_symtab[i].array_var ) { /* array-valued function */
+			    a->array_result = TRUE;
+			    a->array_dim = loc_symtab[i].array_dim;
+			  }
+			  else {
+			    a->array_result = FALSE;
+			    a->array_dim = array_dim_info(0,0);
+			  }
 			  a->prog_unit = curr_gsymt;
 			  a->filename = head_ptr->filename;
 			  a->topfile = top_filename;
@@ -242,8 +250,9 @@ else {
 
 			  a->next = gsymt->info.arglist;
 			  gsymt->info.arglist = a;
-		/* put arglist into local symtab for project file use */
-			  loc_symtab[i].info.arglist = a;
+		/* put arglist into local symtab for -mkhtml use */
+			  if( html_documents )
+			    loc_symtab[i].info.arglist = a;
 			  head_ptr = head_ptr->next;
 		        }/* end while (head_ptr != NULL) */
 

@@ -518,6 +518,7 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 
 
 typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
+	array_dim_t array_dim;	/* array dims of function result */
 	long size;
 	kind_t kind;
 	type_t type;
@@ -527,6 +528,7 @@ typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	const char *filename,*topfile;
 	LINENO_t line_num,top_line_num;
 	unsigned
+	     array_result: 1,	/* function return array result */
 	     is_defn: 1,
 	     is_call: 1,
 	     external_decl: 1,	/* EXTERNAL decl, not arg list */
