@@ -197,21 +197,12 @@ make_module_filename(const char *module_name)
 {
   char *path_end;
   char *module_filename;
-  int path_len;
 
 			/* source file path component is prepended if present */
-  if( (path_end = strrchr(current_filename,PATH_END_CHAR)) != (char *)NULL) {
-    path_len = path_end - current_filename + 1; /* include the char itself */
-  }
-  else {
-    path_len = 0;
-  }
-  module_filename =  malloc(path_len + strlen(module_name)
-				 + strlen(DEF_MODULE_EXTENSION) + 1);
-  if(path_len > 0)
-    (void)strncpy(module_filename,current_filename,path_len);
-  (void)strcpy(module_filename+path_len,module_name);
-  (void)strtolower(module_filename+path_len); /* filename is lowercased version of name */
+  module_filename =  malloc(strlen(module_name)
+			    + strlen(DEF_MODULE_EXTENSION) + 1);
+  (void)strcpy(module_filename,module_name);
+  (void)strtolower(module_filename); /* filename is lowercased version of name */
   (void)strcat(module_filename,DEF_MODULE_EXTENSION);
 
 #ifdef DEBUG_PROJECT
@@ -231,9 +222,12 @@ write_module_file(int h)
   FILE *fd;
   char *module_filename = make_module_filename(hashtab[h].name);
 
-  if( (fd = fopen(module_filename,"w")) == (FILE *)NULL ) {
+  if( (fd = find_include(&module_filename,"w",TRUE)) == (FILE *)NULL ) {
     (void)fflush(list_fd);
-    (void)fprintf(stderr,"\nERROR: Cannot open module file %s for writing\n",module_filename);
+    (void)fprintf(stderr,"\nERROR: Cannot open module file %s for writing",module_filename);
+    if(module_path != (char *)NULL)
+      (void)fprintf(stderr," in directory %s",module_path);
+    (void)fprintf(stderr,"\n");
     return;
   }
 
@@ -300,7 +294,7 @@ write_module_file(int h)
     comblocks_out(fd,gsym_list,module,numblocks,numdefns);
   }
 
-  fclose(fd);			/* Done. */
+  (void)fclose(fd);			/* Done. */
 }
 
 void
@@ -1077,7 +1071,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 
   module_filename = make_module_filename(modulename);
 
-  if( (fd = fopen(module_filename,"r")) == (FILE *)NULL ) {
+  if( (fd = find_include(&module_filename,"r",TRUE)) == (FILE *)NULL ) {
     (void)fflush(list_fd);
     (void)fprintf(stderr,"\nERROR: Cannot open module file %s for reading\n",module_filename);
     return;
@@ -1285,6 +1279,8 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
      /* no sentinel "end" after com blocks */
      NEXTLINE;
    }
+
+   (void)fclose(fd);			/* Done. */
 }
 
 

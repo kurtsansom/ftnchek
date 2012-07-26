@@ -1065,11 +1065,9 @@ PRIVATE StrsettingList strsetting[]={
   {"identifier-chars", &idletter_list, DEF_IDLETTER_LIST, "", NOT_A_CHECK,
      (WarnOptionList *)NULL, NULL,
      "non-alphabetic chars allowed in identifiers"},
-#ifdef ALLOW_INCLUDE
   {"include",	&include_path,  (char *)NULL, (char *)NULL, NOT_A_CHECK,
      (WarnOptionList *)NULL, NULL,
      "include-file directory"},
-#endif
 #ifndef STANDARD_INTRINSICS
   {"intrinsic", &intrinsic_option_list, "all", "none", NOT_A_CHECK,
      intrinsic_option, intrinsic_numeric_option,
@@ -1083,6 +1081,9 @@ PRIVATE StrsettingList strsetting[]={
   {"mkhtml",	&mkhtml_warn_list, "documents","none",NOT_A_CHECK,
      mkhtml_warn_option, mkhtml_numeric_option,
     "create html documents"},
+  {"module",	&module_path,	(char *)NULL, (char *)NULL, NOT_A_CHECK,
+     (WarnOptionList *)NULL, NULL,
+     "module directory"},
   {"output",	&out_fname,	(char *)NULL, (char *)NULL, NOT_A_CHECK,
      (WarnOptionList *)NULL, NULL,
      "output file name"},
@@ -1601,11 +1602,9 @@ update_str_options(strset)
     must_open_outfile = TRUE;
 
 				/* Update include path */
-#ifdef ALLOW_INCLUDE
   if(strset->strvalue == &include_path) {
     append_include_path(include_path);
   }
-#endif
 
 				/* Handle warnings like -f77=list */
   if(strset->option_list != (WarnOptionList *)NULL) {
@@ -2359,7 +2358,6 @@ list_options(fd)/* List all commandline options, strsettings, and settings */
 }
 
 		/* Add an include directory path to list of paths */
-#ifdef ALLOW_INCLUDE
 PRIVATE void
 #if HAVE_STDC
 append_include_path(char *new_path)
@@ -2396,4 +2394,4 @@ append_include_path(new_path)
   }
 #endif
 }
-#endif/*ALLOW_INCLUDE*/
+

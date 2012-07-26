@@ -40,7 +40,6 @@ as the "MIT License."
 #include "forlex.h"
 #include "advance.h"
 
-#ifdef ALLOW_INCLUDE
 /* Definition of structure for saving the input stream parameters while
    processing an include file.
 */
@@ -64,14 +63,11 @@ typedef struct {
 
 PRIVATE IncludeFileStack include_stack[MAX_INCLUDE_DEPTH];
 
-#endif /*ALLOW_INCLUDE*/
 
 
-#ifdef ALLOW_INCLUDE
-PROTO(PRIVATE FILE* find_include,( char **fname, const char *mode ));
 PROTO(PRIVATE FILE * fopen_with_path,( const char *inc_path, char **fname,
 				       const char *mode ));
-#endif
+
 
 PROTO(PRIVATE int push_include_file,( char *fname, srcLine *newbuf, LINENO_t
 			      include_line_num ));
@@ -79,8 +75,6 @@ PROTO(PRIVATE int push_include_file,( char *fname, srcLine *newbuf, LINENO_t
 
 
 
-
-#ifdef ALLOW_INCLUDE		/* defns of include-file handlers */
 
 PRIVATE int
 push_include_file(char *fname, srcLine *newbuf, LINENO_t include_line_num)
@@ -239,12 +233,12 @@ open_include_file(fname,include_line_num)
       (incdepth == 0? include_line_num: top_file_line_num);
 
 
-  if ((fd = find_include(&fname,"r")) == NULL) {
+  if ((fd = find_include(&fname,"r",FALSE)) == NULL) {
 		/* If not found, try it with extension (vms mode only) */
     if(source_vms_include && ! has_extension(fname,DEF_INC_EXTENSION)) {
       char *fname_ext = add_ext(fname, DEF_INC_EXTENSION);
       fname_ext = new_global_string(fname_ext);
-      if( (fd = find_include(&fname_ext,"r")) != NULL)
+      if( (fd = find_include(&fname_ext,"r",FALSE)) != NULL)
 	fname = fname_ext;	/* adopt the new name if successful */
     }
     if( fd == NULL ) {
@@ -276,21 +270,32 @@ open_include_file(fname,include_line_num)
   }
 }
 
-PRIVATE FILE*
-#if HAVE_STDC
-find_include(char **fname, const char *mode)	/* looks for file locally or in include dir */
-                  		/* If found, fname is returned with full path*/
-#else /* K&R style */
-find_include(fname,mode)	/* looks for file locally or in include dir */
-     char **fname,		/* If found, fname is returned with full path*/
-     *mode;
-#endif /* HAVE_STDC */
+	/* Looks for file locally or in include/module dir.
+	   If found, fname is returned with full path.
+	   Specify is_module=TRUE for module-file behavior, FALSE for
+	   include-file behavior.
+
+	   For include-file behavior, it searches the current working
+	   dir, then the list of include paths from -include
+	   strsetting, INCLUDE env var, and systemwide default include
+	   dir, in that order.  It does not search the module path.
+
+	   For module-file behavior, if mode is "w" then it only tries
+	   to open file in the directory specified by -module strsetting,
+	   if given, or the working directory if no -module dir was
+	   specified.  If mode is "r" it first searches the working
+	   dir, then the dir given by -module strsetting, then if
+	   unsuccessful the same search paths as for include-files.
+	*/
+FILE*
+find_include(char **fname, const char *mode, int is_module)
 {
   FILE *fp;
   char *env_include_var;
   IncludePathNode *p;
   char *path_end=(char *)NULL;
   int fname_path_absolute=FALSE;
+  int module_write_mode = (is_module && strcmp(mode,"w")==0);
 
 			/* Look first for bare filename.  If it is an
 			   absolute path, then it must be found as it is.
@@ -354,6 +359,7 @@ find_include(fname,mode)	/* looks for file locally or in include dir */
   if(path_end == (char *)NULL)
     path_end = strrchr(current_filename,'/');
 #endif
+ if( !module_write_mode || module_path == (char *)NULL ) {
 
   if( path_end == (char *)NULL ) {
     if( (fp=fopen(*fname,mode)) != (FILE *)NULL) /* Not qualified by a path */
@@ -365,6 +371,10 @@ find_include(fname,mode)	/* looks for file locally or in include dir */
 #ifdef VMS
     ++path_end;		/* need to retain the ']' */
 #endif
+
+    /* Unless this is for writing a module and -module given, try to
+       open file using local path.
+     */
 				/* Get a copy of the local path */
     if( (local_path=(char *)malloc(path_end-current_filename+1))
 	 == (char *)NULL ) {
@@ -380,7 +390,17 @@ find_include(fname,mode)	/* looks for file locally or in include dir */
       return fp;
     }
   }
-      
+ }/* not module write mode with module path given */
+
+  /* For module files only, try the module file path if given. */
+  if( is_module && module_path != (char *)NULL ) {
+    if( (fp=fopen_with_path(module_path,fname,mode)) != (FILE *)NULL)
+      return fp;
+  }
+
+  if( module_write_mode )	/* if writing module, give up */
+    return (FILE *)NULL;      
+
 		      /* If not found, look in directories given
 			 by include_path_list from -include options */
 
@@ -451,23 +471,3 @@ fopen_with_path(inc_path,fname,mode)
     return fp;
 }/*fopen_with_path*/
 
-#else /* no ALLOW_INCLUDE */
-				/* disabled forms of include handlers */
-PRIVATE int
-push_include_file(fname,buf,include_line_num)
-	char *fname;
-	srcLine *buf;
-	LINENO_t include_line_num;
-{return FALSE;}
-
-PRIVATE int
-pop_include_file()
-{return FALSE;}
-
-void
-open_include_file(fname,include_line_num)
-     char *fname;
-     LINENO_t include_line_num;
-{}
-
-#endif /*ALLOW_INCLUDE*/

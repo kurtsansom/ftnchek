@@ -262,16 +262,14 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 		pattern == flag_combo(0,0,0) && ! usage_var_unused )
 		continue;
 
-#ifdef ALLOW_INCLUDE
 				/* Skip variables 'declared but not used'
 				   and parameters 'set but never used'
 				   if defined in include file. */
-
 	    if( list[i]->defined_in_include &&
 	       ( pattern == flag_combo(0,0,0)
 	       || (list[i]->parameter && pattern == flag_combo(0,1,0)) ) )
 		continue;
-#endif
+
 			/*  function return val: ignore 'set but never used' */
 	    if( list[i]->result_var && pattern == flag_combo(0,1,0) )
 		continue;

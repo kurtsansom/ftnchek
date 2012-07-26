@@ -558,7 +558,6 @@ PROTO(VOID exit,(int));
 
 #define ALLOW_CRAY_POINTERS 1
 #define ALLOW_DO_ENDDO 1
-#define ALLOW_INCLUDE 1
 #define ALLOW_QUOTEMARKS 1
 #define ALLOW_TYPELESS_CONSTANTS 1
 #define ALLOW_UNIX_BACKSLASH 1
@@ -1261,10 +1260,9 @@ OPT(int,wrap_column,WRAP_COLUMN);/* For wrapping error messages */
 
 		/* Declare variables for commandline StrSettings */
 OPT(char*,out_fname,(char *)NULL);	/* Output filename */
-#ifdef ALLOW_INCLUDE
 OPT(char*,include_path,(char *)NULL);	/* An include-file directory */
-#endif
 OPT(char*,idletter_list,DEF_IDLETTER_LIST);/* non-alpha chars allowed in identifiers */
+OPT(char*,module_path,(char *)NULL);	   /* module search directory */
 
 SHARED LINENO_t
     line_num,		/* line num of current char */
@@ -1327,14 +1325,12 @@ SHARED int doing_wrapup;
 SHARED int doing_end_proc;
 
 		/* Define linked-list structure for include-path list */
-#ifdef ALLOW_INCLUDE
 typedef struct IPNode {
   struct IPNode *link;		/* next path on the list */
   char *include_path;		/* one path (full directory name) */
 } IncludePathNode;
 
 SHARED IncludePathNode *include_path_list; /* header to the list */
-#endif
 
 		/* Declare routines shared with main module ftnchek.c */
 
@@ -1356,6 +1352,7 @@ PROTO(void init_stream,( void ));
 	/* in include.c */
 PROTO(void open_include_file, ( char *fname, LINENO_t include_line_num ));
 PROTO(int pop_include_file,( void ));
+PROTO(FILE* find_include,( char **fname, const char *mode, int is_module ));
 
 	/* in fortran.y/fortran.c */
 PROTO(void init_parser, ( void ));
