@@ -49,9 +49,10 @@ int free_form;			/* TRUE if source format is free-form */
 #define ishex(C) ((C) != EOS && (isdigit((int)(C)) ||\
 			(toupper((int)(C))>='A' && toupper((int)(C))<='F') ))
 
-	/* Define isidletter to allow nonalpha chars in idletter_list
+	/* Define isidletter to allow nonalpha chars in idletter_list.
+	   As of F90 underscore is allowed.
 	   Nonstandardness is handled later. */
-#define isidletter(C)    ( (C) != EOS && ( isalpha((int)(C)) || \
+#define isidletter(C)    ( (C) != EOS && ( isalpha((int)(C)) || (C)=='_' ||	\
 		((C) != '\0' && strchr(idletter_list,(C)) != (char *)NULL) ))
 
 		/* lead-in to a string: standard is ' but allow " too*/

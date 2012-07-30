@@ -143,7 +143,8 @@ IO_FORM_TYPE current_io_form;	/* form (formatted/unformatted) */
 
 int io_internal_file,	/* Flag for catching misuse of internal files */
     io_list_directed,	/* Flag for use in processing io control lists */
-    io_warning_given;		/* to prevent multiple warnings */
+    io_namelist,	/* Flag to identify namelist I/O statements */
+    io_has_format;	/* Set if format is present (current_io_form also set for namelists) */
 			/* Flag shared with forlex for lexing hints */
 int stmt_sequence_no,   /* set when parsing, reset to 0 at end_stmt */
     f90_stmt_sequence_no;
@@ -2463,7 +2464,7 @@ arith_type_decl_item: arith_type_decl_entity
 			    if(current_parameter_attr)
 				def_parameter(&($1),&($4),FALSE);
 
-			    if(f77_initializers) {
+			    if(f77_f90) {
 				nonstandard($3.line_num,$3.col_num,
 					    0,0);
 				msg_tail(": F90-style initializer");
@@ -2538,7 +2539,7 @@ char_type_decl_item: char_type_decl_entity
 				def_parameter(&($1),&($3),FALSE);
 
 			    primary_id_expr(&($1),&($$));
-			    if(f77_initializers) {
+			    if(f77_f90) {
 				nonstandard($2.line_num,$2.col_num,
 					    0,0);
 				msg_tail(": F90-style initializer");
@@ -4355,26 +4356,29 @@ read_stmt	:	read_handle '(' control_info_list ')' EOS
 read_handle	:	tok_READ {init_io_ctrl_list();}
 		;
 
-accept_stmt	:	tok_ACCEPT format_id EOS
+accept_stmt	:	accept_handle format_id EOS
 			{
 			    if(f77_accept_type || f90_accept_type)
 				nonstandard($1.line_num,$1.col_num,f90_accept_type,0);
 			    record_default_io();
 			}
-		|	tok_ACCEPT format_id ',' io_list EOS
+		|	accept_handle format_id ',' io_list EOS
 			{
 			    if(f77_accept_type || f90_accept_type)
 				nonstandard($1.line_num,$1.col_num,f90_accept_type,0);
 			    record_default_io();
 			}
+		;
+
+accept_handle	:	tok_ACCEPT {init_io_ctrl_list();}
 		;
 
 /* 46 */
-print_stmt	:	tok_PRINT format_id EOS
+print_stmt	:	print_handle format_id EOS
 			{
 			    record_default_io();
 			}
-   		|	tok_PRINT format_id ','
+   		|	print_handle format_id ','
 				{complex_const_allowed = TRUE;} io_list
 				{complex_const_allowed = FALSE;}  EOS
 			{
@@ -4382,13 +4386,16 @@ print_stmt	:	tok_PRINT format_id EOS
 			}
 		;
 
-type_output_stmt:	tok_TYPE type_format_id EOS
+print_handle	:	tok_PRINT {init_io_ctrl_list();}
+		;
+
+type_output_stmt:	type_output_handle type_format_id EOS
 			{
 			    if(f77_accept_type || f90_accept_type)
 				nonstandard($1.line_num,$1.col_num,f90_accept_type,0);
 			    record_default_io();
 			}
-   		|	tok_TYPE type_format_id ','
+   		|	type_output_handle type_format_id ','
 				{complex_const_allowed = TRUE;} io_list
 				{complex_const_allowed = FALSE;}  EOS
 			{
@@ -4396,6 +4403,9 @@ type_output_stmt:	tok_TYPE type_format_id EOS
 				nonstandard($1.line_num,$1.col_num,f90_accept_type,0);
 			    record_default_io();
 			}
+		;
+
+type_output_handle:	tok_TYPE {init_io_ctrl_list();}
 		;
 
 /* Because a general format_id raises conflicts with F90 (derived)
@@ -4417,26 +4427,40 @@ type_format_literal_const: tok_integer_const
 		;
 
 /* 47 */
-control_info_list:	control_info_item
+				/* handle for action after list is done */
+control_info_list:	control_info_list_production
+			{
+			  if( io_namelist && io_has_format ) {
+			    syntax_error($1.line_num,$1.col_num,
+				 "control list cannot have both format and namelist");
+			  }
+			  else if( io_internal_file &&
+			      (curr_stmt_class == tok_WRITE ||
+			       curr_stmt_class == tok_READ) ) {
+			    if( current_io_form != IO_FORM_FORMATTED ) {
+			      syntax_error($1.line_num,$1.col_num,
+				   "internal file cannot be used with unformatted I/O");
+			    }
+			    else if( io_list_directed &&
+				     f77_f90 ) { /* 12.2.5.2 */
+			      nonstandard($1.line_num,$1.col_num,0,0);
+	    msg_tail(": internal file used with list-directed I/O");
+			    }
+			    else if( io_namelist && (f77_internal_list_io||f90_internal_list_io) ) {
+			      nonstandard($1.line_num,$1.col_num,f90_internal_list_io,0);
+	   msg_tail(": internal file used with namelist I/O");
+			    }
+			  }
+			}
+;
+
+control_info_list_production:	control_info_item
 			{
 			    ++control_item_count;
 			}
-		|	control_info_list ',' control_info_item
+		|	control_info_list_production ',' control_info_item
 			{
 			    ++control_item_count;
-			    if(! io_warning_given) {
-			      if( io_internal_file ) {
-				if( (curr_stmt_class == tok_WRITE ||
-				     curr_stmt_class == tok_READ) &&
-				    io_list_directed ) {
-				  if(f77_internal_list_io) {
-				    nonstandard($3.line_num,$3.col_num,0,0);
-	    msg_tail(": internal file cannot be used with list-directed I/O");
-				  }
-				  io_warning_given = TRUE;
-				}
-			      }
-			    }
 			}
 		;
 
@@ -4471,15 +4495,20 @@ control_info_item:	symbolic_name '=' unit_id
 				 record_io_unit_id(&$1);
 			    }
 			  }
-			  else if(control_item_count == 1) /* format id */
+			  else if(control_item_count == 1) /* format id or namelist */
 			  {
 			    if( $1.tclass == '*' )
 			    {
 				 io_list_directed = TRUE;
+				 io_has_format = TRUE;
 			    }
 			    else if( is_true(ID_EXPR,$1.TOK_flags)){
+			      /* Handle namelist here but w/o NML= keyword
+				 it must be preceded by io-unit,format
+			       */
 				 if(datatype_of($1.TOK_type) == type_NAMELIST) {
 				   ref_namelist(&($1),curr_stmt_class);
+				   io_namelist = TRUE;
 				 }
 				 else
 				     /* format id=integer variable is assigned format */
@@ -4488,6 +4517,7 @@ control_info_item:	symbolic_name '=' unit_id
 				       nonstandard($1.line_num,$1.col_num,0,f95_assign);
 				       msg_tail(": assigned format");
 				     }
+				     io_has_format = TRUE;
 				   }
 			    }
 				/* An integer at this point is a format label */
@@ -4495,6 +4525,7 @@ control_info_item:	symbolic_name '=' unit_id
 				      $1.TOK_type == type_pack(class_VAR,type_INTEGER))
 			    {
 				 ref_label(&($1),LAB_IO);
+				 io_has_format = TRUE;
 			    }
 			    current_io_form = IO_FORM_FORMATTED;
   			  }
@@ -4545,6 +4576,12 @@ open_info_item	:	symbolic_name '=' unit_id
 
 /* 48 */
 io_list		:	io_item
+			{
+			  if(io_namelist) {
+			    syntax_error($1.line_num,$1.col_num,
+					 "namelist cannot be used with I/O list");
+			  }
+			}
 		|	io_list ',' io_item
 		;
 
@@ -6247,7 +6284,8 @@ init_io_ctrl_list(VOID)
   control_item_count = 0;
   io_internal_file = FALSE;
   io_list_directed = FALSE;
-  io_warning_given = FALSE;
+  io_namelist = FALSE;
+  io_has_format = FALSE;
   current_io_unit_no = IO_UNIT_UNKNOWN;
   current_io_unit_id = IO_UNIT_UNKNOWN;
   current_io_access = IO_ACCESS_DEFAULT;
@@ -6999,11 +7037,13 @@ PRIVATE int kind_expr_value(Token *t)
 
     if( type_of_kind != type_UNDECL &&
 	current_datatype != type_of_kind ) {
+     if(misc_warn) {
       warning(t->line_num,t->col_num,
 	      "kind parameter defined for");
       msg_tail(type_name(type_of_kind));
       msg_tail("type used to declare");
       msg_tail(type_name(current_datatype));
+     }
     }
     if (port_concrete_kind &&
 	type_of_kind == type_UNDECL) {

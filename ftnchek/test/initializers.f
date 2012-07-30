@@ -4,7 +4,7 @@ C  standard and non-standard initializing declarations.
 C  Here we use modern standard F90 initializers
       subroutine f90
       integer :: m, n = 100
-C ftnchek does not recognize the following one yet
+
       integer, dimension(5) :: a = (/ 1, 2, 3, 4, 5 /)
       real :: pi = 3.14159265358979d0
       character :: c = 32   ! type mismatch

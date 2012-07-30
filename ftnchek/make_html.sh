@@ -85,7 +85,7 @@ sed -e '/^<A NAME="lb[A-Z][A-Z]"/N' \
 
 		#  Get a list of all ftnchek main options, excluding the
 		#  leading '-'.  Sort them for use on Options page.
-options=`ftnchek -help | \
+options=`./ftnchek -help | \
 	  awk '/^ *-/ {split($0,command);
 		 sub(/\[no\]/,"",command[1]);
 		 sub(/=.*$/,"",command[1]);

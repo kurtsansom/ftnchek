@@ -122,7 +122,7 @@ PRIVATE int closeup_saw_whitespace;
 		 */
 PRIVATE char fortran_legal_chars[]=
 " x\"x$%x'()*+,-./0123456789:x<=>xx\
-ABCDEFGHIJKLMNOPQRSTUVWXYZ[x]xxxabcdefghijklmnopqrstuvwxyzxxxxx";
+ABCDEFGHIJKLMNOPQRSTUVWXYZ[x]x_xabcdefghijklmnopqrstuvwxyzxxxxx";
 
 		/* This is the working copy of list of legal chars, with
                    any chars in idletter_list made legal using the
@@ -700,7 +700,7 @@ if(debug_lexer)
 	    bi_advance();
 	  }
 	  else {
-	    if(f77_format_extensions){
+	    if(f77_f90){
 	      nonstandard(token->line_num,token->col_num,0,0);
 	      msg_tail(": N or Z expected after B");
 	    }
@@ -722,7 +722,7 @@ if(debug_lexer)
 	    if(src_text_len < MAX_SRC_TEXT)
 	      src_text_buf[src_text_len++] = c;
 	    bi_advance();
-	    if(f77_format_extensions){
+	    if(f77_f90){
 	      nonstandard(token->line_num,token->col_num,0,0);
 	    }
 	  }
@@ -732,7 +732,7 @@ if(debug_lexer)
 	    
 	case 'O':	/* These are OK in f90 but not f77 */
 	case 'Z':
-	  if(f77_format_extensions){
+	  if(f77_f90){
 	    nonstandard(token->line_num,token->col_num,0,0);
 	  }
 	  goto get_w_d;
@@ -1288,8 +1288,17 @@ get_binary_const(Token *token, int c, int space_seen_lately)
     base = 8;
   }
 				/* F90 allows initial B, O, Z but not X */
-  if( c == 'X' && f90_typeless_constants ) {
+  if( c == 'X' && (f90_typeless_constants || f77_typeless_constants) ) {
     nonstandard(token->line_num,token->col_num,f90_typeless_constants,0);
+  }
+  else if(f77_f90) {
+    nonstandard(token->line_num,token->col_num,0,0);
+  }
+  else if( curr_stmt_class != tok_DATA &&
+	   (c == 'B' || c == 'O' || c == 'Z') &&
+	   (f90_typeless_constants || f77_typeless_constants) ) {
+    nonstandard(token->line_num,token->col_num,f90_typeless_constants,0);
+    msg_tail("binary, octal, or hex constant allowed only in DATA statement");
   }
 
 				/* Advance i to starting digit */
@@ -1340,10 +1349,6 @@ get_binary_const(Token *token, int c, int space_seen_lately)
   token->tclass = tok_integer_const;
   token->value.integer = value;
   token->src_text = new_src_text(src_text_buf,src_text_len);
-
-  if(f77_typeless_constants) {
-    nonstandard(token->line_num,token->col_num,0,0);
-  }
 
 #ifdef DEBUG_FORLEX
 if(debug_lexer)
@@ -1767,7 +1772,8 @@ get_string(token)       /* Gets string of form 'aaaa' */
 			   Suppress message here if letter is not in [BOZ]
 			   since that gets a warning in get_binary_const
 			*/
-	    if( f90_typeless_constants && (c=='Z' || c=='O' || c=='B') ) {
+	    if( (f77_typeless_constants || f90_typeless_constants) &&
+		(c=='Z' || c=='O' || c=='B') ) {
 	      nonstandard(token->line_num,token->col_num,f90_typeless_constants,0);
 	    }
 
@@ -1778,7 +1784,7 @@ get_string(token)       /* Gets string of form 'aaaa' */
 #endif /*ALLOW_TYPELESS_CONSTANTS*/
 
 	if(len == 0) {
-	  if(f77_string_zero_length) {
+	  if(f77_char_extension) {
 	    nonstandard(line_num,col_num,0,0);
 	    msg_tail(": zero-length string");
 	  }

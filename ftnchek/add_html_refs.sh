@@ -18,7 +18,7 @@
 #  line, but that shouldn't happen since man-to-html converter puts bolding
 #  around them.
 
-ftnchek -help | \
+./ftnchek -help | \
 	  awk '/^ *-/ {split($0,opt);
 		 sub(/\[no\]/,"",opt[1]);
 		 sub(/=.*$/,"",opt[1]);
@@ -32,15 +32,16 @@ ftnchek -help | \
 
 # The tr command substitutes quote marks for the <BEL> characters that
 # vh-man2html substutes for quote marks.
-# The first sed command deletes any Content-type header intended for cgi use,
-# and creates and attaches anchors to all the option descriptions in
+# The first sed command line deletes any Content-type header intended for
+# cgi use, and the link back to cgi URL.  Next line
+# creates and attaches anchors to all the option descriptions in
 # OPTIONS section.
-# The second sed substitutes hot-links to these anchors at all the places
-# where the options occur in the entire text.
+# The second sed command substitutes hot-links to these anchors at all
+# the places where the options occur in the entire text.
 # The third sed puts hot-links in for the -[no]options in SYNOPSIS section
-# that are not recognized by the second sed.
+# that are not recognized by the second sed command.
 tr '\007' '"' |
-sed -e '/^Content-type:/d' \
+sed -e '/^Content-type:/d'  -e '/Return to Main Contents/d' \
     -e '/<H2>OPTIONS<\/H2>/,/<H2>.*<\/H2>/s,^<DT><B>-\([a-z][-a-z0-9]*\)[^<]*</B>,<A NAME="\1"></A>&,' | \
 sed -f option_sub.sed  | \
 sed -e '/<H2>SYNOPSIS<\/H2>/,/<H2>.*<\/H2>/s,<B>-</B>\[<B>no</B>\]<B>\([a-z][-a-z0-9]*\),<A HREF="#\1">&</A>,g'

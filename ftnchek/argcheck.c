@@ -475,7 +475,7 @@ arg_array_cmp(name,args1,args2)
 		    clist = clist->next;
 		  }
 		  if( clist != NULL ) {	/* block is defined in called prog unit */
-		      if( comcheck_by_name ) { /* Exact common: find the var */
+		      if( comcheck_exact ) { /* Exact common: find the var */
 				/* It is not yet an error unless the block
 				   is also long enough to include the variable
 				   and the variable is modified in either
@@ -583,7 +583,7 @@ a2[i].active_do_var);
 		  if((usage_arg_common_modified && arg_common_modified)||
 		     (usage_array_common_modified && array_common_modified)) {
 		    char locspec[10+3*sizeof(a2[i].common_index)];
-		    if( comcheck_by_name ) {
+		    if( comcheck_exact ) {
 		      (void)sprintf(locspec,"%ld:",a2[i].common_index);
 		    }
 		    else {
@@ -591,7 +591,7 @@ a2[i].active_do_var);
 		    }
 		    arg_error_report(args1,"Dummy arg",i,"is aliased to common var");
 		    msg_tail(locspec);
-		    msg_tail(comcheck_by_name?common_alias_name: "");
+		    msg_tail(comcheck_exact?common_alias_name: "");
 		    msg_tail("in block");
 		    msg_tail(a2[i].common_block->name);
 		    msg_tail(common_modified_as_com?

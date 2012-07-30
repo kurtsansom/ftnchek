@@ -76,7 +76,8 @@ LISTOUT= average.f backslash.f chestnuts.f comclash.f comcmp.f\
  iffy.f pure-function.f primes.f labeltest.f case.f allkeywords.f\
  blockerrors.f t208f.f lotsalabels.f initializers.f cray-pointers.f\
  keyvars.f empty.f varfmt.f entry1.f entry2.f entry3.f entry4.f\
- type-first-stmt.f type-notfirst-stmt.f blockdata.f
+ type-first-stmt.f type-notfirst-stmt.f blockdata.f open_with_name.f\
+ internal_list_io.f
 
 FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   internalsub.f90 modulesub.f90 embedded-space-free.f90 nontype.f90\
@@ -90,7 +91,8 @@ FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   allocatable_target.f90 allocate_component.f90 allocate_string.f90 \
   array_section1.f90 array_rank1.f90 pointer_allocd.f90 kind_args.f90\
   kind_assign.f90 kind_char.f90 kind_mixed.f90 kind_select.f90\
-  internalfuns.f90 charfuns.f90 modvar-rename.f90 modvar-only-rename.f90
+  internalfuns.f90 charfuns.f90 modvar-rename.f90 modvar-only-rename.f90\
+  boz_constants.f90
 
 # file set for testing mapping of derived types in module
 MODULETYPEMAP=typedef1-mod.f90 typedef2-mod.f90 typedef12-use.f90 
@@ -135,7 +137,7 @@ MKHTML= animated_pendulum_main.f animated_pendulum_cls.f \
 # set of files for testing -usage options
 USAGE= usage.f
 
-# set of files for testing -vcg switch (use target checkvcg)
+# set of files for testing -call=vcg switch (use target checkvcg)
 VCGLIST= comcmp.f comusage.f
 
 #=======================================================================
@@ -409,11 +411,14 @@ checkcalltree:
 
 
 #checkcommon checks the -common=n setting
+#also checks -common=name on program with no name mismatches
 checkcommon:
 	@-echo |$(AWK) '{printf("%s","checking -common setting:");}'
 	@$(MAKE) FTNCHEK='$(FTNCHEK)' \
 		CheckSetting "SETTING=-common" "RANGE=0 1 2 3" \
 		"FLIST=$(COMMON)" "FLAGS=-nof77"
+	@$(FTNCHEK) -no-f77 -no-usage -common=all $(POLYGRAF) > polygraf.fcC
+	@$(COMPARE) polygraf.fcC
 	@-echo "done"
 
 checkdcl2inc:
@@ -576,7 +581,7 @@ checkrc:
 	@-echo |$(AWK) '{printf("%s","checking reading rc file:");}'
 	@-echo "f77=all" > $(RCFILE)
 	@-echo "symtab" >> $(RCFILE)
-	@$(FTNCHEK) -f77=no-long-name,no-name-underscore do_enddo.f > rc.fcl 2>&1
+	@$(FTNCHEK) -f77=no-f90,no-byte allkeywords.f > rc.fcl 2>&1
 	@$(COMPARE) rc.fcl
 	@$(RM) $(RCFILE)
 	@-echo "done"
@@ -593,7 +598,7 @@ checkwildcard:
 	@$(FTNCHEK) '-usage=no-var*' -usage=help > wildcard.fc3 2>&1
 	@$(COMPARE) wildcard.fc3
 	@$(RM) wildcard.fc3
-	@$(FTNCHEK) '-f77=*array*,format*' -f77=help > wildcard.fc4 2>&1
+	@$(FTNCHEK) '-f77=int*,*format*' -f77=help > wildcard.fc4 2>&1
 	@$(COMPARE) wildcard.fc4
 	@$(RM) wildcard.fc4
 	@$(FTNCHEK) '-pretty=*ugly*' -pretty=help > wildcard.fc5 2>&1
@@ -670,10 +675,10 @@ checkmkhtml:
 	@echo "done"
 
 checkvcg:
-	@-echo |$(AWK) '{printf("%s","checking -vcg setting:");}'
+	@-echo |$(AWK) '{printf("%s","checking -calltree=vcg output:");}'
 	@-for f in $(VCGLIST:.f=) ; \
 	do \
-	  $(FTNCHEK) -vcg $$f.f 1>/dev/null 2>/dev/null ; \
+	  $(FTNCHEK) -calltree=vcg $$f.f 1>/dev/null 2>/dev/null ; \
 	  $(COMPARE) $$f.vcg ; \
 	done
 	@echo "done"

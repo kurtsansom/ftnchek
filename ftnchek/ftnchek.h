@@ -296,7 +296,7 @@ PROTO(VOID exit,(int));
 #endif
 
 			/* -common options default to COMCHECK_ALL, except for
-			   volatile, which defaults to FALSE.  Define
+			   name and volatile, which default to FALSE.  Define
 			   LAX_COMCHECK to make -common=none the default.
 			   Otherwise -common=type,length,exact is default.
 			*/
@@ -545,8 +545,8 @@ PROTO(VOID exit,(int));
 #define WRAP_COLUMN 79		/* When to wrap error messages to next line */
 #endif
 
-#ifndef DEF_IDLETTER_LIST	/* default nonalnums allowed in identifiers */
-#define DEF_IDLETTER_LIST "$_"
+#ifndef DEF_IDLETTER_LIST	/* default letters allowed in identifiers beyond F90 standard */
+#define DEF_IDLETTER_LIST "$"
 #endif
 
 		/* The following defines used to be optional, now they
@@ -919,58 +919,65 @@ OPT(int,print_lab_refs,FALSE);   /* print label cross-references */
 OPT(int,comcheck_type,COMCHECK_ALL);/* Check for type mismatch */
 OPT(int,comcheck_length,COMCHECK_ALL);/* Check for length mismatch  */
 OPT(int,comcheck_dims,COMCHECK_ALL);/* Check for array dim mismatch  */
-OPT(int,comcheck_by_name,COMCHECK_ALL);/* Check name-by-name */
+OPT(int,comcheck_exact,COMCHECK_ALL);/* Check variable-by-variable */
+OPT(int,comcheck_by_name,FALSE);/* Require variable names correspond */
 OPT(int,comcheck_volatile,FALSE); /* Assume blocks are "volatile" */
 		/* End of -common options */
 
 		/* These options are controlled by -f77 */
-OPT(int,f77_20_continue,F77_ALL);
+/* With version 4.0 accepting F90 syntax, it is no longer appropriate
+   to treat F90 features as "supported extensions".  All F90 features
+   are now lumped under f77_f90.  Those that formerly had their own
+   -f77 control keywords are now equated to f90.  Only vendor extensions
+   that did not become part of F90 are individually controlled now.
+ */
 OPT(int,f77_accept_type,F77_ALL);
-OPT(int,f77_assignment,F77_ALL);
-OPT(int,f77_array_bounds,F77_ALL);
-OPT(int,f77_attrbased_typedecl,F77_ALL);
-OPT(int,f77_automatic_array,F77_ALL);
+#define f77_assignment f77_f90
+#define f77_array_bounds f77_f90
+#define f77_attrbased_typedecl f77_f90
+#define f77_automatic_array f77_f90
 OPT(int,f77_byte,F77_ALL);
-OPT(int,f77_case_construct,F77_ALL);
-OPT(int,f77_char_extension,F77_ALL);
+#define f77_case_construct f77_f90
+#define f77_char_extension f77_f90
 OPT(int,f77_cray_pointers,F77_ALL);
 OPT(int,f77_common_subprog_name,F77_ALL);
-OPT(int,f77_construct_name,F77_ALL);
-OPT(int,f77_cycle_exit,F77_ALL);
+#define f77_construct_name f77_f90
+OPT(int,f77_20_continue,F77_ALL);
+#define f77_cycle_exit f77_f90
 OPT(int,f77_d_comment,F77_ALL);
 OPT(int,f77_dec_tabs,F77_ALL);
-OPT(int,f77_do_enddo,F77_ALL);
-OPT(int,f77_dollarsigns,F77_ALL);
+#define f77_do_enddo f77_f90
 OPT(int,f77_double_complex,F77_ALL);
+OPT(int,f77_f90,F77_ALL);
 OPT(int,f77_format_dollarsigns,F77_ALL);
 OPT(int,f77_format_extensions,F77_ALL);
 OPT(int,f77_function_noparen,F77_ALL);
-OPT(int,f77_implicit_none,F77_ALL);
-OPT(int,f77_include,F77_ALL);
+#define f77_implicit_none f77_f90
+#define f77_include f77_f90
 OPT(int,f77_initializers,F77_ALL);
-OPT(int,f77_inline_comment,F77_ALL);
+#define f77_inline_comment f77_f90
 OPT(int,f77_internal_list_io,F77_ALL);
 OPT(int,f77_intrinsics,F77_ALL);
 OPT(int,f77_io_keywords,F77_ALL);
-OPT(int,f77_long_names,F77_ALL);
-OPT(int,f77_mixed_common,F77_ALL);
-OPT(int,f77_mixed_expr,F77_ALL);
-OPT(int,f77_namelist,F77_ALL);
 OPT(int,f77_overlength,F77_ALL);
+OPT(int,f77_long_names,F77_ALL);
+#define f77_mixed_common f77_f90
+OPT(int,f77_mixed_expr,F77_ALL);
+OPT(int,f77_dollarsigns,F77_ALL);
+#define f77_underscores f77_f90
+#define f77_namelist f77_f90
 OPT(int,f77_param_implicit_type,F77_ALL);
 OPT(int,f77_param_intrinsic,F77_ALL);
 OPT(int,f77_param_noparen,F77_ALL);
-OPT(int,f77_pointers,F77_ALL);
+#define f77_pointers f77_f90
 OPT(int,f77_quad_constants,F77_ALL);
-OPT(int,f77_quotemarks,F77_ALL);
-OPT(int,f77_relops,F77_ALL);
-OPT(int,f77_semicolon,F77_ALL);
+#define f77_quotemarks f77_f90
+#define f77_relops f77_f90
+#define f77_semicolon f77_f90
 OPT(int,f77_stmt_order,F77_ALL);
-OPT(int,f77_string_zero_length,F77_ALL);
-OPT(int,f77_substring_bounds,F77_ALL);
+#define f77_substring_bounds f77_f90
 OPT(int,f77_typeless_constants,F77_ALL);
 OPT(int,f77_typesize,F77_ALL);
-OPT(int,f77_underscores,F77_ALL);
 OPT(int,f77_unix_backslash,F77_ALL);
 OPT(int,f77_unix_cpp,F77_ALL);
 OPT(int,f77_variable_format,F77_ALL);
@@ -979,6 +986,7 @@ OPT(int,f77_variable_format,F77_ALL);
 		/* These options are controlled by -f90 */
 OPT(int,f90_accept_type,F90_ALL);
 OPT(int,f90_byte,F90_ALL);
+OPT(int,f90_common_subprog_name,F90_ALL);
 OPT(int,f90_continue,F90_ALL);
 OPT(int,f90_cray_pointers,F90_ALL);
 OPT(int,f90_d_comment,F90_ALL);
@@ -989,6 +997,7 @@ OPT(int,f90_format_dollarsigns,F90_ALL);
 OPT(int,f90_format_extensions,F90_ALL);
 OPT(int,f90_function_noparen,F90_ALL);
 OPT(int,f90_initializers,F90_ALL);
+OPT(int,f90_internal_list_io,F90_ALL);
 OPT(int,f90_intrinsics,F90_ALL);
 OPT(int,f90_io_keywords,F90_ALL);
 OPT(int,f90_mixed_expr,F90_ALL);
@@ -1231,7 +1240,7 @@ OPT(int,wrap_column,WRAP_COLUMN);/* For wrapping error messages */
 #define usage_com_any (usage_com_block_unused || usage_com_var_set_unused \
        || usage_com_var_uninitialized || usage_com_var_unused)
 
-#define COMCHECK_OFF (!(comcheck_by_name||comcheck_type||comcheck_length))
+#define COMCHECK_OFF (!(comcheck_exact||comcheck_type||comcheck_length))
 
 #define check_com_tree (comcheck_volatile&&usage_com_block_volatile) /* Check undef errors */
 

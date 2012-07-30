@@ -195,7 +195,6 @@ count_com_defns(clist)		/* Returns number of common decls in list  */
 PRIVATE char *
 make_module_filename(const char *module_name)
 {
-  char *path_end;
   char *module_filename;
 
 			/* source file path component is prepended if present */

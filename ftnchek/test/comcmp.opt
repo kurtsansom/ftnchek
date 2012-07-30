@@ -1,1 +1,1 @@
--common:3 -no-f77 -port -quiet comcmp.f -ref
+-common=all -no-f77 -port -quiet comcmp.f -call:ref

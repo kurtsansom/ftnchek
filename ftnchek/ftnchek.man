@@ -1,18 +1,18 @@
-.TH "FTNCHEK 3.3" 1L "November 2004"
+.TH "FTNCHEK 4.0" 1L "July 2012"
 .\" ====================================================================
 .\"  @Troff-man-file{
 .\"     author          = "Robert K. Moniot",
-.\"     version         = "3.3",
-.\"     date            = "10 Nov 2004"
+.\"     version         = "4.0",
+.\"     date            = "23 July 2012"
 .\"     time            = "12:00:00 EST",
 .\"     filename        = "ftnchek.man",
 .\"     address         = "Fordham University
 .\"                        New York, NY 10023
 .\"                        USA",
-.\"     telephone       = "+1 212 636 6302",
+.\"     telephone       = "+1 212 636 6334",
 .\"     email           = "moniot@fordham.edu",
 .\"     codetable       = "ISO/ASCII",
-.\"     keywords        = "Fortran 77, syntax check, type declarations",
+.\"     keywords        = "Fortran, syntax check, type declarations",
 .\"     supported       = "yes",
 .\"     docstring       = "This file is the source for the UNIX manual
 .\"                        page document (ftnchek.1), and is also used to
@@ -29,7 +29,7 @@
 .\"                        blocks for these variations are set off using
 .\"                        .if reg-name ... where reg-name is
 .\"                        \nb for the blurb and \nh for the HELP document.
-.\"                        The HTML version is produced using rman, whose
+.\"                        The HTML version is produced using man2html, whose
 .\"                        output is lightly edited (using patch) and then
 .\"                        split up and put into the html directory by
 .\"                        the shell script make_html.sh.
@@ -68,7 +68,7 @@
 .el \{
 .SH "NAME"
 \}
-ftnchek \- Fortran 77 program checker
+ftnchek \- Fortran program checker
 .if !\nh \{
 .SH "SYNOPSIS"
 .B ftnchek
@@ -157,6 +157,9 @@ ftnchek \- Fortran 77 program checker
 .if t .ti +.5i
 .if n .ti +5
 [
+.BI \-module= \fIstr\fP
+]
+[
 .BR \- [ no ] novice
 ]
 [
@@ -166,10 +169,10 @@ ftnchek \- Fortran 77 program checker
 [
 .BR \-pointersize [=\fInum\fP]
 ]
+.if t .ti +.5i
 [
 .BR \- [ no ] portability [ = \fIlist\fP]
 ]
-.if t .ti +.5i
 .if n .ti +5
 [
 .BR \- [ no ] pretty [ = \fIlist\fP]
@@ -181,13 +184,10 @@ ftnchek \- Fortran 77 program checker
 [
 .BR \- [ no ] pure
 ]
+.if t .ti +.5i
 [
 .BR \- [ no ] quiet
 ]
-[
-.BR \- [ no ] reference
-]
-.if t .ti +.5i
 .if n .ti +5
 [
 .BR \- [ no ] resources
@@ -202,10 +202,10 @@ ftnchek \- Fortran 77 program checker
 [
 .BR \-source [=\fIlist\fP]
 ]
+.if t .ti +.5i
 [
 .BR \-style [=\fIlist\fP]
 ]
-.if t .ti +.5i
 [
 .BR \- [ no ] symtab
 ]
@@ -217,15 +217,9 @@ ftnchek \- Fortran 77 program checker
 .BR \-usage [=\fIlist\fP]
 ]
 .if n .ti +5
-[
-.BR \- [ no ] vcg
-]
-[
-.BR \- [ no ] version
-]
 .if t .ti +.5i
 [
-.BR \- [ no ] volatile
+.BR \- [ no ] version
 ]
 .if n .ti +5
 [
@@ -262,6 +256,9 @@ intended to catch all syntax errors.  This is the function of the compiler.
 Prior to using \fBftnchek\fP,
 the user should verify that the program compiles
 correctly.
+.PP
+The language accepted by \fBftnchek\fP is Fortran 95 (with some
+exceptions noted in the section on limitations and extensions).
 .ie \nh \{
 For more detailed information, consult the printed documentation.
 \}
@@ -305,7 +302,7 @@ Each option begins with the '/' character.
 .el \{
 Each option begins with the '\-' character.
 (On VAX/VMS or MS-DOS systems you may use either '/' or '\-'.)
-For the sake of conformity with an increasingly common convention, options can
+For the sake of conformity with a common convention, options can
 also begin with '\-\-'.
 The options are described at greater length in the next section.
 \}
@@ -349,7 +346,7 @@ Produce subprogram call hierarchy in one of 3 formats:
 text call-tree, who-calls-who and VCG.
 Default = none, turn-on = tree,prune,sort.
 .sp 1
-If the \fB\-mkhtml\fP option is invoked \fIand\fP tree is the applied
+If the \fB\-mkhtml\fP option is invoked \fIand\fP \fBtree\fP is the applied
 calltree option, a file named \fCCallTree.html\fR, will be produced
 depicting the tree in HTML format.
 .TP
@@ -389,8 +386,8 @@ Control specific warnings about supported extensions to the Fortran 77
 Standard.  Default  = none, turn-on = all.
 .TP
 .BI \-f90= list
-Control specific warnings about supported extensions to the Fortran 77
-Standard that were not adopted as part of the Fortran 90 Standard.
+Control specific warnings about supported extensions to the Fortran 90
+Standard.
 Default  = none, turn-on = all.
 .TP
 .BI \-f95= list
@@ -433,8 +430,15 @@ Usually you will also want to specify \fB\-call=tree\fP to create the
 root HTML file \fCCallTree.html\fR.
 Default = none, turn-on = documents.
 .TP
+.BI \-module= path
+Define a directory into which to write module files, and also
+to search for module files referenced in USE statements.
+Default = directory of source file, turn-on = none.
+.TP
 .B \-novice
 Give output suitable for novice users.  Default = yes.
+Advanced users will want to turn this off to give output suitable for
+parsing by IDEs and context-aware editors like \fBemacs\fP.
 .TP
 .BI \-output= filename
 Send output to the given file.
@@ -463,10 +467,6 @@ Default = yes.
 .B \-quiet
 Produce less verbose output.  Default = no.
 .TP
-.B \-reference
-Print table of subprograms referenced by each subprogram.
-Default = no.
-.TP
 .B \-resources
 Print amount of resources used in analyzing the program.
 Default = no.
@@ -483,7 +483,8 @@ Default = no.
 Select source formatting options: fixed or free form, DEC Fortran
 tab-formatted lines, VMS-style INCLUDE statement,
 UNIX-style backslash escape sequences,
-and implicit typing of parameters.  Default = none, turn-on = all.
+and implicit typing of parameters.  Default = none (fixed or free form
+inferred from file extension), turn-on = all.
 .TP
 .BI \-style= list
 Produce extra-picky warnings about obsolescent or old-fashioned
@@ -500,15 +501,8 @@ Default = turn-on = all.
 Control warnings about unused or uninitialized variables, common
 blocks, etc.  Default = turn-on = all.
 .TP
-.B \-vcg
-Produce VCG format of call graph.
-.TP
 .B \-version
 Print version number.  Default = no.
-.TP
-.B \-volatile
-Assume COMMON blocks lose definition between
-activations.  Default = no. (Obsolete.  Use \fB\-common=volatile\fP instead.) 
 .TP
 .BI \-wordsize= num
 Set the default word size for numeric
@@ -575,6 +569,9 @@ Set all options. This turns on all options controlled by the setting.
 \fBnone\fP
 Clear all options.  This turns off all options controlled by the setting.
 .PP
+For example, \fB\-f77=help\fP gives a list of all the keywords
+controlled by the \fB\-f77\fP option, \fB\-f77=all\fP turns them all
+on, and \fB\-f77=all\fP turns them all off.
 These three special keywords must be given in full.  For all other
 keywords, only as many letters of the keyword as are necessary to
 identify it unambiguously need be given, or a wildcard pattern
@@ -590,8 +587,8 @@ misleading appearance in effect.
 If a setting has default \fBnone\fP, you can turn on all options
 except one or two by using \fBall\fP first.
 For example,
-\fB\-f77=all,no\-include\fP enables warnings about all nonstandard
-extensions except INCLUDE statements.
+\fB\-f77=all,no\-intrinsic\fP enables warnings about all nonstandard
+extensions except intrinsic functions.
 If a setting has default \fBall\fP, you can turn off all warnings
 except one or two by using \fBnone\fP first.
 For example,
@@ -635,6 +632,10 @@ with extension \fI.\|prj\fP, and will use that if it exists.  If not, then
 \fBftnchek\fP will look for a Fortran source file
 with the extension \fI.\|for\fP for VMS systems, \fI.\|f\fP for UNIX systems.
 \}
+The default source format for files with extension \fI.\|for\fP or \fI.\|f\fP
+is fixed format.  If the input file is in free format, use extension
+\fI.\|f90\fP or \fI.\|f95\fP (or specify \fB\-source=free\fP on the
+command line).
 More than one file name can be given to \fBftnchek\fP,
 and it will process the
 program units in all files as if they were in a single file.
@@ -689,12 +690,9 @@ the
 \fB\-common\fP,
 \fB\-crossref\fP,
 \fB\-extern\fP,
-\fB\-reference\fP,
 \fB\-resources\fP,
-\fB\-sort\fP,
-\fB\-vcg\fP,
 and
-\fB\-volatile\fP
+\fB\-sort\fP
 options, where the action depends only on the value of
 the option after the processing of input files is finished;
 and the \fB\-include\fP setting, which is cumulative.
@@ -858,6 +856,8 @@ See also: \fB\-quiet\fP.
 \}
 Causes \fBftnchek\fP to print out the call structure of
 the complete program.
+NOTE: at this time, this option is not working
+correctly for module subprograms.
 .PP
 The \fIlist\fP consists of keywords separated by commas or colons.
 There are two special keywords: \fBnone\fP to turn off all the
@@ -883,12 +883,10 @@ The keywords which control which format is used are as follows:
 produce the call graph in tree format.
 .TP \w'1.'u+2n
 \fBreference\fP:
-produce the call graph in who-calls-who format (same as
-\fB\-reference\fP switch).
+produce the call graph in who-calls-who format.
 .TP \w'1.'u+2n
 \fBvcg\fP:
-produce the call graph in VCG format (same as \fB\-vcg\fP
-switch).
+produce the call graph in VCG format.
 .PP
 Only one of the formats \fBtree\fP, \fBreference\fP, or \fBvcg\fP may
 be specified.
@@ -902,10 +900,7 @@ the default.
 \fBsort\fP:
 sort children of each routine into alphabetical order.  This is the default.
 .PP
-See the discussion of the \fB\-reference\fP
-and \fB\-vcg\fP flags for details about these formats.
-.PP
-For \fBtree\fP format, The call graph is printed out
+For \fBtree\fP format, the call graph is printed out
 starting from the main program, which is listed on the first line at
 the left margin.  Then on the following lines, each routine called by
 the main program is listed, indented a few spaces, followed by the
@@ -913,7 +908,7 @@ subtree starting at that routine.
 .PP
 In the default mode,
 if a routine is called by more than one other routine,
-its call subtree is printed only the first time it is encountered
+its call subtree is printed only the first time it is encountered.
 Later calls give only the routine name and the notice ``(see above)''.
 To have the subtree printed for each occurrence of the routine,
 use option \fBno\-prune\fP.
@@ -929,10 +924,45 @@ If multiple main programs are found, the call tree of each is printed
 separately.
 If no main program is found, a report to that effect is printed out,
 and the call trees of any top-level non-library routines are printed.
-This flag only controls the printing of the call tree: \fBftnchek\fP
-constructs the call tree in any case because it is used to determine
-which library program units will be cross-checked.  See the discussion
+See the discussion
 of the \fB\-library\fP flag.
+.PP
+For \fBreference\fP format a who-calls-who table is printed.
+This table lists each subprogram followed by a list of the
+routines it calls.
+.PP
+The reference list omits routines
+called by unused library program units.  Thus it contains the same
+information as for the call-tree format, namely the hierarchy of
+subprogram calls, but printed in a different way.  This prints out
+a breadth-first traversal of the call tree whereas \fB\-calltree=tree\fP prints
+out a depth-first traversal.
+.PP
+For \fBvcg\fP format the call tree is produced
+in the form of a VCG graph description.  This
+description is written to a separate file, with the same stem as the
+file containing the main program, and suffix
+.IR .vcg .
+This file is able to be given directly to
+.BR xvcg (1L)
+to visualize the call graph.
+(If input is from the standard input, then the graph description is
+sent to standard output.)
+.PP
+The VCG description as created is more complex than it need be. VCG allows
+graphs and nested subgraphs: each subroutine is created as a
+subgraph nested inside its calling routines.  This allows you to
+interactively display subgraphs or summarise them.
+.PP
+The
+.B \-calltree=vcg
+option for
+.B ftnchek
+was written by Dr. Philip Rubini of Cranfield University, UK.
+.PP
+\fBxvcg\fP(1L) is a graph visualisation tool which runs under the X windows system.
+It is freely available from ftp.cs.uni\-sb.de. It was written by G. Sander
+of the University of Saarland, Germany.
 .PP
 For compatibility with previous versions of \fBftnchek\fP,  a numeric
 form of this setting is also accepted: the \fIlist\fP is replaced by a
@@ -941,8 +971,8 @@ number from 0 to 15.  This number is formed from 1 for
 format, plus 4 for \fBno\-prune\fP, and 8 for \fBno\-sort\fP.
 .PP
 See also:
-\fB\-crossref\fP, \fB\-library\fP, \fB\-reference\fP, \fB\-sort\fP,
-\fB\-symtab\fP, \fB\-vcg\fP.
+\fB\-crossref\fP, \fB\-library\fP, \fB\-sort\fP,
+\fB\-symtab\fP.
 .RE
 
 .ie \nh \{
@@ -963,21 +993,27 @@ turned back on.  The effect of \fB\-nocheck\fP is to put all switches,
 numeric settings, and settings controlling lists of warnings
 to their turn-off values, as if they had all been
 specified with the \-no prefix.
+NOTE: in \fBftnchek\fP version 4, many new warnings were introduced,
+and some may not have been put under the control of this switch.  We
+are working on this.
+.PP
 Switches and settings that specify
 options and modes of operation, rather than controlling warnings, are
 unaffected.
 These are
+\fB\-calltree\fP,
 \fB\-columns\fP, \fB\-crossref\fP,
 \fB\-include\fP, \fB\-intrinsic\fP,
 \fB\-library\fP, \fB\-list\fP,
 \fB\-makedcls\fP,
+\fB\-module\fP,
 \fB\-novice\fP,
 \fB\-output\fP,
 \fB\-pointersize\fP, \fB\-project\fP,
 \fB\-quiet\fP,
-\fB\-reference\fP, \fB\-resources\fP,
+\fB\-resources\fP,
 \fB\-sort\fP, \fB\-source\fP, \fB\-symtab\fP,
-\fB\-vcg\fP, \fB\-version\fP,
+\fB\-version\fP,
 \fB\-wordsize\fP,
 and
 \fB\-wrap\fP.
@@ -991,7 +1027,7 @@ There are some miscellaneous errors and warning messages that are not
 controlled by any other switch, and so can be turned off only by this
 switch.  Note that using \fB\-check\fP following \fB\-nocheck\fP only
 has the effect of turning these special warnings back on, and does not
-restore all the checks it turned off.  These warnings are:
+restore all the checks it turned off.  These warnings include:
 .TP \w'1.'u+2n
 o
 Prog unit contains no executable statements.
@@ -1012,27 +1048,27 @@ o
 Array assigned to scalar.
 .TP
 o
-Type mismatch between \fCDO\fR index and bounds.
+Type mismatch between DO index and bounds.
 .TP
 o
-Undefined common block declared in \fCSAVE\fR statement.
+Undefined common block declared in SAVE statement.
 .TP
 o
 Intrinsic function explicitly declared with an incompatible type.
 .TP
 o
 Unknown intrinsic function explicitly declared in an
-\fCINTRINSIC\fR statement.
+INTRINSIC statement.
 .TP
 o
 Intrinsic function passed as a subprogram argument is not declared
-in an \fCINTRINSIC\fR statement.
+in an INTRINSIC statement.
 .TP
 o
 Intrinsic function or statement function invoked incorrectly.
 .TP
 o
-Function does not set return value prior to \fCRETURN\fR statement.
+Function does not set return value prior to RETURN statement.
 .TP
 o
 Parameter constant value not evaluated (this is \fBftnchek\fP's fault,
@@ -1063,11 +1099,11 @@ See also: \fB\-errors\fP.
 .BI \-columns= num
 .RS
 \}
-Set maximum statement length to \fInum\fP columns.
+Set maximum fixed-form statement line length to \fInum\fP columns.
 (Beyond this is ignored.)
 This setting is provided to allow checking of programs which may
 violate the Fortran standard limit of 72 columns for the length of a
-statement.  According to
+statement line in fixed source format.  According to
 the standard, all characters past column 72 are ignored.
 If this setting is used when the \fB\-f77=long\-line\fP option is in effect, a
 warning will be given for any lines in which characters past column 72
@@ -1081,6 +1117,10 @@ this setting and be sure the \fB\-f77\fP \fBlong\-line\fP option is off.
 To process code with sequence numbers in columns 73 to 80, leave the
 the columns setting at the default value and use the
 \fB\-pretty=no\-long\-line\fP flag.
+.PP
+This setting has no effect when processing a source file in free
+format.  The free-form statement line length limit of 132 columns cannot be
+changed in \fBftnchek\fP.
 .PP
 See also: \fB\-f77\fP, \fB\-pretty\fP.
 .RE
@@ -1097,7 +1137,7 @@ See also: \fB\-f77\fP, \fB\-pretty\fP.
 \}
 This setting controls the strictness of
 checking of COMMON blocks.
-By default, all warnings except \fBvolatile\fP are turned on.
+By default, all warnings except \fBname\fP and \fBvolatile\fP are turned on.
 .PP
 The \fIlist\fP consists of keywords separated by commas or colons.
 Since most of these warnings are on by default, include a keyword prefixed by
@@ -1107,7 +1147,7 @@ warnings, \fBnone\fP to turn them all
 off, and \fBhelp\fP to print the list of all the keywords with a brief
 explanation of each.
 If \fIlist\fP is omitted, \fB\-common\fP is equivalent to
-\fB\-common=dimensions,exact,length,type\fP,
+\fB\-common=all\fP,
 and \fB\-nocommon\fP is equivalent to
 \fB\-common=none\fP.
 The warning keywords with their meanings are as follows:
@@ -1130,6 +1170,16 @@ The Fortran 77 Standard requires each named common block, but not
 blank common, to be
 the same length in all program units of the program.
 .TP \w'1.'u+2n
+\fBname\fP:
+warn if corresponding variables in different declarations of the same
+block differ in name (ignoring variations of case).
+This option only has an effect when used together with \fBexact\fP.
+It can be useful when porting old code to Fortran 90, putting variable
+declarations into modules, when it becomes essential that
+all subprograms use the same names for corresponding variables.
+To prevent cascades, this warning is only given for one pair of
+declarations of a given block per run.
+.TP \w'1.'u+2n
 \fBtype\fP:
 in each declaration of a given COMMON block,
 corresponding memory locations (words or bytes) must agree in data type.
@@ -1146,11 +1196,12 @@ assigned a different value by the program.  However, in fact the
 Fortran 77 Standard does not require this to be the case.
 Local variables may
 become undefined between activations of a subprogram in which they are
-declared.  Similarly, COMMON blocks may become undefined if no subprogram
+declared.  Similarly, named COMMON blocks may become undefined if no subprogram
 in which they are declared is active.  (The technical term for
 entities with this behavior is ``automatic'',
 but \fBftnchek\fP uses the word ``volatile'' since it
-is clearer to the nonspecialist.)  Only COMMON blocks declared
+is clearer to the nonspecialist.)  Only blank (unnamed) COMMON and
+COMMON blocks declared
 in a SAVE statement, or
 declared in the main program or in a block data subprogram remain
 defined as long as the program is running.  Variables and COMMON
@@ -1195,6 +1246,8 @@ See also: \fB\-library\fP, \fB\-usage\fP.
 .RS
 \}
 Prints cross-reference tables.  Default = none.
+NOTE: at this time, this option is not working
+correctly for module subprograms.
 .PP
 The \fIlist\fP consists of keywords separated by commas or colons.
 The keywords with their meanings are as follows:
@@ -1217,8 +1270,8 @@ label reference is denoted by the line number and statement type of
 the referring statement.   The label list is in sequential order.  The
 references are listed in the order they are encountered in the program.
 .PP
-See also: \fB\-calltree\fP, \fB\-reference\fP, \fB\-sort\fP,
-\fB\-symtab\fP, \fB\-vcg\fP.
+See also: \fB\-calltree\fP, \fB\-sort\fP,
+\fB\-symtab\fP.
 .RE
 
 .ie \nh \{
@@ -1234,7 +1287,7 @@ See also: \fB\-calltree\fP, \fB\-reference\fP, \fB\-sort\fP,
 If this flag is set, all identifiers whose datatype is
 not declared in each program unit will be listed.  This flag is useful for
 helping to find misspelled variable names, etc.  The same listing will
-be given if the program unit contains an \fCIMPLICIT NONE\fR statement.
+be given if the program unit contains an IMPLICIT NONE statement.
 Default = no.
 .PP
 See also: \fB\-sixchar\fP, \fB\-usage\fP.
@@ -1275,7 +1328,7 @@ arguments, common block declarations, and so forth, sometimes a single
 case will generate a long string of warnings.  Often this simply
 indicates some other cause than a genuine item-by-item mismatch, such
 as for
-example a varible missing from one list.  So in such cases
+example a variable missing from one list.  So in such cases
 \fBftnchek\fP stops printing the warnings after the cascade limit is
 reached, and the trailer ``\fCetc...\fR'' is printed to indicate that there
 were more errors not printed.  If you think that these warnings are
@@ -1335,12 +1388,15 @@ the Fortran 77 Standard.  Such extensions may cause your program not
 to be portable.  Examples include the use of underscores in variable
 names; variable names longer than six characters; statement lines
 longer than 72 characters; and nonstandard statements such as the
-\fCDO\fR ... \fCENDDO\fR structure.  \fBftnchek\fP does not report on
+DO ... ENDDO structure.  \fBftnchek\fP does not report on
 the use of lowercase letters.
 By default, all warnings are turned off.
 .PP
 This setting provides detailed control over the warnings about
-supported extensions to the Fortran 77 Standard.
+vendor extensions to the Fortran 77 Standard that are accepted
+by \fBftnchek\fP but were not
+adopted in Fortran 90.  It also provides control over warnings about
+syntax features that were introduced in Fortran 90.
 .if !\nh \{
 (Further details about the extensions themselves are given below in the
 section on Extensions.)
@@ -1357,37 +1413,7 @@ If \fIlist\fP is omitted, \fB\-f77\fP is equivalent to
 The warning keywords with their meanings are as follows:
 .TP \w'128:'u+2n
 \fBaccept\-type\fP:
-\fCACCEPT\fR and \fCTYPE\fR I/O statements.
-.TP
-\fBarray\-bounds\fP:
-Expressions defining array bounds that contain array elements or function
-references.
-.TP
-\fBassignment\-stmt\fP:
-Assignment statements involving arrays.  In Fortran 90, an array can
-be assigned to another array of compatible shape, or a scalar can be
-assigned to an array.  Neither of these assignments is permitted in
-Fortran 77.
-.IP
-A related warning occurs when an array is assigned to a
-scalar.  Since this is illegal also in Fortran 90, it is always warned
-about regardless of the \fB\-f77\fP setting (unless all checking is
-turned off with the \fB\-nocheck\fP flag).
-.TP
-\fBattribute\-based\-decl\fP:
-Type declarations in the new Fortran 90 attribute-based style.
-This style of declaration is distinguished by the use of
-a double colon (::) between the list of attributes and the list of
-declared variables.
-This option also controls warnings for use of Fortran 90 length or kind
-specifiers in type declarations.  (Although these specifiers can be
-used in non-attribute-based declarations, they are controlled by this
-option to avoid proliferation of \fB\-f77\fP options.)
-.TP
-\fBautomatic\-array\fP:
-Local (not dummy) arrays which have variable size.  These would
-correspond to arrays whose storage would have to be dynamically allocated at
-run time.
+ACCEPT and TYPE I/O statements.
 .TP
 \fBbackslash\fP:
 Unix backslash escape in strings.  This warning will be given only if
@@ -1395,27 +1421,10 @@ the \fB\-source=unix\-backslash\fP setting is specified to cause
 the escape interpretation of backslash..
 .TP
 \fBbyte\fP:
-\fCBYTE\fR data type declaration.
-.TP
-\fBcase\-construct\fP:
-The \fCSELECT CASE\fR construct.
-.TP
-\fBcharacter\fP:
-Extensions to the Fortran 77 standard regarding character data.  At
-present, this only controls warnings about character variables
-declared with zero or negative length.  In Fortran 77, all character
-variables must be of positive length.  In Fortran 90, they can be zero
-length, and declarations that specify negative lengths are permitted,
-turning into zero for the declared length.  Note: because negative
-length specifiers may indicate a programming error, the warning about
-them is given even if this option is turned off, and is suppressed
-only by the \fB\-nocheck\fP flag.
+BYTE data type declaration.
 .TP
 \fBcommon\-subprog\-name\fP:
 Common block and subprogram having the same name.
-.TP
-\fBconstruct\-name\fP:
-Use of a construct-name to label a control statement.
 .TP
 \fBcontinuation\fP:
 More than 19 successive continuation lines.
@@ -1426,9 +1435,6 @@ Unix C preprocessor directives in the source code.
 \fBcray\-pointer\fP:
 ``Cray pointer'' syntax.
 .TP
-\fBcycle\-exit\fP:
-The \fCCYCLE\fR and \fCEXIT\fR statements.
-.TP
 \fBd\-comment\fP:
 Debugging comments starting with \fCD\fR in the source code.
 .TP
@@ -1437,104 +1443,101 @@ DEC Fortran style tab-formatted source code.  This warning will be
 given only if the \fB\-source=dec\-tab\fP setting is specified to cause
 interpretation of tabs in this style.
 .TP
-\fBdo\-enddo\fP:
-\fCDO\fR loop extensions: terminal statement label omitted, \fCEND DO\fR,
-and \fCWHILE\fR.
-.TP
 \fBdouble\-complex\fP:
 Double precision complex datatype.
 .TP
+\fBf90\fP:
+Any non-Fortran 77 syntax features that are standard Fortran 90.
+There is no provision for controlling warnings about these features
+individually, because there are so many.  NOTE: since support for full
+Fortran 90 has only recently been added, our attention was focused on
+implementing support for the new syntax.  Warnings under this option
+for some features may not have been added yet, so 
+Fortran 77 standard conformance checking is incomplete at this time.
+We will tighten it up as time permits.
+.TP
 \fBformat\-dollarsign\fP:
-Dollar sign control code in \fCFORMAT\fR statements.
+Dollar sign control code in FORMAT statements.
 .TP
 \fBformat\-edit\-descr\fP:
-Nonstandard edit descriptors in \fCFORMAT\fR statements.
+Nonstandard edit descriptors in FORMAT statements.
 .TP
 \fBfunction\-noparen\fP:
 Function definition without parentheses.
 .TP
-\fBimplicit\-none\fP:
-\fCIMPLICIT NONE\fR statement.
+\fBinitializer\fP:
+Nonstandard initializer that mixes type declaration with an
+initialization using DATA-statement syntax, e.g.
+\fCINTEGER N / 10 /\fR.
+Warnings about Fortran 90 standard initializers, e.g. \fCINTEGER:: N=10\fR are
+controlled by \fB\-f77=f90\fP.
 .TP
-\fBinclude\fP:
-\fCINCLUDE\fR statement.
-.TP
-\fBinline\-comment\fP:
-Inline comments starting with an exclamation point.
-.TP
-\fBinternal\-list\-io\fP:
-List-directed I/O to or from an internal file.
+\fBinternal\-namelist\-io\fP:
+Namelist-directed I/O to or from an internal file.
+List-directed I/O (format \fC*\fP) is also nonstandard, but it is
+permitted in Fortran 90, so the warning about it is controlled
+by \fB\-f77=f90\fP.
 .TP
 \fBintrinsic\fP:
-Nonstandard intrinsic functions.
+Nonstandard intrinsic functions that were not adopted in Fortran 90.
 .TP
-\fBio\-keywords\fP
+\fBio\-keywords\fP:
 Nonstandard keywords used in I/O statements.  These fall into three
 groups.  The first group includes keywords that are accepted in
 Fortran 90:
 .TS
 center;
 l l l.
-\fCACTION\fR	\fCPAD\fR	\fCREADWRITE\fR
-\fCADVANCE\fR	\fCPOSITION\fR	\fCSIZE\fR
-\fCDELIM\fR	\fCREAD\fR	\fCWRITE\fR
-\fCEOR\fR
+ACTION	PAD	READWRITE
+ADVANCE	POSITION	SIZE
+DELIM	READ	WRITE
+EOR
 .TE
 The second group comprises the following VMS Fortran keywords:
 .TS
 center;
 l l l.
-\fCBLOCKSIZE\fR	\fCEXTENDSIZE\fR	\fCREADONLY\fR
-\fCBUFFERCOUNT\fR	\fCINITIALSIZE\fR	\fCRECORDSIZE\fR
-\fCCARRIAGECONTROL\fR	\fCMAXREC\fR	\fCRECORDTYPE\fR
-\fCDEFAULTFILE\fR	\fCNAME\fR (in \fCOPEN\fR)	\fCSHARED\fR
-\fCDISP\fR	\fCNOSPANBLOCK\fR	\fCTYPE\fR
-\fCDISPOSE\fR	\fCORGANIZATION\fR
+BLOCKSIZE	EXTENDSIZE	READONLY
+BUFFERCOUNT	INITIALSIZE	RECORDSIZE
+CARRIAGECONTROL	MAXREC	RECORDTYPE
+DEFAULTFILE	NAME (in OPEN)	SHARED
+DISP	NOSPANBLOCK	TYPE
+DISPOSE	ORGANIZATION
 .TE
-(The keyword \fCNAME\fR is standard only in the \fCINQUIRE\fR
+(The keyword NAME is standard only in the INQUIRE
 statement.)
 The third group consists of the following IBM/MVS keyword:
 .TS
 center;
 l l l.
-\fCNUM\fR
+NUM
 .TE
-This flag also controls a warning about use of \fCACCESS='APPEND'\fR,
-which is accepted by some compilers.  The value of \fC'APPEND'\fR is
+Warnings about the first group are controlled by \fB\-f77=f90\fP,
+not this flag.
+This flag also controls a warning about use of ACCESS='APPEND',
+which is accepted by some compilers.  The value of 'APPEND' is
 not valid for any I/O specifier in standard Fortran 77, and in Fortran
-90 \fC'APPEND'\fR should be used as a value of the \fCPOSITION\fR
-specifier, not  \fCACCESS\fR.
+90 'APPEND' should be used as a value of the POSITION
+specifier, not  ACCESS.
 .TP
 \fBlong\-line\fP:
-Statements with meaningful code past 72 columns.  This warning is
+Statements in fixed form with meaningful code past 72 columns.  This warning is
 given only if the \fB\-columns\fP setting has been used to increase
 the statement field width.
 .TP
-\fBlong\-name\fP:
-Identifiers over 6 characters long.
-.TP
-\fBmixed\-common\fP:
-Mixed character and noncharacter data in COMMON block.
-.TP
 \fBmixed\-expr\fP:
-Nonstandard type combinations in expressions, for example \fCDOUBLE
-PRECISION\fR with \fCCOMPLEX\fR, assigning hollerith to integer,
+Nonstandard type combinations in expressions, for example DOUBLE
+PRECISION with COMPLEX, assigning hollerith to integer,
 logical operations on integers.
 .TP
 \fBname\-dollarsign\fP:
-Dollar sign used as a character in identifiers.
-.TP
-\fBname\-underscore\fP:
-Underscore used as a character in identifiers.
-.TP
-\fBnamelist\fP:
-\fCNAMELIST\fR statement.
+Dollar sign or other nonstandard character used as a character in identifiers.
 .TP
 \fBparam\-implicit\-type\fP:
 Implicit typing of a parameter by the data type of the value assigned.
 This warning can only occur if implicit parameter typing has been
 turned on by the \fB\-source=param\-implicit\-type\fP option, or
-if the \fCPARAMETER\fR statement is of the nonstandard form without
+if the PARAMETER statement is of the nonstandard form without
 parentheses.  If this option is turned on,
 then any instances where implicit parameter typing occurs will be
 warned about.
@@ -1547,35 +1550,23 @@ value is assigned.
 .TP
 \fBparam\-intrinsic\fP:
 Intrinsic function or exponentiation by a real used to define the value
-of a \fCPARAMETER\fR definition.
+of a PARAMETER definition.  Note that in Fortran 90 the
+restriction on intrinsic functions has been relaxed somewhat, while the
+restriction on exponentiation remains.  In a future release we plan to
+provide a flag that will separate control over these two categories of
+warnings.
 .TP
 \fBparam\-noparen\fP:
-\fCPARAMETER\fR statement without parentheses.  The user should be
+PARAMETER statement without parentheses.  The user should be
 aware that the semantics of this form of the statement differs from
 that of the standard form: in this form, the parameter takes its data
 type from the value assigned, rather than having its default data type
 based on the first letter of the parameter name.  (This form of the
-\fCPARAMETER\fR statement was introduced by DEC before the Fortran 77
+PARAMETER statement was introduced by DEC before the Fortran 77
 standard was defined, and should be avoided.)
-.TP
-\fBpointer\fP:
-Fortran 90 standard pointer-related syntax, including \fCPOINTER\fR,
-\fCTARGET\fR and \fCALLOCATABLE\fR type declarations, \fCALLOCATE\fR,
-\fCDEALLOCATE\fR, and \fCNULLIFY\fR statements, and pointer assignment
-using \fC=>\fR.
 .TP
 \fBquad\-constant\fP:
 Quad precision real constants, e.g. of the form \fC1.23Q4\fR.
-.TP
-\fBquotemark\fP:
-Strings delimited by quote marks rather than apostrophes.
-.TP
-\fBrelops\fP:
-Relational (comparison) operators composed of punctuation, namely: <
-<= == /= > >=.
-.TP
-\fBsemicolon\fP:
-Semicolon used as statement separator.
 .TP
 \fBstatement\-order\fP:
 Statements out of the sequence mandated by the Standard.  The allowed
@@ -1583,7 +1574,16 @@ sequence is illustrated in Table 1 in the section on Interpreting the
 Output.
 .TP
 \fBtypeless\-constant\fP:
-Typeless constants, for example \fCZ'19AF'\fR.
+Typeless constants, for example \fCZ'19AF'\fR.  Constants of this form
+are now acceptable in Fortran 90, provided the initial letter is
+\fCB\fP, \fCO\fP, or \fCZ\fP.  Some vendor versions of Fortran
+allow constants with the initial letter \fCX\fP, or with the letter at
+the end of the string instead of the beginning.  This option controls
+warnings only about the forms that are not standard Fortran 90.  For
+warnings about the others, use \fB\-f77=f90\fP.
+.IP
+This flag also controls warnings if the constants have Fortran 90
+standard forms but are used outside of a DATA statement.
 .TP
 \fBtype\-size\fP:
 Type declarations specifying a size, for example \fCREAL*8\fR.
@@ -1591,9 +1591,6 @@ Type declarations specifying a size, for example \fCREAL*8\fR.
 \fBvariable\-format\fP:
 Variable repeat specification or field size in FORMAT.  These
 are of the form \fC<\fR \fIexpr\fP \fC>\fR.
-.TP
-\fBvms\-io\fP:
-Obsolete.  Now has the same meaning as the \fBio\-keywords\fP keyword.
 .PP
 See also: \fB\-f90\fP, \fB\-f95\fP, \fB\-portability\fP,
 \fB\-pretty\fP, \fB\-style\fP, \fB\-wordsize\fP.
@@ -1633,18 +1630,11 @@ If \fIlist\fP is omitted, \fB\-f90\fP is equivalent to
 \fB\-f90=all\fP, and \fB\-nof90\fP is equivalent to
 \fB\-f90=none\fP.
 .PP
-The following keywords have identical meanings for \fB\-f90\fP as for
-\fB\-f77\fP.  The reader is referred to the explanations under \fB\-f77\fP.
-.TS
-center;
-l l l.
-\fBaccept\-type\fP	\fBdouble\-complex\fP	\fBparam\-noparen\fP
-\fBbackslash\fP	\fBformat\-dollarsign\fP	\fBcray\-pointer\fP
-\fBbyte\fP	\fBformat\-edit\-descr\fP	\fBquad\-constant\fP
-\fBcpp\fP	\fBfunction\-noparen\fP	\fBtype\-size\fP
-\fBd\-comment\fP	\fBname\-dollarsign\fP	\fBvariable\-format\fP
-\fBdec\-tab\fP	\fBparam\-implicit\-type\fP	\fBvms\-io\fP
-.TE
+The option keywords for this setting are the same as for \fB\-f77\fP, excepting
+\fBf90\fP and \fBparam\-intrinsic\fP.  (An option for checking F90
+parameter declarations is in the works.)
+Most keywords have identical meanings for \fB\-f90\fP as for
+\fB\-f77\fP.  Refer to the explanations under \fB\-f77\fP.
 .PP
 The keywords which differ somewhat from the corresponding
 \fB\-f77\fP keywords are as follows.
@@ -1661,10 +1651,6 @@ This is the same as for \fB\-f77\fP except for the intrinsic
 functions defined in MIL-STD 1753, which are all included in Fortran
 90, and so are not warned about.  (See \fB\-intrinsic\fP for a list.)
 .TP
-\fBio\-keywords\fP:
-This is the same as for \fB\-f77\fP except that no warnings are given
-for the I/O keywords that are standard in Fortran 90.
-.TP
 \fBlong\-line\fP:
 Although the Fortran 90 Standard allows lines longer than 72
 characters in free source form, this restriction still applies to fixed
@@ -1680,20 +1666,9 @@ in Fortran 90.
 \fBstatement\-order\fP:
 This is similar to the corresponding \fB\-f77\fP warning, but applies
 the somewhat looser restrictions on statement order of the
-Fortran 90 Standard.  In particular, Fortran 90 allows \fCDATA\fR
+Fortran 90 Standard.  In particular, Fortran 90 allows DATA
 statements and statement-function definitions to be intermixed with
 specification statements.
-.TP
-\fBtypeless\-constant\fP:
-In Fortran 90, binary, octal, and hexadecimal constants of the form
-\fCB'ddd'\fR, \fCO'ddd'\fR, and \fCZ'ddd'\fR, respectively, are
-permitted.  Here \fC'ddd'\fR represents a string of digits.
-\fBftnchek\fP recognizes these forms, as well as a variant of the form
-\fCX'ddd'\fR for a
-hexadecimal constant, and other variants in which the base indicator
-\fCB\fR, \fCO\fR, \fCZ\fR, or \fCX\fR
-follows the digit string.  These variants were not adopted in
-Fortran 90, so only they are warned about when this flag is turned on.
 .PP
 See also: \fB\-f77\fP, \fB\-f95\fP, \fB\-portability\fP,
 \fB\-pretty\fP, \fB\-style\fP, \fB\-wordsize\fP.
@@ -1716,6 +1691,11 @@ which is legal Fortran 77.  However, since these features have been deleted
 from the Standard, it is possible that programs containing
 them will be unacceptable to some newer compilers.
 .PP
+Note that this setting does \fInot\fP specify checking conformance to
+the Fortran 95 standard, other than checking for these deleted
+features.  In future we plan to provide standard conformance checking
+for Fortran 95.
+.PP
 The \fIlist\fP
 consists of keywords separated by commas or colons.
 There are three special keywords: \fBall\fP to turn on all the
@@ -1728,20 +1708,20 @@ If \fIlist\fP is omitted, \fB\-f95\fP is equivalent to
 The warning keywords with their meanings are as follows.
 .TP \w'128:'u+2n
 \fBreal\-do\fP:
-A \fCDO\fR variable of any real numeric type.
+A DO variable of any real numeric type.
 .TP
 \fBpause\fP:
-The \fCPAUSE\fR statement.
+The PAUSE statement.
 .TP
 \fBassign\fP:
-The \fCASSIGN\fR statement, assigned \fCGOTO\fR, or assigned format.
+The ASSIGN statement, assigned GOTO, or assigned format.
 .TP
 \fBh\-edit\fP:
-The \fCH\fR edit descriptor in a format.
+The H edit descriptor in a format.
 .PP
 There is one other Fortran 77 syntax feature that was deleted in
-Fortran 95, namely  branching to an \fCENDIF\fR from outside the
-\fCIF\fR block.  However, \fBftnchek\fP is unable to analyze program
+Fortran 95, namely  branching to an ENDIF from outside the
+IF block.  However, \fBftnchek\fP is unable to analyze program
 flow, and so it does not provide a warning for this.
 .PP
 See also: \fB\-f77\fP, \fB\-f90\fP, \fB\-portability\fP,
@@ -1762,9 +1742,7 @@ Prints a list of all the command-line options with a
 short description of each along with its default value.
 This command is identical in function to
 the \fB``?''\fP
-argument, and is provided as a convenience for those systems in
-which the question mark has special meaning to the command
-interpreter.  Default = no.
+argument.  Default = no.
 .PP
 The help listing also prints the version number and patch level of
 \fBftnchek\fP and a copyright notice.
@@ -1772,9 +1750,9 @@ The help listing also prints the version number and patch level of
 Note: the ``default'' values printed in square brackets in the help listing
 are, strictly speaking, not the built-in defaults but the current
 values after any environment options and any command-line
-options preceding the \fB\-help\fP option have been processed.
+options in a preferences file or preceding the \fB\-help\fP option have been processed.
 .PP
-See also: \fB\-novice\fP, \fB\-version\fP, and \fBhelp\fP option of
+See also: \fB\-novice\fP, \fB\-version\fP, and \fIsetting\fP=\fBhelp\fP option of
 all settings that take a list of keywords.
 .RE
 
@@ -1788,21 +1766,27 @@ all settings that take a list of keywords.
 .BI \-identifier\-chars= list
 .RS
 \}
-Define non-alphanumeric characters that may be used in identifiers.
-By default, \fBftnchek\fP only accepts the dollar sign and underscore
-as non-alphanumeric characters in identifier names.  The characters in
-the \fIlist\fP replace whatever set of accepted non-alphanumeric characters
-was previously in effect.  Thus, if dollar sign or underscore are not
-included in the list, they lose their status as acceptable characters.
+Define non-standard characters that may be used in identifiers.
+According to the Fortran 90 standard, identifiers may contain only
+alphanumeric characters or the underscore.
+By default, \fBftnchek\fP also accepts the dollar sign as a 
+character in identifier names.
+The characters in
+the \fIlist\fP replace whatever set of accepted non-standard characters
+was previously in effect.  Thus, if dollar sign is not
+included in the list, it loses its status as an acceptable character.
 .PP
-This option is provided to enable \fBftnchek\fP to handle source files
-containing non-standard identifer names that may be needed, for
+The purpose of this option is to enable \fBftnchek\fP to correctly parse source files
+containing non-standard identifier names that may be needed, for
 example, to access certain operating system services.  See the section
 on Limitations and Extensions for the treatment of identifiers
 containing these characters in implicit typing.
+Warnings about use of these non-standard characters will still be
+given if the \fB\-f77=name\-dollarsign\fR or
+\fB\-f90=name\-dollarsign\fR option is given.
 .PP
 Using \fB\-noidentifer\-chars\fP turns off acceptance of
-non-alphanumeric characters entirely.
+non-standard characters entirely.
 .PP
 See also: \fB\-source\fP.
 .RE
@@ -1818,12 +1802,12 @@ See also: \fB\-source\fP.
 .RS
 \}
 Specifies a directory to be searched for files
-specified by \fCINCLUDE\fR statements.  Unlike other command-line
+specified by INCLUDE statements.  Unlike other command-line
 options, this setting is cumulative; that is, if it is given more than
 once on the command line, all the directories so specified are placed
 on a list that will be searched in the same order as they are given.
 The order in which \fBftnchek\fP searches for a file to be included is:
-the current directory; the directory specified by
+the current source-file directory; the directory specified by
 environment
 variable \fCFTNCHEK_INCLUDE\fR if any;
 the directories specified by any \fB\-include\fP options;
@@ -1834,7 +1818,12 @@ a standard system-wide directory
 and \fC\\include\fR
 for MSDOS).
 .PP
-See also: \fB\-f77\fP, \fB\-source\fP.
+When a USE statement is encountered, if the module it references
+is not found in the source-file directory or the directory specified
+with \fB\-module\fP, then the above list of locations is also
+searched.
+.PP
+See also: \fB\-f77\fP, \fB\-module\fP, \fB\-source\fP.
 .RE
 
 .ie \nh \{
@@ -1873,7 +1862,6 @@ If \fIlist\fP is omitted, \fB\-intrinsic\fP is equivalent to
 The nonstandard intrinsic functions needed to support the nonstandard
 extended precision data types (double complex and quad precision) are
 always recognized.  The intrinsics for the double complex data type are:
-\fC
 .TS
 center;
 l l l l.
@@ -1883,9 +1871,13 @@ CDEXP	DCONJG	ZABS	ZSQRT
 CDLOG	DIMAG	ZEXP	ZCOS
 CDSIN
 .TE
-\fR
+An intrinsic for converting integer directly to double precision is:
+.TS
+center;
+l.
+DFLOAT
+.TE
 The intrinsics for the quad precision and quad complex types are:
-\fC
 .TS
 center;
 l l l l.
@@ -1900,26 +1892,19 @@ IQINT	QCOSH	QMAX1	QTAN
 IQNINT	QDIM	QMIN1	QTANH
 QABS	QEXP	QMOD	SNGLQ
 .TE
-\fR
 The keywords controlling recognition of other nonstandard intrinsic
 functions are as follows:
 .TP \w'128:'u+2n
 \fBextra\fP:
-recognize the following commonly available nonstandard intrinsics (all
-except \fCEXIT\fR and \fCLOC\fR are defined in MIL-STD 1753):
-\fC
+recognize the following commonly available nonstandard intrinsics
 .TS
 center;
-l l l l.
-BTEST	IBCLR	IEOR	ISHFTC
-EXIT	IBITS	IOR	LOC
-IAND	IBSET	ISHFT	NOT
+l l.
+EXIT	LOC
 .TE
-\fR
 .TP
 \fBunix\fP:
 recognize these common Unix-specific intrinsic functions:
-\fC
 .TS
 center;
 l l l l.
@@ -1928,31 +1913,28 @@ AND	IARGC	OR	SYSTEM
 GETARG	IRAND	RAND	TIME
 GETENV	LSHIFT	RSHIFT	XOR
 .TE
-\fR
 .TP
 \fBvms\fP:
 recognize these common VMS-specific intrinsic functions:
-\fC
 .TS
 center;
 l l l l.
 DATE	IDATE	SECNDS	TIME
 ERRSNS	RAN	SIZEOF
 .TE
-\fR
 .TP
 \fBiargc\-no\-argument\fP:
-specify that \fCIARGC\fR may be invoked with no arguments.
+specify that IARGC may be invoked with no arguments.
 .TP
 \fBiargc\-one\-argument\fP:
-specify that \fCIARGC\fR may be invoked with one argument.
+specify that IARGC may be invoked with one argument.
 .TP
 \fBrand\-no\-argument\fP:
-specify that \fCRAND\fR and \fCIRAND\fR may be invoked with no
+specify that RAND and IRAND may be invoked with no
 arguments.
 .TP
 \fBrand\-one\-argument\fP:
-specify that \fCRAND\fR and \fCIRAND\fR may be invoked with one
+specify that RAND and IRAND may be invoked with one
 argument.
 .PP
 The \fBno\-argument\fP and \fBone\-argument\fP keywords work as
@@ -1972,7 +1954,7 @@ usage is checked.  When functions in any of these sets are
 included, their invocations will be checked according to the rules
 for the intrinsic functions; otherwise they will be checked as normal
 (user-written) external functions.  The non-standard warnings
-are controlled by the \fB\-f77=intrinsic\fP option.
+are controlled by the \fB\-f77=intrinsic\fP and \fB\-f77=intrinsic\fP options.
 .PP
 The default value of this setting is equivalent to
 .ie \nh \{
@@ -1997,9 +1979,9 @@ support the nonstandard extended precision data types.  The digit 1 is
 equivalent to \fBextra\fP, 2 is
 equivalent to \fBextra,unix\fP, and 3 is equivalent to
 \fBextra,vms\fP.
-The tens digit of this setting controls the syntax of the \fCRAND\fR
+The tens digit of this setting controls the syntax of the RAND
 intrinsic function, and the hundreds
-digit controls the syntax of the \fCIARGC\fR function.
+digit controls the syntax of the IARGC function.
 For these digits,
 specify 0 to require invocation with no argument,
 1 to require one argument, and 2 to allow either form.
@@ -2071,7 +2053,7 @@ requested, \fBftnchek\fP will still print out any line containing an
 error, to aid the user in determining where the error occurred.
 Default = no.
 .PP
-See also: \fB\-output\fP, \\fB\-symtab\fP, fB\-quiet\fP.
+See also: \fB\-output\fP, \fB\-symtab\fP, \fB\-quiet\fP.
 .RE
 
 .ie \nh \{
@@ -2092,6 +2074,9 @@ of the same name as the source code, but with the extension changed to
 If no declarations are written to the file, it is deleted to reduce
 clutter from empty files.
 .PP
+NOTE: this feature has not been tested on source files containing
+modules.  It may not work as expected.
+.PP
 If input comes from standard input, instead of a named file, then
 declarations are written to standard output.
 .PP
@@ -2099,7 +2084,7 @@ Variables are declared in alphabetical order within each declaration
 class and type, with integer variables first, because of their later
 possible use in array dimensions.
 .PP
-\fCPARAMETER\fR statements are an exception to the alphabetical order
+PARAMETER statements are an exception to the alphabetical order
 rule, because the Fortran 77 Standard requires that the expressions
 defining parameter values refer only to constants and already-defined
 parameter names.  This forces the original source file order of such
@@ -2239,8 +2224,6 @@ INCLUDE files.  See the
 .BR dcl2inc (1L)
 man page for the details
 of its use.
-.PP
-See also: \fB\-mkhtml\fP.
 .RE
 
 .ie \nh \{
@@ -2254,7 +2237,7 @@ See also: \fB\-mkhtml\fP.
 .RS
 \}
 Produce HTML documentation from source. Creates individual
-HTML files from ftnchek analysis and code comments. All comments
+HTML files from \fBftnchek\fR analysis and code comments. All comments
 immediately preceding and following the function or subroutine
 definition are captured to the HTML file. No reformatting of
 source comments is performed other than stripping of FORTRAN
@@ -2265,6 +2248,9 @@ subprogram.
 Usually you will also want to specify \fB\-call=tree\fP to create the
 root HTML file \fCCallTree.html\fR.  (Perhaps this file should be
 named \fCindex.html\fR.)
+.PP
+NOTE: this feature has not been tested on source files containing
+modules.  It may not work as expected.
 .PP
 Various options for the form of the HTML files are controlled
 by the \fIlist\fP, which consists of keywords
@@ -2325,7 +2311,42 @@ Produce variable declarations in free source form.  This mode is automatically
 used if the input source is free form.  This mainly affects the form
 of continuation lines if they are used.
 .PP
-See also: \fB\-calltree\fP, \fB\-makedcls\fP.
+See also: \fB\-calltree\fP.
+.RE
+
+.ie \nh \{
+.in 0
+3 /module=path
+.PP
+\}
+.el \{
+.TP
+.BI \-module= path
+.RS
+\}
+Specifies a directory in which to store module files created when
+MODULE subprograms are processed.  The directory will also be searched
+for module files specified by USE statements.  By default,
+module files are created and searched for in the same directory where
+the source file is located.  When searching for module files for
+input, if the file is not found in the default location or the one
+specified by this option, the locations specified by the
+\fB\-include\fP option will be searched as well.
+.PP
+If a program uses many modules and these are stored in the same directory as
+the source files, that directory can become quite cluttered.  With
+this option, you can specify that the modules be placed elsewhere in a
+dedicated directory.  This option is similar to the
+.BI \-J dir
+option of
+.BR gfortran (1)
+whereas the \fB\-include\fP option is like
+.BI \-I dir.
+.PP
+Note that module files created by \fBftnchek\fP have the suffix
+\fI.\|fkm\fP (for FtncheK Module).
+.PP
+See also: \fB\-include\fP.
 .RE
 
 .ie \nh \{
@@ -2344,13 +2365,19 @@ output for beginners.  It has two effects:
 (a)
 provides an extra message to the effect that a function
 that is used but not defined anywhere might be an array which the user
-forgot to declare in a \fCDIMENSION\fR statement (since the syntax of
+forgot to declare in a DIMENSION statement (since the syntax of
 an array reference is the same as that of a function reference).
 .TP \w'1.'u+2n
 (b)
 modifies the form of the error messages and warnings.  If the
 flag is turned off by \fB\-nonovice\fP, these messages are printed in a
-style more resembling UNIX \fBlint\fP.
+style more resembling typical compiler error messages.
+.PP
+Advanced users will want to turn this option off to give output suitable for
+use with integrated development environment tools and context-aware
+editors like \fBemacs\fP.  These tools can parse error messages
+to allow easy jumping to the location of the error.  See the section
+on changing the defaults for ways to make \fB\-nonovice\fR the default.
 .PP
 Default = yes.
 .RE
@@ -2389,6 +2416,7 @@ Default = turn-on = 4 bytes.
 The pointer size is used to inform precision mismatch warnings
 involving pointer variables, for example when a pointer is assigned a
 value from an allocation routine, or passed as a subprogram parameter.
+This option has nothing to do with Fortran 90 pointers.
 .PP
 See also: \fB\-f77\fP, \fB\-portability\fP, \fB\-truncation\fP,
 \fB\-wordsize\fP.
@@ -2406,11 +2434,11 @@ See also: \fB\-f77\fP, \fB\-portability\fP, \fB\-truncation\fP,
 \}
 \fBftnchek\fP will give warnings for a variety of
 non-portable usages.  Examples include the use of tabs except in comments
-or inside strings, the use of Hollerith constants, and the
+or inside strings, the use of Hollerith constants as data objects, and the
 equivalencing of variables of different data types.  This option does
-not produce warnings for supported extensions to the Fortran 77 Standard, which
+not produce warnings for supported extensions to the Fortran standard, which
 may also cause portability problems.  To catch those, use
-the \fB\-f77\fP setting.
+the \fB\-f77\fP or \fB\-f90\fP setting.
 By default, all warnings are turned off.
 .PP
 This setting provides detailed control over the warnings about
@@ -2434,6 +2462,18 @@ though it is used in a standard-conforming way.
 COMMON block variables not in descending order of storage size.  Some
 compilers require this ordering because of storage alignment requirements.
 .TP
+\fBconcrete\-kind\fP:
+Variable declarations specifying concrete kind parameters, or
+expressions or assignment statements mixing concrete with default or
+selected kinds.  Concrete kind parameters are those given explicit numerical
+values.  Since the Fortran standard does not specify a meaning for
+concrete kind parameters, there is no guarantee that a concrete value
+used will mean the same thing to different compilers, or that the
+value will even be a supported kind.  Programmers who need non-default
+kinds should use the intrinsics KIND, SELECTED_INT_KIND, and
+SELECTED_REAL_KIND to define kind parameters giving the desired
+numerical range and precision.
+.TP
 \fBhollerith\fP:
 Hollerith constants (other than within FORMAT
 specifications).  The Hollerith data type is a feature of Fortran IV
@@ -2447,23 +2487,34 @@ String constants, variables, or expressions over 255 chars long.
 \fBmixed\-equivalence\fP:
 Variables of different data types equivalenced.
 .TP
+\fBmixed\-kind\fP:
+Expressions or assignment statements mixing variables of the same type
+but with different default or selected kind parameters.  As best it
+can, \fBftnchek\fC tries not to issue warnings when the Standard
+guarantees that the operation is legitimate, for instance mixing a
+selected kind that is equivalent to single-precision REAL with default
+REAL.  Some legitimate operations may still receive warnings under
+\fB\-truncation\fP if it can be determined that there is a difference
+in precision between the operands.
+.IP
+Note that a warning is also given when a kind parameter defined for
+one type (e.g. using SELECTED_INT_KIND) is used to declare a variable
+of a different type (e.g. a REAL).  This warning is not controlled by
+this flag, since it is probably an error.  This warning can be turned
+off only by \fB\-nocheck\fP.
+.TP
 \fBmixed\-size\fP:
 Variables declared with default precision used with variables given
 explicit precision, in expressions, assignments, or as arguments.  For
-example, if a variable declared as \fCREAL*8\fR is treated as
-equivalent to \fCDOUBLE PRECISION\fR.
-.TP
-\fBreal\-do\fP:
-Non-integer DO loop index and bounds.  These can cause a program's
-results to depend on the hardware characteristics of the particular
-computer used.
+example, if a variable declared as REAL*8 is treated as
+equivalent to DOUBLE PRECISION.
 .TP
 \fBparam\-implicit\-type\fP:
 Implicit typing of a parameter by the data type of the value assigned,
 if it differs from the default type.  This warning can only occur if
 implicit parameter typing has been turned on by the
 \fB\-source=param\-implicit\-type\fP option, or
-if the \fCPARAMETER\fR statement is of the nonstandard form without
+if the PARAMETER statement is of the nonstandard form without
 parentheses.  If this option is turned on,
 then any instances where implicit parameter typing
 occurs and where the implicit type is different from the default type based
@@ -2471,6 +2522,11 @@ on the first letter of the parameter name, will be warned
 about.  Implicit parameter typing can change the
 semantics of statements where the parameter is used, causing
 portability problems.
+.TP
+\fBreal\-do\fP:
+Non-integer DO loop index and bounds.  These can cause a program's
+results to depend on the hardware characteristics of the particular
+computer used.
 .TP
 \fBtab\fP:
 Tabs in source code.  Tabs are interpreted differently by different
@@ -2569,6 +2625,13 @@ extension \fI.\|f\fP or \fI.\|for\fP replaced by \fI.\|prj\fP.
 .IR ftnchek.\|prj .)
 Default = none.
 .PP
+NOTE: Project files do not work correctly on programs containing
+modules.  Project files were developed for use with Fortran 77
+programs, to avoid the need for re-processing source files containing
+frequently used subprograms when programs calling those subprograms
+were checked.  In Fortran 90, modules are a better way to meet this
+need, and should be used instead when developing new code.
+.PP
 The \fIlist\fP consists of keywords separated by commas or colons.
 There are three special keywords: \fBall\fP to turn on all the
 options, \fBnone\fP to turn them all
@@ -2600,7 +2663,7 @@ done regardless of this option.
 .PP
 A project file contains a summary of information from the source file,
 for use in checking agreement
-among \fCFUNCTION\fR, \fCSUBROUTINE\fR, and \fCCOMMON\fR
+among FUNCTION, SUBROUTINE, and COMMON
 usages in other files.  It
 allows incremental checking, which saves time whenever you have a
 large set of files containing shared subroutines, most of which seldom
@@ -2661,6 +2724,12 @@ may be modified by the functions.  No warnings will be given if a
 function is found to have side effects.  Because stricter checking is
 possible if functions are assumed to be pure, you should turn this flag
 off only if your program actually uses functions with side effects.
+.PP
+NOTE: in Fortran 90, the PURE attribute for function declarations was
+introduced, allowing selected functions to be declared pure while
+others can be impure.  At this time \fBftnchek\fP has not been
+modified to recognize the PURE attribute on a per-function basis.  We
+are working on it.
 .RE
 
 .ie \nh \{
@@ -2688,32 +2757,6 @@ and \fB\-brief\fP is that \fB\-quiet\fP doesn't suppress any
 warning-related information, whereas \fB\-brief\fP does.
 .PP
 See also: \fB\-brief\fP.
-.RE
-
-.ie \nh \{
-.in 0
-3 /reference
-.PP
-\}
-.el \{
-.TP
-.B \-reference
-.RS
-\}
-Specifies that a who-calls-who table be printed.
-This table lists each subprogram followed by a list of the
-routines it calls.  This switch is equivalent to \fB\-calltree=reference\fP.
-Default = no.
-.PP
-The reference list omits routines
-called by unused library program units.  Thus it contains the same
-information as for the call-tree format, namely the hierarchy of
-subprogram calls, but printed in a different way.  This prints out
-a breadth-first traversal of the call tree whereas \fB\-calltree=tree\fP prints
-out a depth-first traversal.
-.PP
-See also: \fB\-calltree\fP, \fB\-crossref\fP, \fB\-library\fP,
-\fB\-sort\fP, \fB\-symtab\fP, \fB\-vcg\fP.
 .RE
 
 .ie \nh \{
@@ -2857,20 +2900,22 @@ eliminated in project files.
 \}
 One of the goals of the \fBftnchek\fP program is to
 help users to write portable Fortran programs.  One potential source
-of nonportability is the use of variable names that are longer than
+of nonportability in Fortran 77 is the use of variable names that are longer than
 six characters.  Some compilers just ignore the extra characters.
 This behavior could potentially lead to two different variables being
-considered as the same.  For instance, variables named \fCAVERAGECOST\fR
-and \fCAVERAGEPRICE\fR are the same in the first six characters.  If
-you wish to catch such possible conflicts, use this flag.  Default =
+considered as the same.  For instance, variables named AVERAGECOST
+and AVERAGEPRICE are the same in the first six characters.  If
+you wish to catch such possible conflicts, use this flag.
+Since Fortran 90 changed the maximum length of variable names to 31
+characters, this option is probably not useful any more.  Default =
 no.
 .PP
-Use the \fB\-f77=long\-names\fP if you want to
-list \fIall\fP
-variables longer than six characters, not just those pairs that are the same in
-the first six.
+Use \fB\-f77=f90\fP if you want to list \fIall\fP variables longer
+than six characters, not just those pairs that are the same in the
+first six.  Use \fB\-f90=long\-name\fP to report names even longer
+than the new standard.
 .PP
-See also: \fB\-f77\fP, \fB\-portability\fP.
+See also: \fB\-f77\fP, \fB\-f90\fP \fB\-portability\fP.
 .RE
 
 .ie \nh \{
@@ -2892,8 +2937,11 @@ the call tree of the main program are omitted.  If there are any
 cycles in the call graph (illegal in standard Fortran) they
 will be detected and diagnosed.  Default = no.
 .PP
+NOTE: this feature has not been tested on source files containing
+modules.  It may not work as expected.
+.PP
 See also: \fB\-calltree\fP,
-\fB\-crossref\fP, \fB\-reference\fP, \fB\-symtab\fP, \fB\-vcg\fP.
+\fB\-crossref\fP, \fB\-symtab\fP.
 .RE
 
 .ie \nh \{
@@ -2951,10 +2999,10 @@ given in the case where the line is a continuation, if
 \fB\-f77=dec\-tab\fP is in effect.
 .TP
 \fBvms\-include\fP (2):
-Accept VMS-style \fCINCLUDE\fR statements.  These follow the normal
+Accept VMS-style INCLUDE statements.  These follow the normal
 syntax, but with the following additional features: (1) the file
 extension, if not given, defaults to the same as a normal source file
-extension; and (2) the option \fC/LIST\fR or \fC/NOLIST\fR can be
+extension; and (2) the option /LIST or /NOLIST can be
 appended to the include-file name, to control listing of its contents.
 .TP
 \fBunix\-backslash\fP (4):
@@ -2981,8 +3029,8 @@ avoid spurious warnings only if (a) the program being checked uses
 backslash to embed an apostrophe or quote mark in a string
 instead of using the standard mechanism of doubling the delimiter; (b)
 the backslash is used to escape the end-of-line in order to continue
-a string across multiple source lines; or (c) a \fCPARAMETER\fR
-definition uses an intrinsic string function such as \fCLEN\fR with
+a string across multiple source lines; or (c) a PARAMETER
+definition uses an intrinsic string function such as LEN with
 such a string as argument, and that value is later used to define
 array dimensions, etc.
 .TP
@@ -2992,9 +3040,9 @@ Some non-standard compilers may allow the data type of the value to
 override the
 Fortran 77 default type of a parameter that is based on the first
 letter of the parameter name.  This option only applies to
-\fCPARAMETER\fR statements of the standard form which has parentheses.
+PARAMETER statements of the standard form which has parentheses.
 A parameter that has been
-explicitly declared in a type statement prior to the \fCPARAMETER\fR
+explicitly declared in a type statement prior to the PARAMETER
 statement is not affected by this option.  A warning will be given
 under the \fB\-f77=param\-implicit\-type\fP or
 \fB\-portability=param\-implicit\-type\fP option.
@@ -3007,12 +3055,12 @@ variables, these parameters will \fInot\fP be included.
 \fBdec\-param\-standard\-type\fP (16):
 Follow the Fortran 77 rule for data typing of DEC Fortran style
 parameters.  These are declared using a nonstandard form of the
-\fCPARAMETER\fR statement which lacks parentheses.  According to DEC
+PARAMETER statement which lacks parentheses.  According to DEC
 Fortran, parameters defined by this form of the statement have their
 data type given by the data type of the value assigned.  Use this
 option to tell \fBftnchek\fP not to follow this rule but instead to use the
-same rule as for standard \fCPARAMETER\fR statements.  This option
-does not apply to \fCPARAMETER\fR statements of the standard form.
+same rule as for standard PARAMETER statements.  This option
+does not apply to PARAMETER statements of the standard form.
 .PP
 By default, all these source code options are turned off, except for
 the \fBvms\-include\fP option, which is on by default in the VMS version..
@@ -3033,7 +3081,7 @@ See also: \fB\-f77\fP, \fB\-include\fP, \fB\-portability\fP.
 Provides extra-picky warnings about obsolescent or old-fashioned
 programming constructions.  This option is helpful for efforts to follow a
 modern programming style.  (Most of the things complained about under
-this option are forbidden in the \fBF\fC subset language.)  By
+this option are forbidden in the \fBF\fP subset language.)  By
 default, all warnings are turned off.
 .PP
 The \fIlist\fP consists of keywords
@@ -3123,10 +3171,18 @@ implicitly typed, rather than being named in an explicit type
 declaration statement.  The table also lists all subprograms invoked
 by the program unit, all COMMON blocks declared, etc.  Default = no.
 .PP
+NOTE: the layout of the symbol table was designed for Fortran 77.
+Things may not appear neatly aligned when long variable names,
+user-defined type names, etc., appear.  A redesign appropriate for
+Fortran 90 is in the works.
+.PP
 Also, for each program unit, a label table will be printed.  The table lists
 each label defined in the program unit; the line on which said statement
 label is defined; and the statement type (executable, format, or
 specification).  The labels are listed in sequential order.
+.PP
+Each user-defined (derived) type in the program unit will be printed out,
+listing its components and their types.
 .PP
 Also printed is a table describing the I/O units used by the program unit,
 together with information about how they are used: what operations
@@ -3134,7 +3190,7 @@ are performed, whether the access is sequential or direct, and whether
 the I/O is formatted or unformatted.
 .PP
 See also: \fB\-calltree\fP, \fB\-crossref\fP, \fB\-list\fP,
-\fB\-reference\fP, \fB\-sort\fP, \fB\-vcg\fP.
+\fB\-sort\fP.
 .RE
 
 .ie \nh \{
@@ -3166,7 +3222,7 @@ If \fIlist\fP is omitted, \fB\-truncation\fP is equivalent to
 The warning keywords with their meanings are as follows:
 .TP \w'128:'u+2n
 \fBint\-div\-exponent\fP:
-use of the result of integer division as an exponent.
+Use of the result of integer division as an exponent.
 This suggests that a real quotient is intended.
 An example would be writing \fCX**(1/3)\fR to evaluate the cube root
 of \fCX\fR. The correct expression is \fCX**(1./3.)\fR.
@@ -3176,47 +3232,52 @@ Conversion of an expression involving an integer division to real.
 This suggests that a real quotient is intended.
 .TP
 \fBint\-div\-zero\fP:
-division in an integer constant expression that
+Division in an integer constant expression that
 yields a result of zero.
 .TP
 \fBint\-neg\-power\fP:
-exponentiation of an integer by a negative
+Exponentiation of an integer by a negative
 integer (which yields zero unless the base integer is 1 in magnitude).
 This suggests that a real base is intended.
 .TP
+\fBkind\fP:
+Possible loss of precision or overflow of range when assigning a
+numerical value of one kind to a variable of a different kind.
+.TP
 \fBpromotion\fP:
-automatic conversion of a lower precision quantity to one of higher
+Automatic conversion of a lower precision quantity to one of higher
 precision.  The loss of accuracy for real variables in this process is
 comparable to the corresponding demotion.  No warning is given for
 promotion of integer quantities to real since this is ordinarily
 exact.
 .TP
 \fBreal\-do\-index\fP:
-use of a non-integer DO index in a
+Use of a non-integer DO index in a
 loop with integer bounds.
 An integer DO index with real bounds is always
 warned about regardless of this setting.
 .TP
 \fBreal\-subscript\fP:
-use of a non-integer array subscript.
+Use of a non-integer array subscript.
 .TP
 \fBsignificant\-figures\fP:
-overspecifying a single precision constant.  This may indicate that a
+Overspecifying a single precision constant.  This may indicate that a
 double precision constant was intended.
 .TP
 \fBsize\-demotion\fP:
-automatic conversion of a higher precision quantity to one of lower
+Automatic conversion of a higher precision quantity to one of lower
 precision of the same type.  This warning only occurs when an explicit
 size is used in declaring the type of one or both operands in an
-assignment.  For example, a warning wil be issued where a \fCREAL*8\fR
-variable is assigned to a \fCREAL\fR variable, if the default wordsize
+assignment.  For example, a warning wil be issued where a REAL*8
+variable is assigned to a REAL variable, if the default wordsize
 of 4 is in effect.  A warning is also issued if a long integer is
-assigned to a shorter one, for example, if an \fCINTEGER\fR
-expression is assigned to an \fCINTEGER*2\fR variable.  There is one
+assigned to a shorter one, for example, if an INTEGER
+expression is assigned to an INTEGER*2 variable.  There is one
 exception to this last case, namely if the right hand side of the assignment
 is a small literal constant (less than 128).
+.TP
 \fBtype\-demotion\fP:
-automatic conversion of a higher precision quantity to one of lower
+Automatic conversion of a higher precision quantity to one of lower
 precision of different type.  This warning includes conversion of real
 quantities to integer, double precision to single precision real, and
 assignment of a longer character string to a shorter one.
@@ -3227,7 +3288,7 @@ imaginary part.
 Warnings about promotions and demotions are given only when
 the conversion is done automatically, e.g. in expressions of mixed
 precision or in an assignment statement.  If intrinsic
-functions such as \fCINT\fR are used to perform the conversion, no warning
+functions such as INT are used to perform the conversion, no warning
 is given.
 .PP
 See also: \fB\-portability\fP, \fB\-wordsize\fP.
@@ -3267,12 +3328,12 @@ items, unused items, etc.
 The warning keywords with their meanings are as follows:
 .TP \w'128:'u+2n
 \fBarg\-alias\fP:
-a scalar dummy argument is actually the same as another and is (or may be)
+A scalar dummy argument is actually the same as another and is (or may be)
 modified.  The Fortran 77 standard (section 15.9.3.6) prohibits
 modifying an argument that is aliased to another.
 .TP
 \fBarg\-array\-alias\fP:
-a dummy argument which is an array or array element is in the same array as
+A dummy argument which is an array or array element is in the same array as
 another and is modified.  This flag is similar to \fBarg\-alias\fP but
 provides separate control over array arguments.  It is harder to
 tell if aliasing is occurring in the case of arrays, so if
@@ -3281,7 +3342,7 @@ array-related ones to be turned off without suppressing the warnings
 for scalars.
 .TP
 \fBarg\-common\-alias\fP:
-a scalar dummy argument is the same as a common variable in the
+A scalar dummy argument is the same as a common variable in the
 subprogram, and either is modified.  This is also prohibited by the
 Fortran 77 standard.  If common checking is not exact (see the
 \fB\-common\fP setting), it is harder to tell if aliasing is
@@ -3290,37 +3351,37 @@ given if the variable is anywhere in a common block that is declared
 by the subprogram.
 .TP
 \fBarg\-common\-array\-alias\fP:
-a dummy argument which is an array or array element is in the same
+A dummy argument which is an array or array element is in the same
 array as a common variable, and either is modified.  If common
 checking is not exact, the variable can be anywhere in a common block
 that is declared by the subprogram.
 .TP
 \fBarg\-const\-modified\fP:
-a subprogram modifies an argument which is a constant or an
+A subprogram modifies an argument which is a constant or an
 expression.  Such an action could cause anomalous behavior of the program.
 .TP
 \fBarg\-unused\fP:
-a dummy argument is declared but never used.  This is similar to the
+A dummy argument is declared but never used.  This is similar to the
 \fBvar\-unused\fP keyword described below, but applies only to arguments.
 .TP
 \fBcom\-block\-unused\fP:
-a common block is declared but none of the variables in it are
+A common block is declared but none of the variables in it are
 used by any subprogram.
 This warning is suppressed if the common strictness setting is 0.
 .TP
 \fBcom\-block\-volatile\fP:
-a common block may lose the definition of its contents if common
+A common block may lose the definition of its contents if common
 blocks are volatile.  This option only has an effect if the
 \fB\-common=volatile\fP flag is in effect.  See the discussion of the
 \fB\-common\fP setting above.
 .TP
 \fBcom\-var\-set\-unused\fP:
-a common variable is assigned a value, but its value is not used by
+A common variable is assigned a value, but its value is not used by
 any subprogram.
 This warning is suppressed if the common strictness setting is 0.
 .TP
 \fBcom\-var\-uninitialized\fP:
-a common variable's value is used in some subprogram, but is not set
+A common variable's value is used in some subprogram, but is not set
 anywhere.
 Unfortunately, \fBftnchek\fP does
 not do a thorough enough analysis of the calling sequence to know
@@ -3332,31 +3393,31 @@ setting is 3 (variable by variable agreement).
 This warning is suppressed if the common strictness setting is 0.
 .TP
 \fBcom\-var\-unused\fP:
-a common variable is declared but not used by any subprogram.
+A common variable is declared but not used by any subprogram.
 This warning is suppressed if the common strictness setting is 0.
 .TP
 \fBdo\-index\-modified\fP:
-a variable that is the index of a DO loop is modified by some
+A variable that is the index of a DO loop is modified by some
 statement within the range of the loop.  The Standard permits an
 active DO variable to be modified only by the incrementation mechanism
 of the DO statement.
 .TP
 \fBext\-multiply\-defined\fP:
-an external (a subroutine or function) is defined more than once.
+An external (a subroutine or function) is defined more than once.
 Definition of an external means providing the body of its source code.
 .TP
 \fBext\-declared\-only\fP:
-a name is declared in an \fCEXTERNAL\fR statement in some program unit, but
+A name is declared in an EXTERNAL statement in some program unit, but
 is not defined or used anywhere.
 .TP
 \fBext\-undefined\fP:
-an external is used (invoked) but not defined anywhere.  This option
+An external is used (invoked) but not defined anywhere.  This option
 is equivalent to the \fB\-external\fP flag.  If the subprogram is
 invoked more than once, those invocations will still be checked for
 consistency.
 .TP
 \fBext\-unused\fP:
-an external is defined (its subprogram body is present) but it is not
+An external is defined (its subprogram body is present) but it is not
 used.  A subprogram is considered unused even if it is
 invoked by some other subprogram, if it cannot be called from any thread
 of execution starting with the main program.
@@ -3369,16 +3430,28 @@ This warning is suppressed in library mode, but library mode has the
 additional effect of suppressing argument checking for unused routines.
 .TP
 \fBlabel\-undefined\fP:
-a statement refers to a label that has not been defined.
+A statement refers to a label that has not been defined.
 .TP
 \fBlabel\-unused\fP:
-a statement label is defined, but never referred to.
+A statement label is defined, but never referred to.
+.TP
+\fBmod-var-set-unused\fP:
+A variable declared in a module is set somewhere, but not used in any
+program unit that USEs the module.
+.TP
+\fBmod-var-uninitialized\fP:
+A variable declared in a module is used somewhere, but not set anywhere.
+.TP
+\fBmod-var-unused\fP:
+A variable declared in a module is not referenced in any program unit
+that USEs the module; or some program that USEs a module
+does not reference any of the variables declared in the module.
 .TP
 \fBvar\-set\-unused\fP:
-a local variable is assigned a value, but that value is not used.
+A local variable is assigned a value, but that value is not used.
 .TP
 \fBvar\-uninitialized\fP:
-a local variable's value may be used before it is assigned.
+A local variable's value may be used before it is assigned.
 Sometimes \fBftnchek\fP makes a mistake in the warnings about local
 variable usage.  Usually it errs on the side of giving a warning where no
 problem exists, but in rare cases it may fail to warn where the
@@ -3389,7 +3462,7 @@ it is equivalenced to.  For arrays, the rule is that a reference to
 any array element is treated as a reference to all elements of the array.
 .TP
 \fBvar\-unused\fP:
-a local variable is declared (for instance, in a type declaration) but
+A local variable is declared (for instance, in a type declaration) but
 is not used in the program unit.  Does not apply to dummy arguments: warnings
 about them are controlled by the keyword \fBarg\-unused\fP described above.
 .PP
@@ -3417,46 +3490,6 @@ See also: \fB\-common\fP, \fB\-declare\fP, \fB\-extern\fP,
 
 .ie \nh \{
 .in 0
-3 /vcg
-.PP
-\}
-.el \{
-.TP
-.B \-vcg
-.RS
-\}
-Produce the call graph in the form of a VCG graph description.  This
-description is written to a separate file, with the same stem as the
-file containing the main program, and suffix
-.IR .vcg .
-This file is able to be given directly to
-.BR xvcg (1L)
-to visualize the call graph.
-(If input is from the standard input, then the graph description is
-sent to standard output.)
-This switch is equivalent to \fB\-calltree=vcg\fP.
-Default = no.
-.PP
-The VCG description as created is more complex than it need be. VCG allows
-graphs and nested subgraphs: each subroutine is created as a
-subgraph nested inside its calling routines.  This allows you to
-interactively display subgraphs or summarise them.
-.PP
-The
-.B \-vcg
-option for
-.B ftnchek
-was written by Dr. Philip Rubini of Cranfield University, UK.
-.PP
-\fBxvcg\fP is a graph visualisation tool which runs under the X windows system.
-It is freely available from ftp.cs.uni\-sb.de. It was written by G. Sander
-of the University of Saarland, Germany.
-.PP
-See also: \fB\-calltree\fP, \fB\-crossref\fP, \fB\-reference\fP, \fB\-sort\fP.
-.RE
-
-.ie \nh \{
-.in 0
 3 /version
 .PP
 \}
@@ -3473,25 +3506,6 @@ in the version information printed at the start of processing.
 Default = no.
 .PP
 See also: \fB\-help\fP.
-.RE
-
-.ie \nh \{
-.in 0
-3 /volatile
-.PP
-\}
-.el \{
-.TP
-.B \-volatile
-.RS
-\}
-Assume that COMMON blocks are volatile.
-Default = no.
-.PP
-This flag is superseded by \fB\-common=volatile\fP, and should no
-longer be used.  It may be eliminated in a future release of \fBftnchek\fP.
-.PP
-See also: \fB\-common\fP, \fB\-usage\fP.
 .RE
 
 .ie \nh \{
@@ -3543,8 +3557,8 @@ no default value will be assumed.
 This is equivalent to specifying
 \fB\-portability=mixed\-size\fP.
 Use it to find cases of mixing default and explicit
-precision, for example to flag places where \fCREAL*8\fR is treated
-as equivalent to \fCDOUBLE PRECISION\fR.
+precision, for example to flag places where REAL*8 is treated
+as equivalent to DOUBLE PRECISION.
 .PP
 See also: \fB\-pointersize\fP, \fB\-portability\fP, \fB\-truncation\fP.
 .RE
@@ -3564,6 +3578,8 @@ separate lines between the words of the message for better
 readability.  If turned off with \fB\-nowrap\fP, each separate error
 message will be printed on one line, leaving it up to the display to
 wrap the message or truncate it.  Default = turn-on = 79.
+.PP
+DOCUMENTATION UPDATED FOR VERSION 4.0 TO HERE
 
 .ie \nh \{
 .in 0
@@ -3917,12 +3933,12 @@ should have been converted to real before doing the division.
 \fCAVG\fR was never printed out after being calculated.
 .TP \w'1.'u+2n
 4.
-\fCNUMS\fR should have been declared \fCINTEGER\fR
-instead of \fCREAL\fR.
+\fCNUMS\fR should have been declared INTEGER
+instead of REAL.
 .PP
 We also see that \fCI\fR, not \fCJ\fR, should have been declared
-\fCINTEGER\fR in function \fCCOMPAV\fR. Also, \fCMAXNOS\fR was not
-declared as \fCINTEGER\fR, nor \fCCOMPAV\fR as \fCREAL\fR, in
+INTEGER in function \fCCOMPAV\fR. Also, \fCMAXNOS\fR was not
+declared as INTEGER, nor \fCCOMPAV\fR as REAL, in
 program \fCAVENUM\fR.  These are not errors, but they may indicate
 carelessness.  As it happened, the default type of these variables
 coincided with the intended type.
@@ -3960,6 +3976,8 @@ and of individual messages below.
 Each message is prefixed with a word or phrase indicating the nature
 of the condition and its severity.
 .PP
+\fIThis section is very incomplete.  It has not been updated in a long time.\fR
+.PP
 ``Error'' means a syntax error.  The simplest
 kind of syntax errors are typographical errors, for example unbalanced
 parentheses or misspelling of a keyword.  This type of error is caught
@@ -3977,7 +3995,7 @@ interpret the other messages \fBftnchek\fP gives.
 \fBftnchek\fP supports but that is not according to the Fortran 77 Standard.
 The extensions that \fBftnchek\fP accepts
 are described in the section on Extensions below.
-One example is the \fCDO\fR ... \fCENDDO\fR construction.
+One example is the DO ... ENDDO construction.
 If a program uses these extensions, warnings will be
 given according to specifications under the \fB\-f77\fP setting.
 The default behavior is to give no warnings.
@@ -4063,12 +4081,12 @@ style, the appearance of the messages is similar to that of the
 UNIX \fBlint\fP program.
 .PP
 \fBftnchek\fP is still blind to some kinds of syntax errors.
-The two most important ones are detailed checking of \fCFORMAT\fR statements,
+The two most important ones are detailed checking of FORMAT statements,
 and almost anything to do with control of execution
-flow by means of \fCIF\fR, \fCDO\fR,
-and \fCGOTO\fR statements: namely correct nesting of control structures,
-matching of opening statements such as \fCIF\fR ... \fCTHEN\fR with
-closing statements such as \fCENDIF\fR, and the proper use of
+flow by means of IF, DO,
+and GOTO statements: namely correct nesting of control structures,
+matching of opening statements such as IF ... THEN with
+closing statements such as ENDIF, and the proper use of
 statement labels (numbers).  Most compilers will catch these errors.
 See the section on Limitations for a more detailed discussion.
 .PP
@@ -4103,7 +4121,7 @@ two declarations are legal in Fortran since they both declare two real
 variables.  At strictness level 1 or 2, no warning would be given in
 this example, but the warning would
 be given if there were a data type mismatch, for instance, if \fCB\fR
-were declared \fCINTEGER\fR.
+were declared INTEGER.
 Controlled by \fB\-common\fP setting.
 
 .TP
@@ -4116,10 +4134,12 @@ Controlled by \fB\-portability=common\-alignment\fP option.
 
 .TP
 .I "Common block NAME has mixed character and non-character variables"
-The ANSI standard requires that if any variable in a COMMON
-block is of type \fCCHARACTER\fR, then all other variables in the
-same COMMON block must also be of type \fCCHARACTER\fR.
-Controlled by \fB\-f77=mixed\-common\fP option.
+The ANSI Fortran 77 standard requires that if any variable in a COMMON
+block is of type CHARACTER, then all other variables in the
+same COMMON block must also be of type CHARACTER.
+In Fortran 90 this requirement is relaxed, so long as corresponding
+storage locations have the same type.
+Controlled by \fB\-f77=f90\fP option.
 
 .TP
 .I "Common block NAME: varying length"
@@ -4155,14 +4175,14 @@ the name of the function defined in the program unit.
 .TP
 .I "Error: cannot be declared in SAVE statement in prog unit NAME"
 Only local variables and common blocks can be declared in a
-\fCSAVE\fR statement.
+SAVE statement.
 
 .TP
 .I "Error: No path to this statement"
 \fBftnchek\fP will detect statements which are ignored or by-passed because
 there is no foreseeable route to the statement.  For example, an
 unnumbered statement (a statement without a statement label), occurring
-immediately after a \fCGOTO\fR
+immediately after a GOTO
 statement, cannot possibly be executed.
 
 .TP
@@ -4220,9 +4240,9 @@ Controlled by \fB\-portability=tab\fP.
 
 .TP
 .I "Nonportable usage: non-integer DO loop bounds"
-This warning is only given when the \fCDO\fR index and bounds are
+This warning is only given when the DO index and bounds are
 non-integer.
-Use of non-integer quantities in a \fCDO\fR statement may cause
+Use of non-integer quantities in a DO statement may cause
 unexpected errors, or different results on different machines, due to
 roundoff effects.
 Controlled by \fB\-portability=real\-do\fP.
@@ -4235,7 +4255,7 @@ mismatch, for which the possibility exists that what appears to be a
 function is actually meant to be an array.  If the programmer forgot to
 dimension an array, references to the array will be interpreted as
 function invocations.  This message will be suppressed if the name in
-question appears in an \fCEXTERNAL\fR or \fCINTRINSIC\fR statement.
+question appears in an EXTERNAL or INTRINSIC statement.
 Controlled by the \fB\-novice\fP option.
 
 .TP
@@ -4275,16 +4295,16 @@ Controlled by \fB\-pretty=parentheses\fP.
 .TP
 .I "Subprogram NAME: argument data type mismatch at position n"
 The subprogram's
-\fIn\fP-th actual argument (in the \fCCALL\fR or the
+\fIn\fP-th actual argument (in the CALL or the
 usage of a function) differs in datatype or precision from the \fIn\fP-th dummy
-argument (in the \fCSUBROUTINE\fR or \fCFUNCTION\fR
+argument (in the SUBROUTINE or FUNCTION
 declaration).  For instance, if the user defines a
 subprogram by
 .nf
 \fC     SUBROUTINE SUBA(X)\fR
 \fC     REAL X\fR
 .fi
-and elsewhere invokes \fCSUBA\fR by
+and elsewhere invokes SUBA by
 .nf
 \fC     CALL SUBA(2)\fR
 .fi
@@ -4303,7 +4323,7 @@ elsewhere in the same program unit, then its type is determined by that
 usage.  If not, then if the name of the subprogram does not appear in
 an explicit type declaration, it is assumed to be a subroutine; if it
 is explicitly typed it is taken as a function.  Therefore, subroutines
-passed as actual arguments need only be declared by an \fCEXTERNAL\fR
+passed as actual arguments need only be declared by an EXTERNAL
 statement in the calling program unit, whereas functions must also be
 explicitly typed in order to avoid generating this error message.
 Controlled by \fB\-arguments\fP setting.
@@ -4331,8 +4351,8 @@ subprogram.  The conflict can be one of two types, as outlined below.
 .if n .ti +3
 .if t .ti +.3i
 .I "Dummy arg is modified, Actual arg is const or expr"
-A dummy argument is an argument as named in a \fCSUBROUTINE\fR or
-\fCFUNCTION\fR statement and used within the subprogram.  An actual
+A dummy argument is an argument as named in a SUBROUTINE or
+FUNCTION statement and used within the subprogram.  An actual
 argument is an argument as passed to a subroutine or function by the
 caller.  \fBftnchek\fP is saying that a dummy argument is modified by
 the subprogram, implying that its value is changed in the calling program unit.
@@ -4380,7 +4400,7 @@ An inconsistency has been found between the number of dummy arguments
 (parameters) a subprogram has and the number of actual arguments given it
 in an invocation.
 \fBftnchek\fP keeps track of all invocations of subprograms
-(\fCCALL\fR
+(CALL
 statements and expressions using functions) and compares them with
 the definitions of the subprograms elsewhere in the source code.  The
 Fortran compiler normally does not catch this type of error.
@@ -4429,8 +4449,8 @@ Controlled by the \fB\-usage=var\-uninitialized\fP option.
 
 .TP
 .I "Warning: DO index is not integer"
-This warning is only given when the \fCDO\fR bounds are integer, but
-the \fCDO\fR index is not.  It may indicate a failure to declare the
+This warning is only given when the DO bounds are integer, but
+the DO index is not.  It may indicate a failure to declare the
 index to be an integer.
 Controlled by \fB\-truncation=real\-do\fP option.
 
@@ -4455,7 +4475,7 @@ Controlled by \fB\-truncation=int\-div\-exponent\fP option.
 The way that functions in Fortran return a value is by assigning the
 value to the name of the function.  This message indicates that the
 function was not assigned a value before the point where a
-\fCRETURN\fR statement was found.  Therefore it is possible that the
+RETURN statement was found.  Therefore it is possible that the
 function could return an undefined value.
 
 .TP
@@ -4515,8 +4535,8 @@ Controlled by \fB\-division\fP option.
 \fBftnchek\fP has detected an assignment statement which has a real
 expression on the right, but an integer variable on the left.  The
 fractional part of the real value will be lost.  If you explicitly
-convert the real expression to integer using the \fCINT\fR or
-\fCNINT\fR intrinsic function, no warning will be printed.  A similar
+convert the real expression to integer using the INT or
+NINT intrinsic function, no warning will be printed.  A similar
 message is printed if a double precision expression is assigned to a
 single precision variable, etc.
 Controlled by \fB\-truncation=demotion\fP option.
@@ -4530,7 +4550,7 @@ Controlled by \fB\-truncation=real\-subscript\fP option.
 .TP
 .I "Warning: Unknown intrinsic function"
 This message warns the user that a name declared in an
-\fCINTRINSIC\fR statement is unknown to \fBftnchek\fP.  Probably it is
+INTRINSIC statement is unknown to \fBftnchek\fP.  Probably it is
 a nonstandard intrinsic function, and so the program will not be
 portable.  The function will be treated by \fBftnchek\fP as a
 user-defined function.  This warning is not suppressed by any
@@ -4541,6 +4561,9 @@ supported sets of nonstandard intrinsics, you can use the
 
 .SH "LIMITATIONS AND EXTENSIONS"
 
+THIS SECTION IS OUT OF DATE.  IT DOES NOT REFLECT THE UPGRADE IN
+VERSION 4.0 TO ACCEPT FORTRAN 90.
+.PP
 \fBftnchek\fP accepts ANSI standard Fortran-77 programs with some minor
 limitations and numerous common extensions.
 .TP
@@ -4570,10 +4593,10 @@ fully checked.
 .PP
 If a user-supplied subprogram has the same name as one of the
 nonstandard intrinsic functions recognized by \fBftnchek\fP, it must
-be declared in an \fCEXTERNAL\fR statement in any routine that invokes
+be declared in an EXTERNAL statement in any routine that invokes
 it.  Otherwise it will be subject to the checking normally given to
 the intrinsic function.  Since the nonstandard intrinsics are not
-standard, this \fCEXTERNAL\fR statement is not required by the Fortran
+standard, this EXTERNAL statement is not required by the Fortran
 77 Standard.  Using the \fB\-intrinsic=none\fP setting, recognition of most
 nonstandard intrinsics (excepting only those needed to support the
 double complex data type) can be turned off.  See the lists of
@@ -4653,26 +4676,26 @@ directives are not processed by \fBftnchek\fP.  Programs that use them for
 including source files should be passed through the preprocessor
 before being input to \fBftnchek\fP.
 As noted below, \fBftnchek\fP does process
-\fCINCLUDE\fR statements, which have a different syntax.
+INCLUDE statements, which have a different syntax.
 An optional program, \fBftnpp\fP(1L) (available separately)
 provides  preprocessing that properly handles
-\fCINCLUDE\fR files.
+INCLUDE files.
 .PP
-The Fortran 90 \fCDO\fR ...  \fCENDDO\fR control structure is permitted.
-The \fCCYCLE\fR and \fCEXIT\fR statements are accepted.  All of these may
+The Fortran 90 DO ...  ENDDO control structure is permitted.
+The CYCLE and EXIT statements are accepted.  All of these may
 have an optional do-construct name, but construct names are not checked for
 consistency. (F90)
 .PP
 The Fortran 90 \fCSELECT CASE\fR construct is accepted. (F90)
 .PP
-Construct names are also accepted on \fCIF\fR, \fCTHEN\fR, \fCELSE\fR,
-\fCENDIF\fR and \fCSELECT CASE\fR statements. (F90)
+Construct names are also accepted on IF, THEN, ELSE,
+ENDIF and \fCSELECT CASE\fR statements. (F90)
 .PP
-The \fCACCEPT\fR and \fCTYPE\fR statements (for terminal I/O) are
-permitted, with the same syntax as \fCPRINT\fR.
+The ACCEPT and TYPE statements (for terminal I/O) are
+permitted, with the same syntax as PRINT.
 .PP
 The so-called ``Cray pointer'' syntax is tolerated. It is not the same as the
-Fortran 90 \fCPOINTER\fR statement.  There is no real checking
+Fortran 90 POINTER statement.  There is no real checking
 of the statement other than basic syntax.
 The form of this statement is
 .br
@@ -4686,11 +4709,11 @@ Usage checking of the pointee variables is suppressed, since in
 practice they are accessed indirectly via the pointers.
 .PP
 The following Fortran 90 pointer related syntaxes are accepted:
-\fCALLOCATABLE\fR, \fCPOINTER\fR, and \fCTARGET\fR statements and the
-same attributes in type declarations; \fCALLOCATE\fR,
-\fCDEALLOCATE\fR, and \fCNULLIFY\fR executable statements; pointer
+ALLOCATABLE, POINTER, and TARGET statements and the
+same attributes in type declarations; ALLOCATE,
+DEALLOCATE, and NULLIFY executable statements; pointer
 assignment using \fC=>\fR operator; and the intrinsic functions
-\fCALLOCATED\fR and \fCASSOCIATED\fR.  Little semantic checking of
+ALLOCATED and ASSOCIATED.  Little semantic checking of
 pointer variables and operations is done beyond basic set and used
 status.  For instance, there is no checking for such errors as
 dangling pointers, or use of unallocated arrays.
@@ -4725,16 +4748,16 @@ syntax error messages, \fBftnchek\fP waits till the end of the program unit,
 and then prints out a list of all undeclared variables,
 as it does for the \fB\-declare\fP option.  (F90)
 .PP
-Data types \fCINTEGER\fR, \fCREAL\fR, \fCCOMPLEX\fR, and
-\fCLOGICAL\fR are allowed to have an optional precision specification in
+Data types INTEGER, REAL, COMPLEX, and
+LOGICAL are allowed to have an optional precision specification in
 type declarations.  For instance, \fCREAL*8\fR means an 8-byte
 floating point data type.  The \fCREAL*8\fR datatype is not
 necessarily considered equivalent to \fCDOUBLE PRECISION\fR,
 depending on the \fB\-wordsize\fP setting.
 The Fortran 77 Standard allows
-a length specification only for \fCCHARACTER\fR data.
+a length specification only for CHARACTER data.
 .PP
-\fBftnchek\fP supports the \fCDOUBLE\fR \fCCOMPLEX\fR type
+\fBftnchek\fP supports the DOUBLE COMPLEX type
 specification for a complex quantity whose real and imaginary parts
 are double precision.  Mixed-mode arithmetic involving
 single-precision complex with double-precision real data,
@@ -4743,7 +4766,7 @@ prohibited under the Standard, yields a double complex result.
 Combined type declarations and data-statement-like initializers are
 accepted.  These have the form of a standard Fortran 77 type
 declaration, followed by a slash-delimited list of constants like that
-used in a \fCDATA\fR statement.  An example of the syntax is
+used in a DATA statement.  An example of the syntax is
 .br
 .in +5
 \fCINTEGER  N / 100 /\fR
@@ -4763,8 +4786,8 @@ support for more features in future releases.  I invite volunteers to
 assist in this task.  See the ToDo file in the source code
 distribution for details.
 The attributes currently accepted, besides all
-the usual data types, are \fCDIMENSION\fR, \fCEXTERNAL\fR,
-\fCINTRINSIC\fR, \fCPARAMETER\fR, and \fCSAVE\fR.  The new form of
+the usual data types, are DIMENSION, EXTERNAL,
+INTRINSIC, PARAMETER, and SAVE.  The new form of
 declaration also allows assignment of values to the variables
 declared.  At present, the \fC(LEN=\fIvalue\fC)\fR form of specifying
 character lengths is also accepted.  Kind specifications, using
@@ -4779,7 +4802,7 @@ control which ones are recognized.
 Argument checking is not tight for those nonstandard intrinsics
 that take arrays or mixed argument types.
 .PP
-\fBftnchek\fP permits the \fCINCLUDE\fR statement, which causes
+\fBftnchek\fP permits the INCLUDE statement, which causes
 inclusion of the text of the given file.  The syntax is
 .br
 .in +5
@@ -4799,11 +4822,11 @@ files, the location of the error is specified by both
 its location in the include file and the location in the parent file
 where the file was included.
 .PP
-\fBftnchek\fP accepts \fCPARAMETER\fR statements which lack
+\fBftnchek\fP accepts PARAMETER statements which lack
 parentheses.  These will be warned about if the
 \fB\-f77=param\-noparen\fP flag is given.
 .PP
-\fBftnchek\fP accepts \fCPARAMETER\fR definitions that involve
+\fBftnchek\fP accepts PARAMETER definitions that involve
 intrinsic functions
 and exponentiation by a non-integer exponent.  Both of these cases are
 prohibited by the Fortran 77
@@ -4812,7 +4835,7 @@ flag is given.  If an intrinsic function value
 is a compile-time integer constant,
 \fBftnchek\fP will evaluate it.  This allows better checking if the
 parameter is used in declaring array sizes.  Fortran 90 allows
-intrinsic functions in \fCPARAMETER\fR definitions.
+intrinsic functions in PARAMETER definitions.
 .PP
 The intrinsic functions that are evaluated are:
 \fC
@@ -4828,9 +4851,9 @@ ISIGN	LEN	ICHAR	INDEX
 The functions of integer arguments are evaluated only if the arguments
 are integer constant expressions.  (These may involve integer
 constants, parameters, and evaluated intrinsic functions.)  The
-function \fCLEN\fR is evaluated if its argument is an expression
+function LEN is evaluated if its argument is an expression
 involving only character constants and variables whose length is not
-adjustable.  The functions \fCICHAR\fR and \fCINDEX\fR are evaluated
+adjustable.  The functions ICHAR and INDEX are evaluated
 only if the arguments are character constants.  \fBftnchek\fP gives a
 warning if it needs the value of some intrinsic function that is not
 evaluated.
@@ -4839,61 +4862,14 @@ evaluated.
 .\" The above brace is the end of the .if !\nb at section "OPTIONS"
 .\" The following section is included in the blurb.
 .SH "NEW FEATURES"
-Here are the changes from Version 3.2 to Version 3.3:
+This section will document future improvements to \fBftnchek\fR after
+the initial release of version 4.0.  Relative to the previous version,
+namely 3.3.1, the improvements can be summarized as follows:
 .TP \w'1.'u+2n
 1.
-Front-end has been rewritten for unlimited lookahead, eliminating
-the longstanding bug that caused incorrect interpretation of
-statements whose ambiguity was not resolved in the first line.
-.TP
-2.
-The \fB\-mkhtml\fP option is now available in the MS-DOS version.
-.TP
-3.
-Added support for Fortran 90 pointer related syntax: \fCALLOCATE\fR,
-\fCDEALLOCATE\fR, and \fCNULLIFY\fR statements; the \fCALLOCATABLE\fR,
-\fCPOINTER\fR and \fCTARGET\fR attributes in type declarations; the
-pointer assigment operator \fC=>\fR and intrinsic functions
-\fCALLOCATED\fR and \fCASSOCIATED\fR; and deferred-shape array
-declarations.  At present these new syntax features are accepted but
-not properly checked.  This feature was added by Robert
-Landrito.
-.TP
-4.
-The \fB\-f77\fP and \fB\-f90\fP \fBpointer\fP option controlling
-warnings about ``Cray pointers'' has been renamed to
-\fBcray\-pointer\fP.  The \fB\-f77=pointer\fR option now instead
-controls warnings for code containing Fortran 90
-pointer-related syntax.
-.TP
-5.
-Re-implemented \fB\-mkhtml\fP processing so it is now much faster on
-source files containing many routines.
-.TP
-6.
-Changed the arrangement of the test directory so there is no longer
-any need to modify the distribution in order to run the test
-suite (\fIcheck.\|bat\fP) under MS-DOS.
-.TP
-7.
-Fixed bug in reading numeric settings on command line when
-setting name abbreviated to 3 characters.
-.TP
-8.
-Fixed bug causing spurious warning for a \fCGOTO\fR referring to a
-labeled \fCEND\fR statement when the statement before \fCEND\fR was a
-\fCFORMAT\fR.
-.TP
-9.
-New flag \fB\-f77=character\fP to control warnings about
-extensions to the Fortran 77 character data type.  Accompanying this new flag
-is support for Fortran 90 rules for character variable
-declarations that evaluate to zero or negative length, allowing them
-and treating negative length values as zero.
-.TP
-10.
-Fixed minor bug in printing of comments and blank lines
-following last \fCEND\fR statement in \fB\-list\fP mode.
+Fortran 95 is now largely supported.  Previously some Fortran 90
+syntax was supported, but many of the features essential to taking
+full advantage of it were not.
 .\" Omit sections "BUGS" and "ACKNOWLEDGEMENTS" from blurb
 .if !\nb \{
 .SH "BUGS"
@@ -4906,7 +4882,7 @@ syntax errors (see section on Limitations).
 Also, it is not considered a bug for a variable to be
 reported as used before set, if the reason is that the usage of the
 variable occurs prior in the text to where the variable is set.  For
-instance, this could occur when a \fCGOTO\fR causes execution to loop backward
+instance, this could occur when a GOTO causes execution to loop backward
 to some previously skipped statements.  \fBftnchek\fP does not analyze the
 program flow, but assumes that statements occurring earlier in the text
 are executed before the following ones.
@@ -4977,8 +4953,7 @@ where \fCJ\fR is set.  Normally this would cause
 Since this report is usually in error and occurs fairly commonly,
 \fBftnchek\fP suppresses the warning for \fCJ\fR altogether.
 .PP
-Prognosis: A future version of  \fBftnchek\fP is planned which will handle
-implied-do loops correctly.
+Prognosis: To be fixed in a future version of \fBftnchek\fP.
 .RE
 .TP
 2.
@@ -5004,7 +4979,7 @@ Prognosis: unlikely to be fixed.
 .TP
 4.
 Bug: checking for nonstandard format edit descriptors is done only in
-\fCFORMAT\fR statements, not in character strings used as formats.
+FORMAT statements, not in character strings used as formats.
 .RS
 .PP
 Prognosis: may be fixed someday.
@@ -5018,7 +4993,7 @@ University.  During the academic year of
 perform the variable usage checks.  During the following year it was
 augmented by Lois Bigbie to check subprogram arguments and
 COMMON block declarations.
-Brian Downing assisted with the implementation of the \fCINCLUDE\fR
+Brian Downing assisted with the implementation of the INCLUDE
 statement.
 John Quinn wrote the common block usage checks.
 Heba Elsayed wrote the label table printout and label usage checks.
@@ -5026,9 +5001,9 @@ Nelson H. F. Beebe of the University of Utah added most of the new code
 to implement the \fB\-makedcls\fP feature and wrote the dcl2inc script.
 The \fB\-mkhtml\fP feature was contributed by Mark McVeigh of
 Framatome ANP, Inc.
-The \fB\-reference\fP feature was contributed by Gerome Emmanuel,
+The \fB\-calltree=reference\fP feature was contributed by Gerome Emmanuel,
 Ecole des mines, U. Nancy (slightly modified).
-The \fB\-vcg\fP option
+The \fB\-calltree=vcg\fP option
 was contributed by Dr. Philip Rubini of Cranfield University, UK.
 The support for Cray pointer syntax was provided by John Dannenhoffer of
 United Technologies Research Center.
@@ -5041,7 +5016,7 @@ support of F90 pointers and allocatable arrays.
 A special acknowledgement is due to the U.S. Department of Defense
 High Performance Computing Modernization Program, which funded a
 year-long graduate assistantship to upgrade \fBftnchek\fP to support Fortran 95.
-The upgrade would not have happened without this support.
+The upgrade might never have happened without this support.
 Karma Shrestha performed the implementation of most of the new syntax.
 .PP
 As of Version 2.5, the name was changed from \fBforchek\fP to \fBftnchek\fP,
@@ -5078,12 +5053,18 @@ We also thank Jack Dongarra for putting
 library of publicly available software,
 and Mark Brown of the University of Edinburgh for acting as
 the \fBftnchek\fP package maintainer for Debian.
+Thanks also to SourceForge
+http://www.sourceforge.net
+for hosting the \fBftnchek\fP source code repository.
 \}
 .\" The above brace is the end of the .if !\nb at section "BUGS"
 .\" The following section is included in the blurb.
 .SH "INSTALLATION AND SUPPORT"
 The \fBftnchek\fP program is free software.
-It can be obtained
+Version 3.3.1 is included as a standard package in many Linux
+distributions, including Fedora and Debian.  It is hoped that when
+Version 4 becomes stable, these distributions will update it.
+The source code can be obtained
 by anonymous ftp from many software servers, including
 ftp://netlib.org/fortran .
 Note that on Netlib the distribution is named \fIftnchek\|.tar\|.gz\fP
@@ -5099,7 +5080,7 @@ program.  Then use
 to unpack the files into a subdirectory.
 .PP
 Installation requires a C compiler for your computer.
-See the \fCINSTALL\fR file provided with the distribution for
+See the INSTALL file provided with the distribution for
 instructions on installing \fBftnchek\fP on your system.
 Executable binary for particular systems such as IBM PC or
 Macintosh, as available, can be obtained by anonymous ftp from

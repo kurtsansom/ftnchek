@@ -381,13 +381,17 @@ print_loc_symbols(VOID)
     }/*if(decls_required || implicit_none)*/
 
 			/* Under -f77/f90, list any nonstandard intrinsics used */
-    if(f77_intrinsics || f90_intrinsics) {
+    if(f77_f90 || f77_intrinsics || f90_intrinsics) {
       int i,n;
       for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	if(storage_class_of(loc_symtab[i].type) == class_SUBPROGRAM
-	   && loc_symtab[i].intrinsic &&
-	   (loc_symtab[i].info.intrins_info->intrins_flags & (f77_intrinsics?I_NONF77:I_NONF90))) {
-	  sym_list[n++] = &loc_symtab[i];
+	   && loc_symtab[i].intrinsic ) {
+	  if( (loc_symtab[i].info.intrins_info->intrins_flags&I_NONF90)?
+	      (f77_intrinsics || f90_intrinsics):
+	      (loc_symtab[i].info.intrins_info->intrins_flags&I_NONF77)?
+	      f77_f90:FALSE ) {
+	    sym_list[n++] = &loc_symtab[i];
+	  }
 	}
       }
 
@@ -397,7 +401,7 @@ print_loc_symbols(VOID)
 			choose_filename(sym_list[0],file_used),
 			sym_list[0]->line_used, 
 			(Lsymtab *)NULL, FALSE,
-			f77_intrinsics? "Non Fortran 77" : "Non Fortran 90");
+			f77_f90? "Non Fortran 77" : "Non Fortran 90");
 	msg_tail("intrinsic functions referenced:");
 	(void) print_lsyms(sym_list,n,FALSE);
       }
@@ -407,7 +411,7 @@ print_loc_symbols(VOID)
 		/* issue -f77 warning for identifiers
 		   longer than 6 characters
 		*/
-    if(f77_long_names) {
+    if(f77_f90) {
 	int i,n;
 	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	       if(strlen(loc_symtab[i].name) > (unsigned)6)
@@ -429,7 +433,7 @@ print_loc_symbols(VOID)
 		/* issue -f90 warning for identifiers
 		   longer than 31 characters
 		 */
-    if(f90_long_names) {
+    if(f77_long_names || f90_long_names) {
 	int i,n;
 	for(i=curr_scope_bottom,n=0;i<loc_symtab_top;i++) {
 	       if(strlen(loc_symtab[i].name) > (unsigned)31)

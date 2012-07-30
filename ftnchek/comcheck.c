@@ -68,6 +68,12 @@ PROTO(PRIVATE void print_comvar_usage,( ComListHeader *comlist ));
 
 #define pluralize(n) ((n)==1? "":"s")	/* singular/plural suffix for n */
 
+/* When comcheck_by_name is turned on, it is possible that the list
+   chosen as model is the only one that differs from the rest.  To
+   prevent repeated listings of mismatches, give the warning only on
+   one pair. */
+PRIVATE int name_mismatch_reported;
+
 void
 check_comlists(VOID)        /* Scans global symbol table for common blocks */
 {
@@ -76,7 +82,7 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 	ComListHeader *first_list, *model, *clist;
 
 				/* Check for name clashes with subprograms */
-	if(f77_common_subprog_name) {
+	if(f77_common_subprog_name || f90_common_subprog_name) {
 	  check_nameclash();
 	}
 
@@ -142,11 +148,12 @@ check_comlists(VOID)        /* Scans global symbol table for common blocks */
 
 
 				/* Now check agreement of common lists */
+		name_mismatch_reported = FALSE;
 		clist = first_list;
 		while( clist != NULL ){
 		    if(clist != model && !irrelevant(clist)) {
 
-			if(comcheck_by_name)
+			if(comcheck_exact)
 			  com_cmp_strict(glob_symtab[i].name,model,clist);
 			else
 			  com_cmp_lax(glob_symtab[i].name,model,clist);
@@ -337,7 +344,7 @@ com_cmp_lax(name,c1,c2)
   }/* end if(comcheck_type) */
 }
 
-	/* Common-list check name-by-name (formerly strictness level 3) */
+	/* Common-list check variable-by-variable (formerly strictness level 3) */
 PRIVATE void
 #if HAVE_STDC
 com_cmp_strict(char *name, ComListHeader *c1, ComListHeader *c2)
@@ -354,8 +361,8 @@ com_cmp_strict(name,c1,c2)
 	ComListElement *a1 = c1->com_list_array,
 		       *a2 = c2->com_list_array;
 
+      n = (n1 > n2) ? n2: n1;
       if(comcheck_length) {
-	n = (n1 > n2) ? n2: n1;
 	if(n1 != n2){
 	  char msg[15+3*sizeof(n1)];
 	  cmp_error_count = 0;
@@ -368,6 +375,21 @@ com_cmp_strict(name,c1,c2)
 	  com_error_report(c2,msg);
         }
       }
+
+      /* Flag any variables that differ in name.  Only once per block. */
+      if(comcheck_by_name && !name_mismatch_reported) {
+	cmp_error_count = 0;
+	for(i=0; i<n; i++) {
+	  if(strcmp(a1[i].name,a2[i].name) != 0) {
+	    if(comcmp_error_head(name,c1,"variable name mismatch"))
+	      break;
+	    comvar_error_report(c1,i,"differs from");
+	    comvar_error_report(c2,i,"");
+	    name_mismatch_reported = TRUE;
+	  }/*end if(name mismatch)*/
+	}
+      }
+
 #ifdef DEBUG_PGSYMTAB
 if(debug_latest){
 (void)fprintf(list_fd,"block %s",name);
@@ -481,7 +503,7 @@ check_com_usage(VOID)
 }
 
 		/* Routine to check for common block having same name
-		   as subprogram, which is nonstandard.  */
+		   as subprogram, which is nonstandard.  18.1.1  */
 PRIVATE void
 check_nameclash(VOID)
 {
@@ -639,7 +661,7 @@ com_block_usage(name,cl1)
 	  }
 	}/* end if block_unused_somewhere */
 
-	if(! comcheck_by_name) {
+	if(! comcheck_exact) {
 				/* If not variablewise checking, just
 				   give general warnings. */
 	  if (!block_any_set){

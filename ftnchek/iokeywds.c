@@ -48,7 +48,7 @@ as the "MIT License."
 #include "utils.h"	/* we use strcasecmp */
 
 		/* variables shared with fortran.y */
-extern int io_internal_file, io_list_directed;
+extern int io_internal_file, io_list_directed, io_namelist, io_has_format;
 extern int current_io_unit_id;
 extern int current_io_unit_no;
 extern IO_ACCESS_TYPE current_io_access;
@@ -71,6 +71,7 @@ use_io_keyword(keyword,value,stmt_class)
     unsigned i;
     int k, stmt_flag=0, type_flag, setit,useit;
     int hkey=keyword->value.integer;
+    int io_nonf77, io_nonf90, io_vms_open_name;
 
 		/* Convert statement_class (a token class) into
 		   a bit flag compatible with io_keywords table. */
@@ -102,17 +103,18 @@ use_io_keyword(keyword,value,stmt_class)
 		   is not recognized, since this can mean something is not
 		   processed correctly.
 		 */
-    if( io_keywords[k].nonstandard
-	|| io_keywords[k].nonf90
-#ifdef ALLOW_VMS_IO /* special VMS case: OPEN(...,NAME=str,...) */
-       || (io_keywords[k].vms_name && stmt_flag==OP)
-#endif /*ALLOW_VMS_IO*/
-	   ) {
+ /* special VMS case: OPEN(...,NAME=str,...) */
+    io_vms_open_name = (io_keywords[k].vms_name && stmt_flag==OP);
+    io_nonf90 = io_keywords[k].nonf90 || io_vms_open_name;
+    io_nonf77 = io_keywords[k].nonstandard || io_vms_open_name;
+
+    /* nonf90 implies nonf77 so only need test latter here */
+    if( io_nonf77 ) {
 		/* If nonstandard and -f77 or -f90 flag given, issue warning */
-	if( (io_keywords[k].nonstandard && f77_io_keywords)
-	    || (io_keywords[k].nonf90 && f90_io_keywords) ) {
+      if( (io_nonf90 && (f77_io_keywords || f90_io_keywords)) ||
+	  (io_nonf77 && f77_f90) ) {
 	  nonstandard(keyword->line_num,keyword->col_num,
-		      (io_keywords[k].nonf90 && f90_io_keywords),0);
+		      (io_nonf90 && f90_io_keywords),0);
 	}
 
 
@@ -188,6 +190,7 @@ use_io_keyword(keyword,value,stmt_class)
     if(type_flag == NML){
       ref_namelist(value,stmt_class);
       current_io_form = IO_FORM_FORMATTED; /* namelist I/O is formatted */
+      io_namelist = TRUE;
     }
 
 			/* Handle UNIT==unit */
@@ -219,6 +222,7 @@ use_io_keyword(keyword,value,stmt_class)
 			/* Handle FMT=format */
     if(io_keywords[k].allowed_types == FID) {
       current_io_form = IO_FORM_FORMATTED;
+      io_has_format = TRUE;	/* format is explicitly present */
       if( type_flag == LAB) {
 	ref_label(value,LAB_IO);
       }
