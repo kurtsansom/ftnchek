@@ -92,6 +92,7 @@ FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   array_section1.f90 array_rank1.f90 pointer_allocd.f90 kind_args.f90\
   kind_assign.f90 kind_char.f90 kind_mixed.f90 kind_select.f90\
   internalfuns.f90 charfuns.f90 modvar-rename.f90 modvar-only-rename.f90\
+  keyword_args.f90 keyword_args_intent.f90 keyword_args_unknown.f90\
   boz_constants.f90
 
 # file set for testing mapping of derived types in module

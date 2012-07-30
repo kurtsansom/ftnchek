@@ -421,6 +421,12 @@ make_arg_array(t)
 	s = t;
 	for(i=0; i<count; i++){  /* Here we fill array. */
 
+	    /* for keyword argument get keyword name */
+	    if (s->left_token != NULL && s->left_token->tclass == '=') {
+		int h =hash_lookup(s->left_token->left_token->src_text);
+		arglist[i].keyword = hashtab[h].name;
+	    }
+
 	    arglist[i].type = s->TOK_type; /* use evaluated type, not symt */
 	    arglist[i].kind = s->kind;
 	    arglist[i].size = s->size;
@@ -577,11 +583,18 @@ make_arg_names(tlist, alhead, prev_alhead)
 	    }
 	    else {				/* expression */
 #ifdef KEEP_ARG_NAMES
+		    /* Save expression-tree text.  If primary or
+		     * normal expr tree, cp_tree_src_text will yield
+		     * the text.  If it is keyword=expr form, drop
+		     * down to just save the expr part.
+		     */
 	      int ncopied;
 	      ncopied = cp_tree_src_text(expr_text,
 			(s->left_token == NULL?
 				s:			/* Primary */
-				s->left_token),	/* Expr tree */
+				(s->left_token->tclass == '='?
+				s->left_token->next_token:/* Keyword arg */
+				s->left_token)),	/* Expr tree */
 			MAXEXPRTEXT+1);
 	      if(ncopied > MAXEXPRTEXT)	/* Longer than the limit: */
 					/* replace tail by dots   */

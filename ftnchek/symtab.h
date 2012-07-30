@@ -497,6 +497,8 @@ typedef union {		/* InfoUnion: misc info about symtab entry */
 typedef struct {	/* ArgListElement: holds subprog argument data */
 	array_dim_t array_dim;	/* array size and no. of dims */
 	char *name;		/* name of dummy arg or text of actual arg */
+	char *keyword;		/* name of keyword */
+	int keyword_index;	/* index of keyword in definition list */
 	InfoUnion info;
 	struct gSymtEntry *common_block; /* block it belongs to if any */
 	long common_index;	/* index in block */

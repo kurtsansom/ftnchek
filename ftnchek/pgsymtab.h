@@ -47,7 +47,7 @@ PROTO(void comvar_error_report,(ComListHeader *clh,int i,const char *msg));
 PROTO(void sub_error_report,(ArgListHeader *alh, const char *msg));
 
 PROTO(int argcmp_error_head,(const char *name, ArgListHeader *alh, const char *msg));
-PROTO(void arg_error_report, (ArgListHeader *alh,const char *argtype,int i,const char *msg));
+PROTO(void arg_error_report, (ArgListHeader *alh,const char *argtype,int i,const char *msg, int print_position));
 
 PROTO(void sort_gsymbols ,( Gsymtab *glist[], int n ));
 PROTO(int modcmp_error_head, (const char *name, ModVarListHeader *mvlh, const char *msg));

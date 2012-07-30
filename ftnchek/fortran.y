@@ -271,6 +271,8 @@ PROTO(PRIVATE void check_stmt_sequence,( Token *t, int seq_num ));
 PROTO(PRIVATE void check_f90_stmt_sequence,( Token *t, int f90_seq_num ));
 PROTO(PRIVATE void do_binexpr,( Token *l_expr, Token *op, Token *r_expr,
 			Token *result ));
+PROTO(PRIVATE void do_keyword_arg,( Token *l_expr, Token *op, Token *r_expr,
+			Token *result ));
 PROTO(PRIVATE type_t do_bounds_type,( Token *t1, Token *t2, Token *t3 ));
 PROTO(PRIVATE void do_unexpr,( Token *op, Token *expr, Token *result ));
 PROTO(PRIVATE void set_attr_flags,( Token *t, Token *result ));
@@ -4865,13 +4867,8 @@ subr_arg	:	expr
 			}
 		|	symbolic_name '=' expr
 			{
-			    /* Currently passing expr token to prevent
-			    unwanted error messages. Further work
-			    needs to be done for proper semantic
-			    checking.
-			    */
-
-			    $$ = $3;
+			    do_keyword_arg(&($1),&($2),&($3)
+					 ,&($$));
 			}
 		;
 
@@ -4978,13 +4975,8 @@ nonempty_fun_arg_list:	fun_arg
 fun_arg		:	expr
 		|	symbolic_name '=' expr
 			{
-			    /* Currently passing expr token to prevent
-			    unwanted error messages. Further work
-			    needs to be done for proper semantic
-			    checking.
-			    */
-
-			    $$ = $3;
+			    do_keyword_arg(&($1),&($2),&($3)
+					 ,&($$));
 			}
 		;
 
@@ -6114,6 +6106,19 @@ do_binexpr(l_expr,op,r_expr,result)
   result->left_token = add_tree_node(op, l_expr, r_expr);
 }
 
+			/* Create expression tree for keyword arguments of
+			   the form 'keyword = value'.  And store the 
+			   'value' information in the handle.
+			*/
+PRIVATE void
+do_keyword_arg(Token *l_expr, Token *op, Token *r_expr, Token *result)
+{
+  /* copy information from value token to result token */
+  *result = *r_expr;
+
+  result->left_token = add_tree_node(op, l_expr, r_expr);
+  result->next_token = NULL;
+}
 
 			/* Changes a token to empty and replaces
 			   src_text by null string, value by 0.  Other

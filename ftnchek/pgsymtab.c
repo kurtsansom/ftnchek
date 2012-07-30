@@ -136,18 +136,19 @@ modcmp_error_head(const char *name, ModVarListHeader *mvlh, const char *msg)
 		/* Follow-on message about an argument mismatch */
 void
 #if HAVE_STDC
-arg_error_report(ArgListHeader *alh, const char *argtype, int i, const char *msg)
+arg_error_report(ArgListHeader *alh, const char *argtype, int i, const char *msg, int print_position)
 #else /* K&R style */
 arg_error_report(alh, argtype, i, msg)
     ArgListHeader *alh;
     char *argtype;
     int i;
-    char *msg;
+    char *msg,
+    int print_position;
 #endif /* HAVE_STDC */
 {
     error_report(alh->prog_unit->name,
 		 alh->filename,alh->line_num,alh->topfile,alh->top_line_num,
-		 i,argtype,alh->arg_array[i].name,msg);
+		 print_position,argtype,alh->arg_array[i].name,msg);
 }
 
 		/* Formats an error message line about one subprogram

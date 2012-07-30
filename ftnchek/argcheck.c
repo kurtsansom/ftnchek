@@ -56,7 +56,8 @@ as the "MIT License."
 PROTO(PRIVATE void arg_array_cmp,( char *name, ArgListHeader *args1,
 			   ArgListHeader *args2 ));
 PROTO(PRIVATE void report_dtype_line_declared, (int line_declared));
-
+PROTO(PRIVATE void index_keyword_args,( const char *name, ArgListHeader *defn_head,
+	    ArgListHeader *call_head ));
 
      		/* Compares subprogram calls with definition */
 PRIVATE void
@@ -105,16 +106,35 @@ arg_array_cmp(name,args1,args2)
 	      long
 		  s1 = a1[i].size,
 		  s2 = a2[i].size;
-	      int
-		  defsize1 = (s1==size_DEFAULT),
-		  defsize2 = (s2==size_DEFAULT);
+
+	      int defsize1, defsize2;
+	      int cmptype1, cmptype2;
+
+	      int k = i;
+
+	      /* for keyword argument, find the dummy argument which
+	       * matches the keyword name
+	       */
+	      if (a2[i].keyword != NULL) {
+		  /* if no matching dummy argument, skip it
+		   */
+		  if (a2[i].keyword_index == -1)
+		      continue;
+		  k = a2[i].keyword_index;
+		  c1 = storage_class_of(a1[k].type);
+		  t1 = datatype_of(a1[k].type);
+		  kind1 = a1[k].kind;
+		  s1 = a1[k].size;
+	      }
+
+	      defsize1 = (s1==size_DEFAULT);
+	      defsize2 = (s2==size_DEFAULT);
 				/* cmptype is type to use for mismatch test.
 				   Basically cmptype=type but DP matches
 				   REAL, DCPX matches CPLX, and hollerith
 				   matches any numeric or logical type
 				   but not  character.  The single/double
 				   match will be deferred to size check. */
-	      int cmptype1, cmptype2;
 
 		/* If -portability, do not translate default sizes so
 		   they will never match explicit sizes. */
@@ -151,8 +171,8 @@ arg_array_cmp(name,args1,args2)
 		if(argcmp_error_head(name,args1,"argument data type mismatch"))
 		  break;
 
-		arg_error_report(args1,args1->is_defn? "Dummy arg": "Actual arg",i,
-				 "is type");
+		arg_error_report(args1,args1->is_defn? "Dummy arg": "Actual arg",k,
+				 "is type", i);
 		if( t1 != type_LABEL ) /*label arg: only print storage class*/
 		  msg_tail(global_typespec(t1,!defsize1,(long)s1,FALSE,0));
 		if( is_derived_type(t1) ) {/*print line number for derived types */
@@ -161,7 +181,7 @@ arg_array_cmp(name,args1,args2)
 		msg_tail(class_name[storage_class_of(a1[i].type)]);
 				     
 		arg_error_report(args2,args2->is_defn? "Dummy arg": "Actual arg",i,
-				 "is type");
+				 "is type", i);
 		if( t2 != type_LABEL ) /*label arg: only print storage class*/
 		  msg_tail(global_typespec(t2,!defsize2,(long)s2,FALSE,0L));
 		if( is_derived_type(t2) ) {/*print line number for derived types */
@@ -214,10 +234,10 @@ arg_array_cmp(name,args1,args2)
 		    if(argcmp_error_head(name,args1,"argument mismatch"))
 				break;
 
-		    arg_error_report(args1,"Dummy arg",i,"is type");
+		    arg_error_report(args1,"Dummy arg",k,"is type",i);
 		    msg_tail(global_typespec(t1,TRUE,(long)s1,dims1>0,size1));
 
-		    arg_error_report(args2,"Actual arg",i,"is type");
+		    arg_error_report(args2,"Actual arg",i,"is type",i);
 		    msg_tail(global_typespec(t2,TRUE,(long)s2,dims2>0,size2));
 
 		  }/*end if char size mismatch*/
@@ -239,10 +259,10 @@ arg_array_cmp(name,args1,args2)
 		      if(argcmp_error_head(name,args1,"argument mismatch"))
 				break;
 
-		      arg_error_report(args1,"Dummy arg",i,"is type");
+		      arg_error_report(args1,"Dummy arg",k,"is type",i);
 		      msg_tail(typespec(t1,!defsize1,(long)s1,dims1>0,size1));
 
-		      arg_error_report(args2,"Actual arg",i,"is type");
+		      arg_error_report(args2,"Actual arg",i,"is type",i);
 		      msg_tail(typespec(t2,TRUE,(long)s2,FALSE,0L));
 
 		    }/*end if holl size mismatch*/
@@ -258,11 +278,11 @@ arg_array_cmp(name,args1,args2)
 			  (port_mixed_kind || kind1 >= 0 || kind2 >= 0) ) {
 		    if(argcmp_error_head(name,args1,"argument kind mismatch"))
 		      break;
-		    arg_error_report(args1,"Dummy arg",i,"is");
+		    arg_error_report(args1,"Dummy arg",k,"is",i);
 		    if(! kind_is_default(kind1))
 		      report_kind(kind1);
 		    msg_tail(typespec(t1,!defsize1,(long)s1,FALSE,0L));
-		    arg_error_report(args2,"Actual arg",i,"is");
+		    arg_error_report(args2,"Actual arg",i,"is",i);
 		    if(! kind_is_default(kind2))
 		      report_kind(kind2);
 		    msg_tail(typespec(t2,!defsize2,(long)s2,FALSE,0L));
@@ -283,8 +303,21 @@ arg_array_cmp(name,args1,args2)
 			   also skips holleriths which were checked above.
 			   Do not process externals.
 			 */
+	      int k = i;
+
+	      /* for keyword argument, find the dummy argument which
+	       * matches the keyword name
+	       */
+	      if (a2[i].keyword != NULL) {
+		  /* if no matching dummy argument, skip it
+		   */
+		  if (a2[i].keyword_index == -1)
+		      continue;
+		  k = a2[i].keyword_index;
+	      }
+
 	      if(datatype_of(a2[i].type) != type_HOLLERITH &&
-		 storage_class_of(a1[i].type) == class_VAR &&
+		 storage_class_of(a1[k].type) == class_VAR &&
 		 storage_class_of(a2[i].type) == class_VAR) {
 
 		if( a2[i].array_var ) {
@@ -293,7 +326,7 @@ arg_array_cmp(name,args1,args2)
 		    array_arg_index = i; /* remember where first occurrence */
 		}
 
-		if( a1[i].array_var ) {	/* I. Dummy arg is array */
+		if( a1[k].array_var ) {	/* I. Dummy arg is array */
 		    if( a2[i].array_var ) {
 			if( a2[i].array_element ) {
 					/*   A. Actual arg is array elt */
@@ -304,8 +337,8 @@ arg_array_cmp(name,args1,args2)
 				      name,args1,"argument arrayness mismatch"))
 				break;
 
-			      arg_error_report(args1,"Dummy arg",i,"is whole array");
-			      arg_error_report(args2,"Actual arg",i,"is array element");
+			      arg_error_report(args1,"Dummy arg",k,"is whole array",i);
+			      arg_error_report(args2,"Actual arg",i,"is array element",i);
 			    }
 			}/* end case I.A. */
 
@@ -316,7 +349,7 @@ arg_array_cmp(name,args1,args2)
 			    diminfo1,diminfo2;
 			  long dims1,dims2,size1,size2,
 			    cmpsize1,cmpsize2;
-			  diminfo1 = a1[i].array_dim;
+			  diminfo1 = a1[k].array_dim;
 			  diminfo2 = a2[i].array_dim;
 			  dims1 = array_dims(diminfo1);
 			  dims2 = array_dims(diminfo2);
@@ -326,8 +359,8 @@ arg_array_cmp(name,args1,args2)
 				   elements times element size. But use
 				   no. of elements if *(*) involved. */
 			  if(datatype_of(a1[i].type) == type_STRING
-			     && a1[i].size > 0 && a2[i].size > 0) {
-			    cmpsize1 *= a1[i].size;
+			     && a1[k].size > 0 && a2[i].size > 0) {
+			    cmpsize1 *= a1[k].size;
 			    cmpsize2 *= a2[i].size;
 			  }
 
@@ -341,20 +374,20 @@ arg_array_cmp(name,args1,args2)
 					name,args1,"argument arrayness mismatch"))
 				      break;
 
-				arg_error_report(args1,"Dummy arg",i,"has");
+				arg_error_report(args1,"Dummy arg",k,"has",i);
 				msg_tail(ulongtostr((unsigned long)dims1));
 				msg_tail(dims1==1?"dim":"dims");
 				if(size1 > 1) { /* report only known size */
 				  msg_tail("size");
 				  strcpy(sizebuf,ulongtostr((unsigned long)size1));
-				  if(datatype_of(a1[i].type) == type_STRING
-				     && a1[i].size > 0) {
+				  if(datatype_of(a1[k].type) == type_STRING
+				     && a1[k].size > 0) {
 				    strcat(sizebuf,"*");
 				    strcat(sizebuf,ulongtostr((unsigned long)(a1[i].size)));
 				  }
 				  msg_tail(sizebuf);
 				}
-				arg_error_report(args2,"Actual arg",i,"has");
+				arg_error_report(args2,"Actual arg",i,"has",i);
 				msg_tail(ulongtostr((unsigned long)dims2));
 				msg_tail(dims2==1?"dim":"dims");
 				if(size2 > 1) {
@@ -378,8 +411,8 @@ arg_array_cmp(name,args1,args2)
 				name,args1,"argument arrayness mismatch"))
 			  break;
 
-			arg_error_report(args1,"Dummy arg",i,"is array");
-			arg_error_report(args2,"Actual arg",i,"is scalar");
+			arg_error_report(args1,"Dummy arg",k,"is array",i);
+			arg_error_report(args2,"Actual arg",i,"is scalar",i);
 		    }/* end case I.C. */
 		} /* end dummy is array, case I. */
 
@@ -398,8 +431,8 @@ arg_array_cmp(name,args1,args2)
 				   name,args1,"argument arrayness mismatch"))
 			    break;
 
-			  arg_error_report(args1,"Dummy arg",i,"is scalar");
-			  arg_error_report(args2,"Actual arg",i,"is whole array");
+			  arg_error_report(args1,"Dummy arg",k,"is scalar",i);
+			  arg_error_report(args2,"Actual arg",i,"is whole array",i);
 			 }
 
 			}/* end case II.B. */
@@ -418,18 +451,28 @@ arg_array_cmp(name,args1,args2)
 	       for INTENT(OUT) dummy arg when some arg is array. */
 	    if( args1->prog_unit->elemental && has_array_arg ) {
 	      for (i=0; i<n; i++) {
+		int k = i;
+
+		if (a2[i].keyword != NULL) {
+		  /* if no matching dummy argument, skip it
+		  */
+		  if (a2[i].keyword_index == -1)
+		    continue;
+		  k = a2[i].keyword_index;
+		}
+
 		if(datatype_of(a2[i].type) != type_HOLLERITH && /* stuff disallowed */
-		   storage_class_of(a1[i].type) == class_VAR && /* in elemental */
+		   storage_class_of(a1[k].type) == class_VAR && /* in elemental */
 		   storage_class_of(a2[i].type) == class_VAR) { /* but check anyway */
-		  if( a1[i].intent_out && !a2[i].array_var ) {
+		  if( a1[k].intent_out && !a2[i].array_var ) {
 		    if(argcmp_error_head(
 			     name,args1,"argument arrayness mismatch"))
 		      break;
-		    arg_error_report(args1,"Elemental procedure dummy argument",i,
-				     "is INTENT(OUT)");
-		    arg_error_report(args2,"Actual arg",i,"is scalar");
+		    arg_error_report(args1,"Elemental procedure dummy argument",k,
+				     "is INTENT(OUT)", i);
+		    arg_error_report(args2,"Actual arg",i,"is scalar",i);
 		    arg_error_report(args2,"But another actual arg",array_arg_index,
-				     "is array");
+				     "is array", array_arg_index);
 		    break;	/* one warning is sufficient */
 		  }
 		}
@@ -448,14 +491,24 @@ arg_array_cmp(name,args1,args2)
 					&& args1->is_defn ) {
 	    cmp_error_count = 0;
 	    for (i=0; i<n; i++) {
-	      if(storage_class_of(a1[i].type) == class_VAR &&
+	      int k = i;
+
+	      if (a2[i].keyword != NULL) {
+		  /* if no matching dummy argument, skip it
+		   */
+		  if (a2[i].keyword_index == -1)
+		      continue;
+		  k = a2[i].keyword_index;
+	      }
+
+	      if(storage_class_of(a1[k].type) == class_VAR &&
 		 storage_class_of(a2[i].type) == class_VAR ) {
-		int nonlvalue_out = (a1[i].assigned_flag && !a2[i].is_lvalue);
-		int nonset_in = (a1[i].used_before_set && !a2[i].set_flag);
-		int alias_modified = (a1[i].set_flag && (a2[i].same_as != i));
+		int nonlvalue_out = (a1[k].assigned_flag && !a2[i].is_lvalue);
+		int nonset_in = (a1[k].used_before_set && !a2[i].set_flag);
+		int alias_modified = (a1[k].set_flag && (a2[i].same_as != i));
 		int arg_alias_modified = (alias_modified && !a2[i].array_var);
 		int array_alias_modified = (alias_modified && a2[i].array_var);
-		int do_var_modified = (a1[i].set_flag && a2[i].active_do_var);
+		int do_var_modified = (a1[k].set_flag && a2[i].active_do_var);
 		int common_modified_as_arg, common_modified_as_com, /*maybe*/
 		    common_assigned_as_arg, common_assigned_as_com; /*for sure*/
 		int arg_common_modified, /*nonarray arg*/
@@ -485,8 +538,8 @@ arg_array_cmp(name,args1,args2)
 			/* Don't forget that index goes from 1 to numargs.*/
 			  int j = a2[i].common_index - 1;
 			  common_alias_name = clist->com_list_array[j].name;
-			  common_modified_as_arg = a1[i].set_flag;
-			  common_assigned_as_arg = a1[i].assigned_flag;
+			  common_modified_as_arg = a1[k].set_flag;
+			  common_assigned_as_arg = a1[k].assigned_flag;
 			  common_modified_as_com = clist->com_list_array[j].set;
 			  common_assigned_as_com = clist->com_list_array[j].assigned;
 			}
@@ -495,8 +548,8 @@ arg_array_cmp(name,args1,args2)
 				   variable is modified.  Don't set
 				   assigned_as_com to always say "may be".
 				*/
-			common_modified_as_arg = a1[i].set_flag;
-			common_assigned_as_arg = a1[i].assigned_flag;
+			common_modified_as_arg = a1[k].set_flag;
+			common_assigned_as_arg = a1[k].assigned_flag;
 			common_modified_as_com = clist->any_set;
 			common_assigned_as_com = FALSE;
 		      }
@@ -513,8 +566,8 @@ if(debug_latest) {
 "\nUsage check: %s[%d] dummy asgnd %d ubs %d  actual lvalue %d set %d do %d",
 args1->prog_unit->name,
 i+1,
-a1[i].assigned_flag,
-a1[i].used_before_set,
+a1[k].assigned_flag,
+a1[k].used_before_set,
 a2[i].is_lvalue,
 a2[i].set_flag,
 a2[i].active_do_var);
@@ -536,12 +589,12 @@ a2[i].active_do_var);
 			   expression.
 			*/
 		  if(usage_arg_modified && nonlvalue_out) {
-		    if (a1[i].intent_out) {
-		    arg_error_report(args2,"Actual arg",i,"is const or expr when dummy arg is INTENT out");
+		    if (a1[k].intent_out) {
+		    arg_error_report(args2,"Actual arg",i,"is const or expr when dummy arg is INTENT out",i);
 		    }
 		    else {
-		    arg_error_report(args1,"Dummy arg",i,"is modified");
-		    arg_error_report(args2,"Actual arg",i,"is const or expr");
+		    arg_error_report(args1,"Dummy arg",k,"is modified",i);
+		    arg_error_report(args2,"Actual arg",i,"is const or expr",i);
 		    }
 
 		  }
@@ -550,11 +603,11 @@ a2[i].active_do_var);
 			*/
 		  if(usage_var_uninitialized && nonset_in) {
 
-		    arg_error_report(args1,"Dummy arg",i,"is used before set");
-		    if (a1[i].intent_in)
-		    arg_error_report(args2,"Actual arg",i,"is not set when dummy arg in callee is INTENT in");
+		    arg_error_report(args1,"Dummy arg",k,"is used before set",i);
+		    if (a1[k].intent_in)
+		    arg_error_report(args2,"Actual arg",i,"is not set when dummy arg in callee is INTENT in",i);
 		    else
-		    arg_error_report(args2,"Actual arg",i,"is not set");
+		    arg_error_report(args2,"Actual arg",i,"is not set",i);
 		  }
 
 			/* Usage case 3: Modifying arg that is the same as
@@ -562,15 +615,14 @@ a2[i].active_do_var);
 			*/
 		  if((usage_arg_alias_modified && arg_alias_modified)||
 		    (usage_array_alias_modified && array_alias_modified)) {
-		    arg_error_report(args1,"Dummy arg",i,
+		    arg_error_report(args1,"Dummy arg",k,
 			     a1[i].assigned_flag?
 				     "is modified":
-				     "may be modified");
-
+				     "may be modified",i);
 		    arg_error_report(args2,"Actual arg",i,
 				     a2[i].array_var?
 					"may be same as arg":
-					"same as arg");
+					"same as arg",i);
 		    msg_tail(ulongtostr((unsigned long)(long)(a2[i].same_as+1)));
 		    msg_tail(":");
 		    msg_tail(a2[a2[i].same_as].name);
@@ -589,7 +641,7 @@ a2[i].active_do_var);
 		    else {
 		      (void)sprintf(locspec,"somewhere");
 		    }
-		    arg_error_report(args1,"Dummy arg",i,"is aliased to common var");
+		    arg_error_report(args1,"Dummy arg",k,"is aliased to common var",i);
 		    msg_tail(locspec);
 		    msg_tail(comcheck_exact?common_alias_name: "");
 		    msg_tail("in block");
@@ -601,13 +653,13 @@ a2[i].active_do_var);
 				   "");
 
                     if( common_modified_as_arg ) {
-		      arg_error_report(args1,"Dummy arg",i,
+		      arg_error_report(args1,"Dummy arg",k,
 				       common_assigned_as_arg?
 					"is modified":
-					"may be modified");
+					"may be modified",i);
                     }
 
-		    arg_error_report(args2,"Actual arg",i,"is in common block");
+		    arg_error_report(args2,"Actual arg",i,"is in common block",i);
 		    msg_tail(a2[i].common_block->name);
 		  }
 
@@ -615,13 +667,12 @@ a2[i].active_do_var);
 			   DO index variable.
 			 */
 		  if( usage_do_var_modified && do_var_modified ) {
-		    arg_error_report(args1,"Dummy arg",i,
+		    arg_error_report(args1,"Dummy arg",k,
 			     a1[i].assigned_flag?
 				     "is modified":
-				     "may be modified");
-
+				     "may be modified",i);
 		    arg_error_report(args2,"Actual arg",i,
-				     "is active DO index");
+				     "is active DO index",i);
 		  }
 		}
 	      }
@@ -889,6 +940,7 @@ if(debug_latest) {
 		    if(alist != defn_list &&
 		       (defn_list->is_defn || defn_list->is_call) &&
 		       (alist->is_call && !irrelevant(alist)) ){
+		            index_keyword_args(glob_symtab[i].name,defn_list,alist);
 			    arg_array_cmp(glob_symtab[i].name,defn_list,alist);
 			}
 			alist = alist->next;
@@ -898,4 +950,60 @@ if(debug_latest) {
 	}
     }
 	}/* end for (i=0; i<glob_symtab_top; i++) */
+}
+
+/* for keyword arguments, store the index of the occurrence of the keyword
+ * name in the definition list for checking later
+ */
+PRIVATE void 
+index_keyword_args(const char *subprog_name, ArgListHeader *defn_head, ArgListHeader *call_head)
+{
+    int i, j, first_keyword = -1;
+    char *keyword_name;
+    ArgListElement *defn_list = defn_head->arg_array,
+		   *call_list = call_head->arg_array;
+    int n1 = defn_head->numargs,
+	n2 = call_head->numargs;
+
+    for (i = 0; i < n2; i++) {
+	/* for keyword argument, find the dummy argument which
+	 * matches the keyword name
+	 */
+	if (call_list[i].keyword != NULL) {
+	    if (first_keyword == -1) first_keyword = i;
+	    /* Linear search through definition list for a dummy name that
+	     * matches keyword name.  Note this will give incorrect
+	     * warning "no such dummy argument" if keyword is provided
+	     * for previously non-keyword arg, e.g. function f(a,b)
+	     * invoked with y=f(1,a=0) [which is illegal].  Maybe fix
+	     * this someday.
+	     */
+	    for (j = first_keyword; j < n1; j++) {
+		keyword_name = defn_head->is_call && defn_list[j].keyword ?
+		    defn_list[j].keyword : defn_list[j].name;
+		if (strcmp(keyword_name, call_list[i].keyword) == 0) {
+		    call_list[i].keyword_index = j;
+		    break;
+		}
+	    }
+	    if (j == n1) {
+		call_list[i].keyword_index = -1;
+		argcmp_error_head(subprog_name,call_head,
+			": keyword use");
+		arg_error_report(call_head,"Actual argument",i,
+			"no such dummy argument",i);
+		msg_tail(call_list[i].keyword);
+	    }
+	}
+	else if (first_keyword == -1) {
+	    call_list[i].keyword_index = i;
+	}
+	else {
+	    call_list[i].keyword_index = -1;
+	    argcmp_error_head(subprog_name,call_head,
+		    ": keyword use");
+	    arg_error_report(call_head,"Actual argument",i,
+		    "requires keyword",i);
+	}
+    }
 }
