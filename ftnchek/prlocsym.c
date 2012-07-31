@@ -669,6 +669,7 @@ print_io_unit_usages(VOID)
 	int no = io_unit_info[i].unit_no;
 	int op = io_unit_info[i].io_operation;
 			/*  print info if it has changed */
+				/*LINTED*/ /*not uninit*/
 	if( i == 0 || id != old_id || no != old_no || op != old_op ||
 	    io_unit_info[i].io_access != old_acc ||
 	    io_unit_info[i].io_form != old_form ) {

@@ -738,6 +738,7 @@ check_intrins_args(id, arg)
 	   be picked up by func_ref_expr().  I am not sure this is the right way to do this.
 	 */
 	  if(opt_kind_present) {
+				/*LINTED*/ /*not uninit*/
 	    arg->kind = kind_arg_value;
 	  }
 	  else {

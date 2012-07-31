@@ -162,6 +162,7 @@ dnl rman is ok to make ftnchek.html, but "make htmldocs" won't work
     *)
 	MANtoHTML="man2html"
 	AC_MSG_WARN([man-to-html converter not found: cannot re-make htmldocs if deleted])
+	AC_MSG_WARN([Suggest install man2html if you plan to edit docs])
 	;;
 esac
 if test -n "$WRONG_MANtoHTML"

@@ -1225,6 +1225,7 @@ if(debug_lexer)
 		break;
 	   case tok_real_const:
 			/* store single as double lest it overflow */
+				/*LINTED*/ /*not uninit*/
 		token->value.dbl = dvalue;
 		if(trunc_sigfigs && sigfigs >= REAL_SIGFIGS) {
 		  warning(token->line_num,token->col_num,
@@ -1238,6 +1239,7 @@ if(debug_lexer)
 #endif
 		break;
 	   case tok_dp_const:
+				/*LINTED*/ /*not uninit*/
 		token->value.dbl = dvalue;
 #ifdef DEBUG_FORLEX
 if(debug_lexer)
@@ -1248,6 +1250,7 @@ if(debug_lexer)
 		break;
 	   case tok_quad_const:
 			/* store quad as double in case host doesn't do quad */
+				/*LINTED*/ /*not uninit*/
 		token->value.dbl = dvalue;
 #ifdef DEBUG_FORLEX
 if(debug_lexer)

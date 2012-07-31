@@ -160,7 +160,7 @@ visit_children(int wrapup)
   int i,
 	num_mains,		/* number of main programs */
 	num_roots;		/* number of uncalled nonlibrary prog units */
-  Gsymtab* main_prog_unit;
+  Gsymtab* main_prog_unit=NULL;
   
   num_roots =  0;
   for(i=0; i<glob_symtab_top; i++) {

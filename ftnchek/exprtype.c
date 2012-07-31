@@ -1420,14 +1420,10 @@ if(debug_latest) {
 		  report_type(term1);
 		}
 	      }
-	    }/*end else (result_type != E)*/
-	}/*end if (type1,type2 != E)*/
-    }/*end else (is_computational_type(type2))*/
-
 
 		/* Issue warning if integer expr involving division is
 		   later converted to any real type. */
-    if(trunc_int_div_real)
+    if(trunc_int_div_real) {
       if( is_true(INT_QUOTIENT_EXPR,term2->TOK_flags) ) {
 
 	int r=result_type;
@@ -1439,6 +1435,12 @@ if(debug_latest) {
 	    msg_tail(" converted to real");
 	}
       }
+    }
+
+	    }/*end else (result_type != E)*/
+	}/*end if (type1,type2 != E)*/
+    }/*end else (is_computational_type(type2))*/
+
 
 
 /**** handling for pointer assignment ***/
@@ -1606,14 +1608,12 @@ func_ref_expr(id,args,result)
       if(symt->pointer) {
 	make_true(POINTER_EXPR,result->TOK_flags);
 
-	  /* NULL intrinsic should make pointer disassociated and
-	     deallocated.  For other functions assume result is both
-	     assoc'd and alloc'd.
-	   */
-	if ( !(defn->intrins_flags & I_NULL) ) {
-	  make_true(ASSOCIATED_EXPR,result->TOK_flags);
-	  make_true(ALLOCATED_EXPR,result->TOK_flags);
-	}
+	  /* For user and most intrinsic functions assume result is
+	     both assoc'd and alloc'd.  NULL intrinsic status is done
+	     below.
+	  */
+	make_true(ASSOCIATED_EXPR,result->TOK_flags);
+	make_true(ALLOCATED_EXPR,result->TOK_flags);
       }
       else
 	make_false(POINTER_EXPR,result->TOK_flags);
@@ -1647,7 +1647,9 @@ symt->name,sized_typename(rettype,retsize));
 		   then result is one too. */
 	if( symt->intrinsic ) {
 	  int (*handler)( Token *args );
-	  int evaluated_result =
+	  int evaluated_result;
+	  defn = symt->info.intrins_info; /* done above, repeat to avoid compiler uninit warnings */
+	  evaluated_result =
 	    (is_true(EVALUATED_EXPR,args->TOK_flags) ||
 	     defn->intrins_flags&I_INQ);
 				/* Evaluate intrinsic if a handler is
@@ -1686,6 +1688,15 @@ symt->name,sized_typename(rettype,retsize));
 	      make_false(EVALUATED_EXPR,result->TOK_flags);
 	    }
 	  copy_flag(PARAMETER_EXPR,result->TOK_flags,args->TOK_flags);
+
+	  /* NULL intrinsic makes pointer disassociated and
+	     deallocated.  Above these flags were set, so here we need
+	     to clear them.
+	   */
+	  if( defn->intrins_flags & I_NULL ) {
+	    make_false(ASSOCIATED_EXPR,result->TOK_flags);
+	    make_false(ALLOCATED_EXPR,result->TOK_flags);
+	  }
 
 #ifdef DEBUG_EXPRTYPE
 if(debug_latest) {

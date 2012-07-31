@@ -1054,6 +1054,7 @@ print_selected_declarations(sym_list, n, the_type, the_type_name, pheader)
 		  next_column = (nv==0?column:column + 2);
 		else
 		  next_column = NEXT_COLUMN(nv==0?column:column + 2);
+				/*LINTED*/ /*not uninit*/
 		++ncontin;
 	      }
 	    last_size = sym_size;

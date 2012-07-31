@@ -437,6 +437,7 @@ find_free_contins(srcLine *Buf)
 		    }
 		    /* escaped quote via Unix backslash */
 		    else if( source_unix_backslash &&
+				/*LINTED*/ /*not uninit*/
 			     c == '\\' && s[i+1] == quoteChar ) {
 			i++;
 			col++;
@@ -452,6 +453,7 @@ find_free_contins(srcLine *Buf)
 		else {
 		  if( isdigit(c) ) { /* number found: see if hollerith */
 		    if( inside_number ) { /* this may be a continued number */
+				/*LINTED*/ /*not uninit*/
 			num_val = num_val*10 + BCD(c);
 		    }
 		    else {
@@ -667,6 +669,7 @@ find_fixed_contins(srcLine *Buf)
 		    }
 		    /* escaped quote via Unix backslash */
 		    else if( source_unix_backslash &&
+				/*LINTED*/ /*not uninit*/
 			     c == '\\' && s[i+1] == quoteChar ) {
 			i++;
 			col++;
@@ -682,6 +685,7 @@ find_fixed_contins(srcLine *Buf)
 		else {
 		  if( isdigit(c) ) { /* number found: see if hollerith */
 		    if( inside_number ) { /* this may be a continued number */
+				/*LINTED*/ /*not uninit*/
 			num_val = num_val*10 + BCD(c);
 		    }
 		    else {

@@ -1469,6 +1469,7 @@ if (use_this_item) {
 
     /* If new, store component info into dtype_table */
     if (!duplicate_dtype && use_this_item) {
+				/*LINTED*/ /*not uninit*/
       curr = dtype->components;
       curr[i].name = new_global_string(component_name);
       curr[i].type = map_type(component_type);
@@ -1660,6 +1661,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
     }
 
     if (use_this_item) {
+				/*LINTED*/ /*not uninit*/
       symt->common_var = id_common_var;
       symt->allocatable = id_allocatable;
       symt->pointer = id_pointer;
@@ -1894,6 +1896,7 @@ id_name,id_class,id_type);
        entry defining the subprogram, to hold its type.
      */
     if(module && use_this_item && !seen_before) {
+				/*LINTED*/ /*not uninit*/
       Lsymtab *symt = install_local(h,mapped_alist_type,class_SUBPROGRAM);
       symt->home_unit = id_home;
       symt->kind = alist_kind;
@@ -2000,6 +2003,7 @@ id_name,id_class,id_type);
       ahead->kind = alist_kind;
       ahead->numargs = (short)numargs;
       ahead->arg_array = (numargs==0? NULL: alist);
+				/*LINTED*/ /*not uninit*/
       ahead->prog_unit = prog_unit;
       ahead->topfile = filename;
 			/* try to avoid reallocating space for same name */
@@ -2014,6 +2018,7 @@ id_name,id_class,id_type);
       ahead->is_call = alist_is_call;
       ahead->external_decl = alist_external_decl;
       ahead->actual_arg = alist_actual_arg;
+				/*LINTED*/ /*not uninit*/
       ahead->next = prev_ahead = gsymt->info.arglist;
       gsymt->info.arglist = ahead;
       if(prev_ahead != NULL) {
@@ -2054,6 +2059,7 @@ id_name,id_class,id_type);
 #ifdef KEEP_ARG_NAMES
 			/* Economize storage by re-using previously allocated
 			   space for same name in prior call if any */
+				/*LINTED*/ /*not uninit*/
 	alist[iarg].name = (prev_ahead != NULL && iarg < prev_n &&
 			  strcmp(arg_name,prev_alist[iarg].name) == 0) ?
 			    prev_alist[iarg].name:
@@ -2288,6 +2294,7 @@ id_name,id_class,id_type);
 #endif
 			/* Economize storage by re-using previously allocated
 			   space for same name in prior decl if any */
+				/*LINTED*/ /*not uninit*/
   if (use_this_item) {
       clist[ivar].name = (prev_chead != NULL && ivar < prev_n &&
 			  strcmp(var_name,prev_clist[ivar].name) == 0) ?
@@ -2315,6 +2322,7 @@ id_name,id_class,id_type);
 	  oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
 		       "Common info in module is inconsistent");
 	}
+				/*LINTED*/ /*not uninit*/
 	com_var->common_block = gsymt;
 	com_var->common_index = ivar;
 

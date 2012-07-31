@@ -284,7 +284,9 @@ com_cmp_lax(name,c1,c2)
 		   except with char.
 		   Also issue warning under -portability or -nowordsize
 		   if an explicit size is matched to an implicit size. */
+
 	type_clash = FALSE;
+				/*LINTED*/ /*not uninit*/
 	if( (type_category[type1] == type_category[type2]) ) {
 	  if( type1 != type_STRING &&
 	      (size1 != size2
@@ -321,11 +323,13 @@ com_cmp_lax(name,c1,c2)
 	    (void)sprintf(msg,"%s %ld is type %s",
 		     byte_oriented?"Byte":"Word",
 		     word1,
+				/*LINTED*/ /*not uninit*/
 		     typespec(type1,!defsize1,(long)size1,FALSE,0L));
 	    com_error_report(c1,msg);
 	    (void)sprintf(msg,"%s %ld is type %s",
 		     byte_oriented?"Byte":"Word",
 		     word2,
+				/*LINTED*/ /*not uninit*/
 		     typespec(type2,!defsize2,(long)size2,FALSE,0L));
 	    com_error_report(c2,msg);
 	}

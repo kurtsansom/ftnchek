@@ -550,7 +550,7 @@ make_arg_names(tlist, alhead, prev_alhead)
      ArgListHeader *alhead, *prev_alhead;
 #endif /* HAVE_STDC */
 {
-	int h, i, n, prev_n;
+	int h, i, n;
 	Token *s;
 #ifdef KEEP_ARG_NAMES
 	char *name;
@@ -565,7 +565,6 @@ make_arg_names(tlist, alhead, prev_alhead)
 	if(n > 0) {
 	  arglist = alhead->arg_array;
 	  if(prev_alhead != NULL) {
-	    prev_n = prev_alhead->numargs;
 	    prev_arglist = prev_alhead->arg_array;
 	  }
 	  for(i=0, s=tlist; i<n; i++, s=s->next_token) {
@@ -606,12 +605,13 @@ make_arg_names(tlist, alhead, prev_alhead)
 	    }
 #ifdef KEEP_ARG_NAMES
 				/* Try to avoid allocating space again */
-	    if(prev_alhead != NULL && i < prev_n
+	    if(prev_alhead != NULL && i < prev_alhead->numargs
 		 && strcmp(name,prev_arglist[i].name) == 0) {
 	      name = prev_arglist[i].name;
 	    }
 	    else if(is_true(ID_EXPR,s->TOK_flags)
 		    && !(is_true(ARRAY_ELEMENT_EXPR,s->TOK_flags)||is_true(DTYPE_COMPONENT,s->TOK_flags))) {
+	      h = s->value.integer;
 	      if(hashtab[h].glob_symtab != NULL) {
 		name = hashtab[h].glob_symtab->name;
 	      }
@@ -697,7 +697,7 @@ make_com_names(tlist, clhead, prev_clhead)
      ComListHeader *clhead, *prev_clhead;
 #endif /* HAVE_STDC */
 {
-	int h, i, n, prev_n;
+	int h, i, n;
 	Token *s;
 	ComListElement *comlist, *prev_comlist;
 	char *name;
@@ -705,7 +705,6 @@ make_com_names(tlist, clhead, prev_clhead)
 
 	n = clhead->numargs;
 	if(prev_clhead != NULL) {
-	  prev_n = prev_clhead->numargs;
 	  prev_comlist = prev_clhead->com_list_array;
 	}
 
@@ -720,7 +719,7 @@ make_com_names(tlist, clhead, prev_clhead)
 		   name (likely), and if so, re-use the global string.
 		   Otherwise allocate new space in global table.  */
 
-	  if(prev_clhead != NULL && i < prev_n
+	  if(prev_clhead != NULL && i < prev_clhead->numargs
 	     && strcmp(name,prev_comlist[i].name) == 0) {
 	    name = prev_comlist[i].name;
 	  }
