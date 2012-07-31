@@ -3388,11 +3388,13 @@ use_pointer_lvalue(Token *id, Token *rhs)
       } while(equiv != symt);
     }
 
-    if( is_true(ALLOCATED_EXPR,id->TOK_flags) &&
-	!is_true(ASSOCIATED_EXPR,rhs->TOK_flags) ) {
-	    warning(id->line_num,id->col_num,
-		    "Disassociating an allocated pointer: ");
-	    msg_expr_tree(id);
+    if (usage_nullify_allocated) {
+      if( is_true(ALLOCATED_EXPR,id->TOK_flags) &&
+	  !is_true(ASSOCIATED_EXPR,rhs->TOK_flags) ) {
+	warning(id->line_num,id->col_num,
+	    "Disassociating an allocated pointer: ");
+	msg_expr_tree(id);
+      }
     }
 	
       /* propagate pointer association status to lvalue */
@@ -3465,7 +3467,7 @@ do_allocate(id)		/* Process ALLOCATE statement */
 		   symt->line_allocd = next_id->line_num;
 		   symt->file_allocd = inctable_index;
                 }
-                else{
+                else if (usage_reallocate_allocated) {
                    warning(next_id->line_num,next_id->col_num,
                      "Reallocating an allocated variable: ");
 		   msg_expr_tree(next_id);
@@ -3510,7 +3512,7 @@ do_deallocate(id)		/* Process ALLOCATE statement */
                 if (symt->allocated_flag){
 	           symt->allocated_flag = FALSE;
                 }
-                else{
+                else if (usage_deallocate_unallocated) {
                    warning(next_id->line_num,next_id->col_num,
                      "Deallocating a possibly unallocated variable: ");
 		   msg_expr_tree(next_id);

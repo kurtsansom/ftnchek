@@ -83,10 +83,12 @@ int find_dtype(Token *t, int in_dtype_def){
       /* If masked entry still is not a data type then this is an error */
     if( symt == NULL ||
 	(storage_class_of(symt->type) != class_DTYPE) ){
-      symt = hashtab[h].loc_symtab;
-      syntax_error(t->line_num,t->col_num,symt->name);
-      msg_tail("is not a data type");
-      return 0;  /* not found => undeclared type */
+      if (misc_warn) {
+	symt = hashtab[h].loc_symtab;
+	syntax_error(t->line_num,t->col_num,symt->name);
+	msg_tail("is not a data type");
+	return 0;  /* not found => undeclared type */
+      }
     }
   }
 
@@ -116,7 +118,9 @@ Lsymtab * def_dtype(int h, int tok_line_num, int tok_col_num, int access_spec, i
 
     if( !is_derived_type(datatype_of(symt->type)) ||
        (dtype_def && symt->line_declared != NO_LINE_NUM)) { /* not a forward reference */
-      syntax_error(tok_line_num,tok_col_num,"Type name is in use");
+      if (misc_warn) {
+	syntax_error(tok_line_num,tok_col_num,"Type name is in use");
+      }
     }
     else if(dtype_def) {
 	    /* If this is a type defn for a type defined
@@ -265,7 +269,7 @@ void process_dtype_components(const char *name)
      PRIVATE statement.
    */
   num_components = loc_symtab_top - curr_scope_bottom;
-  if (num_components == 0) {
+  if (type_empty && num_components == 0) {
     warning(symt->line_declared, NO_COL_NUM,
             "No components in derived type definition");
   }
@@ -427,7 +431,7 @@ PRIVATE int duplicate_dtype( int type_id )
 	return i;			/* all matches up */
       }
       else {				/* all but sequence attr */
-	if (!sequence_warning_given) {
+	if (type_sequence && !sequence_warning_given) {
 	  warning(source->line_declared, NO_COL_NUM,
 		  "Derived type");
 	  msg_tail(source->name);
@@ -746,8 +750,10 @@ PRIVATE DtypeComponent *last_component(Token *comp_token)
       */
       if (array_dims(component_dim) > 0) {
 	if (array_dims(result_dim) > 0 ) {
-	  syntax_error(component_id->line_num,component_id->col_num,
-		       "only one component may be of nonzero rank");
+	  if (misc_warn) {
+	    syntax_error(component_id->line_num,component_id->col_num,
+		"only one component may be of nonzero rank");
+	  }
 	}
 	else {
 	  result_dim = component_dim;	/* result gets component's shape */

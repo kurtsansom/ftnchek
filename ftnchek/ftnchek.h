@@ -414,6 +414,12 @@ PROTO(VOID exit,(int));
 #else
 #define TRUNC_ALL TRUE
 #endif
+			/* -type options default to TYPE_ALL, which
+			 * defaults to on.
+			 */
+#ifndef TYPE_ALL
+#define TYPE_ALL TRUE
+#endif
 
 			/* -usage options default to USAGE_ALL.  Define
 			   LAX_USAGE to make -usage=none the default.
@@ -1144,6 +1150,11 @@ OPT(int,trunc_sigfigs,TRUNC_ALL);	/* Sngl const overspecified */
 #define trunc_precision (trunc_promotion||trunc_type_demotion||trunc_size_demotion)
 		/* End of -truncation options */
 
+		/* These options are controlled by -type */
+OPT(int,type_empty,TYPE_ALL);		/* No components in derived type */
+OPT(int,type_sequence,TYPE_ALL);	/* Derived types match except for SEQUENCE attribute*/
+		/* End of -type options */
+
 		/* These options are controlled by -usage */
 OPT(int,usage_arg_modified,USAGE_ALL);		/* const or expr arg modified */
 OPT(int,usage_arg_alias_modified,USAGE_ALL);	/* arg same-as other modified */
@@ -1156,6 +1167,7 @@ OPT(int,usage_com_block_volatile,USAGE_ALL);	/* block may lose defn */
 OPT(int,usage_com_var_set_unused,USAGE_ALL);	/* set but not used */
 OPT(int,usage_com_var_uninitialized,USAGE_ALL);/* used but not set */
 OPT(int,usage_com_var_unused,USAGE_ALL);	/* declared but not used */
+OPT(int,usage_deallocate_unallocated,USAGE_ALL);	/* possibly unallocated variable deallocated */
 OPT(int,usage_do_var_modified,USAGE_ALL);	/* DO index var modified */
 OPT(int,usage_ext_declared_only,USAGE_ALL);	/* declared EXTERNAL but not defined or used */
 OPT(int,usage_ext_multiply_defined,USAGE_ALL);/* multiple definitions */
@@ -1166,6 +1178,8 @@ OPT(int,usage_label_unused,USAGE_ALL);     /* label defined but unused */
 OPT(int,usage_mod_var_set_unused,USAGE_ALL);	/* module variables set,unused */
 OPT(int,usage_mod_var_uninitialized,USAGE_ALL);	/* module variables used,unset */
 OPT(int,usage_mod_var_unused,USAGE_ALL);	/* module variables unused,unset */
+OPT(int,usage_nullify_allocated,USAGE_ALL);	/* allocated pointer disassociated*/
+OPT(int,usage_reallocate_allocated,USAGE_ALL);	/* allocated variable reallocated*/
 OPT(int,usage_var_set_unused,USAGE_ALL);	/* set but not used */
 OPT(int,usage_var_uninitialized,USAGE_ALL);	/* used before set */
 OPT(int,usage_var_unused,USAGE_ALL);		/* declared but not used */

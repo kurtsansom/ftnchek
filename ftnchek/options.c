@@ -912,6 +912,26 @@ PRIVATE WarnOptionList
 };
 
 
+PRIVATE char *type_warn_list=(char *)NULL; /* Derived type warnings */
+
+PRIVATE WarnOptionList
+ type_warn_option[]={
+  {
+#if TYPE_ALL
+   "all"	 /* used by -help */
+#else
+   "none"
+#endif
+     , (int *)NULL,		"derived type warnings"},	/* Title for list */
+  {"empty",		&type_empty,
+				"derived type has no components"},
+  {"sequence",		&type_sequence,
+				"derived types match except for SEQUENCE attribute"},
+  {(char *)NULL, (int *)NULL, (char *)NULL},
+
+};
+
+
 PRIVATE char *usage_warn_list=(char *)NULL; /* Variable usages to warn about */
 
 PRIVATE WarnOptionList
@@ -945,6 +965,8 @@ PRIVATE WarnOptionList
 		"common variable used but not set"},
   {"com-var-unused",	&usage_com_var_unused,
 		"common variable declared but not used"},
+  {"deallocate-unallocated",	&usage_deallocate_unallocated,
+		"deallocating allocated variable"},
   {"do-index-modified",	&usage_do_var_modified,
 		"active DO index variable modified"},
   {"ext-multiply-defined",	&usage_ext_multiply_defined,
@@ -965,6 +987,10 @@ PRIVATE WarnOptionList
 		"module variable used but not set"},
   {"mod-var-unused",	&usage_mod_var_unused,
 		"module variable declared but not used"},
+  {"nullify-allocated",	&usage_nullify_allocated,
+		"nullifying allocated pointer"},
+  {"reallocate-allocated",	&usage_reallocate_allocated,
+		"reallocating allocated variable"},
   {"var-set-unused",	&usage_var_set_unused,
 		"local variable set but not used"},
   {"var-uninitialized",	&usage_var_uninitialized,
@@ -1061,6 +1087,9 @@ PRIVATE StrsettingList strsetting[]={
   {"truncation",&trunc_warn_list,"all", "none", IS_A_CHECK,
      trunc_warn_option, NULL,
      "check for truncation pitfalls"},
+  {"type",	&type_warn_list, "all", "none", IS_A_CHECK,
+     type_warn_option, NULL,
+     "warn about derived types"},
   {"usage",	&usage_warn_list,"all", "none", IS_A_CHECK,
      usage_warn_option, usage_numeric_option,
      "warn about variable and common block usage problems"},
