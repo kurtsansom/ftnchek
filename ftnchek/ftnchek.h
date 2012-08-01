@@ -1153,6 +1153,7 @@ OPT(int,trunc_sigfigs,TRUNC_ALL);	/* Sngl const overspecified */
 		/* These options are controlled by -type */
 OPT(int,type_empty,TYPE_ALL);		/* No components in derived type */
 OPT(int,type_sequence,TYPE_ALL);	/* Derived types match except for SEQUENCE attribute*/
+OPT(int,type_unused,TYPE_ALL);		/* Type defined but not used */
 		/* End of -type options */
 
 		/* These options are controlled by -usage */

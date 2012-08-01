@@ -92,6 +92,9 @@ int find_dtype(Token *t, int in_dtype_def){
     }
   }
 
+  /* A variable of the derived type was created */
+  symt->used_flag = TRUE;
+
   return datatype_of(symt->type);
 
 }

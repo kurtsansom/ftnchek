@@ -1396,6 +1396,7 @@ if (use_this_item) {
       symt->file_declared = inctable_index;
       symt->home_unit = hashtab[home_h].name;
     }
+    symt->defined_in_module = TRUE;
     type_map[dtype_type] = mapped_type;	/* use the pre-existing number in this program */
     dtype = dtype_table[mapped_type];
     dtype->symt = symt;

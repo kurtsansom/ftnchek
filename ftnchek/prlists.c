@@ -384,6 +384,24 @@ else {
 		    }
 			break;
 
+		case class_DTYPE:
+		    {
+		      /* warn about derived types that were defined
+		       * or inherited but never used within subprograms
+		       */
+		      if (type_unused &&
+			  datatype_of(curr_gsymt->type) != type_MODULE &&
+			  !loc_symtab[i].used_flag && 
+			  !loc_symtab[i].defined_in_module) {
+			warning(NO_LINE_NUM,NO_COL_NUM,
+			    "Derived type");
+			msg_tail(loc_symtab[i].name);
+			msg_tail("unused");
+		      }
+		    }
+			break;
+
+
 	    }/* end switch */
 
         }/* end for (i=0; i<loc_symtab_top; i++) */

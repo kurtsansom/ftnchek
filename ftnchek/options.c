@@ -927,6 +927,8 @@ PRIVATE WarnOptionList
 				"derived type has no components"},
   {"sequence",		&type_sequence,
 				"derived types match except for SEQUENCE attribute"},
+  {"unused",		&type_unused,
+				"type defined but not used"},
   {(char *)NULL, (int *)NULL, (char *)NULL},
 
 };
