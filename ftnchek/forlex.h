@@ -38,8 +38,6 @@ as the "MIT License."
 
 extern YYSTYPE yylval;	  /* Lexical value for Yacc */
 
-LEX_SHARED
-int free_form;			/* TRUE if source format is free-form */
 
 	/* Since EOS is special, need special macros for it */
 #define makeupper(C) (((C) != EOS && islower((int)(C)))? toupper((int)(C)):(C))

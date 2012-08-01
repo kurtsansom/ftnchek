@@ -43,7 +43,7 @@ missing.  Here is a partial list of some of the more important things
 ftnchek does not yet do:
 
   -- PARAMETERs may not be array-valued or of derived type.
-  -- NAMELISTs and DATA statements in modules do not get exported.
+  -- NAMELISTs in modules do not get exported.
   -- INTERFACE blocks are parsed but not processed.  This implies that
      there is no support for defining generic procedures, overloaded
      operators, or user-defined operators.

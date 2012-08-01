@@ -483,7 +483,12 @@ src_file_in(infile)
 	  }
 	  msg_tail("contains tabs");
 	}
-
+	if(f77_f90 && free_form) {
+	  if(! quiet)
+	    (void)fprintf(list_fd,"\n");
+	  nonstandard(NO_LINE_NUM,NO_COL_NUM,0,0);
+	  msg_tail(": free-form source");
+	}
 	error_summary(infile);
 }
 

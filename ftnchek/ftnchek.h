@@ -1342,6 +1342,9 @@ SHARED int
     curr_stmt_class,	/* Token class of current stmt's leading token */
     allocatable_flag;  /* true while parsing allocate statement */
 
+SHARED
+int free_form;			/* TRUE if source format is free-form */
+
 	/* flag for error messages to behave differently in global cases */
 SHARED int doing_wrapup;
 	/* ditto for local cases */

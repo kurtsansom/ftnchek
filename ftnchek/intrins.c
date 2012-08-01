@@ -82,6 +82,7 @@ PROTO(PRIVATE int ii_merge,( Token *args ));
 PROTO(PRIVATE int ii_min,( Token *args ));
 PROTO(PRIVATE int ii_minloc,( Token *args ));
 PROTO(PRIVATE int ii_mod,( Token *args ));
+PROTO(PRIVATE int ii_modulo,( Token *args ));
 PROTO(PRIVATE int ii_null,( Token *args ));
 PROTO(PRIVATE int ii_pack,( Token *args ));
 PROTO(PRIVATE int ii_reshape,( Token *args ));
@@ -176,7 +177,7 @@ SIGN (A, B)                        Transfer of sign
 {"MAX",		I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_max},
 {"MIN", 	I_2up,	I|R|D,	type_GENERIC,	I_F77|I_ELEM|I_NOTARG,ii_min},
 {"MOD", 	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_mod},
-{"MODULO",	2,	I|R|D,	type_GENERIC,	I_F90|I_ELEM,NULL},
+{"MODULO",	2,	I|R|D,	type_GENERIC,	I_F90|I_ELEM,ii_modulo},
 {"NINT",	1,	R|D,	type_INTEGER,	I_F77|I_ELEM|I_OK,NULL},
 {"REAL",	1,	I|R|D|C|Z,type_GENERIC, I_F77|I_ELEM|I_NOTARG|I_C_TO_R|I_SP_R|I_OK,NULL},
 {"SIGN",	2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_sign},
@@ -994,13 +995,42 @@ ii_mod(args)			/* MOD(int,int) */
   else {
     val1 = int_expr_value(t1);
     val2 = int_expr_value(t2);
-    if((val1 < 0) == (val2 < 0)) {
-      quotient = val1/val2;	/* Both positive or both negative*/
+    if(val2 != 0) {
+      if((val1 < 0) == (val2 < 0)) {
+	quotient = val1/val2;	/* Both positive or both negative*/
+      }
+      else {
+	quotient = -(-val1/val2);	/* Unlike signs */
+      }
+      result = val1 - quotient*val2;
     }
-    else {
-      quotient = -(-val1/val2);	/* Unlike signs */
+  }  
+  return result;
+}
+
+PRIVATE int
+ii_modulo(Token *args)			/* MODULO(A,P) */
+{
+  Token *t1,*t2;
+  int val1,val2,quotient, result=0;
+  t1 = args->next_token;
+  t2 = t1->next_token;
+  if(t2 == NULL || t1->TOK_type != type_INTEGER
+     || t2->TOK_type != type_INTEGER) {/* don't evaluate with real args */
+    make_false(EVALUATED_EXPR,args->TOK_flags);
+  }
+  else {
+    val1 = int_expr_value(t1);
+    val2 = int_expr_value(t2);
+    if(val2 != 0) {
+      if((val1 < 0) == (val2 < 0)) {
+	quotient = val1/val2;	/* Both positive or both negative*/
+      }
+      else {
+	quotient = -((-val1/val2)+1);	/* Unlike signs */
+      }
+      result = val1 - quotient*val2;
     }
-    result = val1 - quotient*val2;
   }
   return result;
 }
