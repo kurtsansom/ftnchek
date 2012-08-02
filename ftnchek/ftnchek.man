@@ -4683,15 +4683,8 @@ language elements is a high priority and should be completed shortly.
 Optional arguments in user-defined functions are not supported.  They
 will generate warnings about inconsistency between function call and
 definition.
-In intrinsic functions, keyword forms of actual arguments
-(e.g. \fCREAL(A=X,KIND=DP)\fP) are parsed but matching of keyword to
-dummy argument for type checking is not yet done.  This implies that
-the standard order of arguments must still be followed even using
-keywords.  This is especially important when using intrinsics that are
-evaluated in parameter declarations and that take optional arguments.
-For instance, to specify a range R with SELECTED_REAL_KIND, it is
-necessary to include the precision P as the first argument.
 This defect is expected to be fixed very soon.
+Optional arguments are supported for intrinsic functions.
 .PP
 When tracking array-valued expressions, the detailed shape of arrays
 is not recorded, only the overall length.  When \fBftnchek\fP cannot

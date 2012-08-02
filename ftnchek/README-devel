@@ -58,4 +58,77 @@ It's best to do "make clean" before "make" after re-running
 configure.
 
 
+7. If you want to update the documentation, here are some tips.  The
+user manual is produced in various forms: a Unix man page ftnchek.1, a
+PostScript document ftnchek.ps, a PDF document ftnchek.pdf, and in
+HTML form in directory html.  There are also a shorter plain-text
+edition called the blurb.txt, and a VMS HELP document ftnchek.hlp.
+All of these originate from the file ftnchek.man, which is written in
+Nroff.  To generate all the documentation, say
+  $ make docs
 
+The ftnchek.man file makes use of number registers to control variant
+content for the blurb and the VMS HELP document.  See comments at the
+head of the file for details.  This conditional text is removed to
+produce ftnchek.1 which is installed as the man page.  This step
+requires soelim, which should be a standard utility on Unix-like
+systems.  Be careful not to mess up the conditionals or ftnchek.man
+can become unusable.
+
+In turn, ftnchek.1 is run through groff or troff to create
+ftnchek.ps.  groff is available as a standard package in Fedora and
+Debian systems.
+
+Then ftnchek.ps is converted to PDF by a PS-to-Pdf converter.  The
+configure script looks for ps2pdf, which is available as a standard
+package in Fedora and Debian.  Probably other converters will work OK
+too.
+
+The HTML form of the documentation undergoes a more complicated
+process, the goal of which is to break up the manual into a large set
+of small pages with hyperlinks to all the command-line options.  These
+pages are placed in the directory named html/ .  The first step uses
+man2html to convert ftnchek.1 into HTML form.  This step can equally
+well be done using other converters, such as "groff -T man".  However,
+the subsequent steps are tailored to the HTML produced by man2html,
+which is available as a standard package in Fedora and Debian.  To
+make just the HTML docs (and things they depend on), use
+ $ make htmldocs
+
+Here is what happens.  The direct output of man2html is run through a
+shell script add_html_refs.sh which turns all occurrences each of
+ftnchek's command-line arguments into hyperlinks to the OPTIONS
+section where the argument is described.  The result is placed in
+ftnchek.html.orig.  This file is patched using ftnchek.html.patch
+(explained below) and the result placed in ftnchek.html, which is one
+long document containing the whole user manual, i.e. an HTML version
+of ftnchek.pdf.  Then the shell script make_html.sh works on
+ftnchek.html to turn it into the broken-up pages in the html/
+directory.
+
+The file ftnchek.html.patch is used to record small edits to
+ftnchek.html to fix things that man2html does not do right.  For
+example, since man2html is designed as a CGI man page server, it
+converts references to programs like emacs(1) in the text into
+hyperlinks to the CGI man pages for the programs.  These are harmless
+and can be left alone, but example code like SUBA(1) is also turned
+into such a hyperlink, which is totally bogus.  These infelicities
+must be edited out in ftnchek.html, and "make htmldocs" is re-run
+until the HTML looks OK.  Once you are satisfied, say
+  $ make ftnchek.html.patch
+to save the edits to be re-applied next time ftnchek.man is updated
+and "make docs" is run.
+
+Thus the cycle of editing the documentation goes like this:
+1.  edit ftnchek.man for content
+2.  run "make docs" (this clobbers ftnchek.html)
+3.  view HTML in browser and look for issues
+4.  edit ftnchek.html and run "make htmldocs" till HTML looks ok
+5.  run "make ftnchek.html.patch" to save edits
+Can now return to steps 1 & 2 without losing edits.
+
+The file ftnchek.html.patch is included in svn so that other users who
+run update will get the right patches.  Note that if "make docs"
+starts to issue patch warnings about offsets, it is time to re-run
+"make ftnchek.html.patch" to update the patch file before the context
+changes get to be so large that some of the patches get rejected.

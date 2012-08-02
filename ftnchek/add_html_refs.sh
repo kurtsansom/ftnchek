@@ -23,7 +23,7 @@
 		 sub(/\[no\]/,"",opt[1]);
 		 sub(/=.*$/,"",opt[1]);
 		 sub(/^-/,"",opt[1]);
-		 printf("s,\\([^a-z]\\)-%s,\\1<A HREF=\"#%s\">-%s</A>,g\n",
+		 printf("s,\\([^a-z]\\)-\\(no\\)\\?%s,\\1<A HREF=\"#%s\">-\\2%s</A>,g\n",
 		    opt[1],opt[1],opt[1]);
 		}' \
 	  > option_sub.sed
