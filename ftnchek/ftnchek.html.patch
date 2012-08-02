@@ -1,0 +1,118 @@
+*** ftnchek.html.orig	2012-08-01 19:16:49.439869997 -0400
+--- ftnchek.html	2012-08-01 19:18:12.033560389 -0400
+***************
+*** 3579,3592 ****
+  systems.  For simplicity, all the examples set the default <B><A HREF="#list">-list</A></B>
+  switch to YES.
+  <TABLE>
+! <TR VALIGN=top><TD>1. UNIX, Bourne shell:</TD><TD>$ FTNCHEK_LIST=YES<BR></TD></TR>
+! <TR VALIGN=top><TD></TD><TD>$ export FTNCHEK_LIST<BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>2. UNIX, C shell:</TD><TD>% setenv FTNCHEK_LIST YES<BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>3. VAX/VMS:</TD><TD>$ DEFINE FTNCHEK_LIST YES<BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>4. MSDOS:</TD><TD>$ SET FTNCHEK_LIST=YES<BR></TD></TR>
+  </TABLE>
+  
+  <P>
+--- 3579,3592 ----
+  systems.  For simplicity, all the examples set the default <B><A HREF="#list">-list</A></B>
+  switch to YES.
+  <TABLE>
+! <TR VALIGN=top><TD>1. UNIX, Bourne shell:</TD><TD><code>$ FTNCHEK_LIST=YES</code><BR></TD></TR>
+! <TR VALIGN=top><TD></TD><TD><code>$ export FTNCHEK_LIST</code><BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>2. UNIX, C shell:</TD><TD><code>% setenv FTNCHEK_LIST YES</code><BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>3. VAX/VMS:</TD><TD><code>$ DEFINE FTNCHEK_LIST YES</code><BR></TD></TR>
+  <TR VALIGN=top><TD></TD><TD><BR></TD></TR>
+! <TR VALIGN=top><TD>4. MSDOS:</TD><TD><code>$ SET FTNCHEK_LIST=YES</code><BR></TD></TR>
+  </TABLE>
+  
+  <P>
+***************
+*** 3844,3850 ****
+  C               I -&gt;     loop counter
+  
+          REAL FUNCTION COMPAV(SCORE,COUNT)
+!             INTEGER SUM,COUNT,J,<A HREF="/man/man2html?5+SCORE">SCORE</A>(5)
+  
+              DO 30 I = 1,COUNT
+                  SUM = SUM + SCORE(I)
+--- 3844,3850 ----
+  C               I -&gt;     loop counter
+  
+          REAL FUNCTION COMPAV(SCORE,COUNT)
+!             INTEGER SUM,COUNT,J,SCORE(5)
+  
+              DO 30 I = 1,COUNT
+                  SUM = SUM + SCORE(I)
+***************
+*** 3926,3932 ****
+        8 C               I -&gt;     loop counter
+        9 
+       10         REAL FUNCTION COMPAV(SCORE,COUNT)
+!      11             INTEGER SUM,COUNT,J,<A HREF="/man/man2html?5+SCORE">SCORE</A>(5)
+       12 
+       13             DO 30 I = 1,COUNT
+       14                 SUM = SUM + SCORE(I)
+--- 3926,3932 ----
+        8 C               I -&gt;     loop counter
+        9 
+       10         REAL FUNCTION COMPAV(SCORE,COUNT)
+!      11             INTEGER SUM,COUNT,J,SCORE(5)
+       12 
+       13             DO 30 I = 1,COUNT
+       14                 SUM = SUM + SCORE(I)
+***************
+*** 4082,4088 ****
+  C               I -&gt;     loop counter
+  C
+         REAL FUNCTION COMPAV(SCORE,COUNT)
+!             INTEGER SUM,COUNT,I,<A HREF="/man/man2html?5+SCORE">SCORE</A>(5)
+  C
+              SUM = 0
+              DO 30 I = 1,COUNT
+--- 4082,4088 ----
+  C               I -&gt;     loop counter
+  C
+         REAL FUNCTION COMPAV(SCORE,COUNT)
+!             INTEGER SUM,COUNT,I,SCORE(5)
+  C
+              SUM = 0
+              DO 30 I = 1,COUNT
+***************
+*** 4311,4317 ****
+  <PRE>
+       COMMON /COM1/ A,B
+  and
+!      COMMON /COM1/ <A HREF="/man/man2html?2+A">A</A>(2)
+  </PRE>
+  
+  <BR>
+--- 4311,4317 ----
+  <PRE>
+       COMMON /COM1/ A,B
+  and
+!      COMMON /COM1/ A(2)
+  </PRE>
+  
+  <BR>
+***************
+*** 4528,4534 ****
+  
+  and elsewhere invokes SUBA by
+  <PRE>
+!      CALL <A HREF="/man/man2html?2+SUBA">SUBA</A>(2)
+  </PRE>
+  
+  <BR>
+--- 4528,4534 ----
+  
+  and elsewhere invokes SUBA by
+  <PRE>
+!      CALL SUBA(2)
+  </PRE>
+  
+  <BR>

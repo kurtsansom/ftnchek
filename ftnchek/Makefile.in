@@ -19,6 +19,7 @@
 #	ftnchek.doc		plain text form of documentation
 #	ftnchek.hlp		VMS HELP library source
 #	ftnchek.ps		PostScript form of documentation
+#	ftnchek.pdf		PDF form of documentation
 #	htmlclean		remove unneeded files from html directory
 #	htmldocs		hypertext form of documentation
 #	install			install ftnchek and dcl2inc and their man pages
@@ -217,7 +218,7 @@ OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o dtypes.o 
 DOCS		= README INSTALL LICENSE PATCHES FAQ ToDo project.magic \
 			average.f average.out correct.f \
 			blurb.txt dcl2inc.doc dcl2inc.man dcl2inc.ps \
-			ftnchek.doc ftnchek.hlp ftnchek.man ftnchek.ps html \
+			ftnchek.doc ftnchek.hlp ftnchek.man ftnchek.ps ftnchek.pdf html \
 			macro-doc.txt project-doc.tex
 
 UNIX_BUILDFILES	= Makefile.in configure configure.in config.guess config.sub \
@@ -407,7 +408,7 @@ iokeywds_enum.h: iokeywds.h
 # give satisfactory results.
 
 docs:	average.out blurb.txt ftnchek.doc ftnchek.hlp \
-	htmldocs ftnchek.ps dcl2inc.doc dcl2inc.ps
+	htmldocs ftnchek.ps ftnchek.pdf dcl2inc.doc dcl2inc.ps
 
 
 # Following sed script trims out the if-else machinery contained in

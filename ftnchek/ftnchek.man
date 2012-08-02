@@ -3722,22 +3722,17 @@ switch to YES, give the command
 Here are some examples of how to set environment variables on various
 systems.  For simplicity, all the examples set the default \fB\-list\fP
 switch to \fCYES\fR.
-.PP
-.\" groff gives bad alignment on case 1 and I haven't found a workaround
-.fc > @
-.if n .ta 30 +30
-.if t .ta 2i +3i
->1. UNIX, Bourne shell:  >\fC$ FTNCHEK_LIST=YES\fR
-.\" groff gives bad alignment here and I haven't found a workaround
-.br
->                        >\fC$ export FTNCHEK_LIST\fR
+.TS
+l l.
+1. UNIX, Bourne shell:	\fC$ FTNCHEK_LIST=YES\fR
+	\fC$ export FTNCHEK_LIST\fR
 
->2. UNIX, C shell:       >\fC% setenv FTNCHEK_LIST YES\fR
+2. UNIX, C shell:	\fC% setenv FTNCHEK_LIST YES\fR
 
->3. VAX/VMS:             >\fC$ DEFINE FTNCHEK_LIST YES\fR
+3. VAX/VMS:	\fC$ DEFINE FTNCHEK_LIST YES\fR
 
->4. MSDOS:               >\fC$ SET FTNCHEK_LIST=YES\fR
-.fc
+4. MSDOS:	\fC$ SET FTNCHEK_LIST=YES\fR
+.TE
 \}
 .PP
 After processing any environment variables, ftnchek looks for a
@@ -4077,8 +4072,8 @@ and of individual messages below.
 Each message is prefixed with a word or phrase indicating the nature
 of the condition and its severity.
 .PP
-NOTE: this section formerly attempted to list all of \fBftnchek\fP's
-warnings and error messages.  There are now far too many to document
+NOTE: this section does not attempt to list all of \fBftnchek\fP's
+warnings and error messages.  There are far too many to document
 each.  Hopefully the examples given here will provide enough guidance
 for you to interpret all of the messages you may see.
 .PP
@@ -4687,15 +4682,16 @@ language elements is a high priority and should be completed shortly.
 .PP
 Optional arguments in user-defined functions are not supported.  They
 will generate warnings about inconsistency between function call and
-definition.  In intrinsic functions, keyword forms of actual arguments
+definition.
+In intrinsic functions, keyword forms of actual arguments
 (e.g. \fCREAL(A=X,KIND=DP)\fP) are parsed but matching of keyword to
 dummy argument for type checking is not yet done.  This implies that
 the standard order of arguments must still be followed even using
 keywords.  This is especially important when using intrinsics that are
 evaluated in parameter declarations and that take optional arguments.
 For instance, to specify a range R with SELECTED_REAL_KIND, it is
-necessary to include the precision P as the first argument.  This
-defect is expected to be fixed very soon.
+necessary to include the precision P as the first argument.
+This defect is expected to be fixed very soon.
 .PP
 When tracking array-valued expressions, the detailed shape of arrays
 is not recorded, only the overall length.  When \fBftnchek\fP cannot
@@ -4711,8 +4707,35 @@ array constructor is used as the SHAPE argument in RESHAPE,
 We plan to have \fBftnchek\fP store array-valued parameters whose
 values are compile-time integer constants.
 .PP
-NAMELISTs in modules do not get exported.  This defect should be fixed
-soon.
+When parameters are defined for use in declaring array sizes or
+character lengths, or as kind parameters, \fBftnchek\fP will try to
+evaluate them to allow better checking.
+However, it is not able to evaluate all intrinsic functions.  It does
+not evaluate those that yield real or complex values.
+The intrinsic functions that are evaluated are:
+.TS
+center;
+l l l l l.
+ABS	ICHAR	KIND	MIN	SELECTED_INT_KIND
+DIM	IDIM	LEN	MIN0	SELECTED_REAL_KIND
+IABS	INDEX	MAX	MOD	SIGN
+IACHAR	ISIGN	MAX0	MODULO	SIZE
+.TE
+.br
+The functions of integer arguments are evaluated only if the arguments
+are integer constant expressions.  (These may involve integer
+constants, parameters, and evaluated intrinsic functions.)  The
+function LEN is evaluated if its argument is an expression
+involving only character constants and variables whose length is not
+adjustable.  The functions ICHAR, IACHAR, and INDEX are evaluated
+only if the arguments are character constants.  The function KIND is
+evaluated for any argument.  The function SIZE is evaluated for any
+array argument whose size is fixed.   \fBftnchek\fP gives a
+warning if it needs the value of some intrinsic function that is not
+evaluated.
+.PP
+COMMON blocks and NAMELISTs in modules do not get exported.  This
+defect should be fixed soon.
 .PP
 The dummy arguments in statement functions are treated like ordinary
 variables of the program.  That is, their scope is the entire subprogram, not
@@ -4913,36 +4936,8 @@ intrinsic functions
 and exponentiation by a non-integer exponent.  Both of these cases are
 prohibited by the Fortran 77
 Standard, and will be warned about if the \fB\-f77=param\-intrinsic\fP
-flag is given.  If an intrinsic function value
-is a compile-time integer constant,
-\fBftnchek\fP will evaluate it.  This allows better checking if the
-parameter is used in declaring array sizes or character lengths, or as
-a kind parameter.  Fortran 90 allows
-intrinsic functions in PARAMETER definitions.
-.PP
-The intrinsic functions that are evaluated are:
-\fC
-.TS
-center;
-l l l l l.
-ABS	ICHAR	KIND	MIN	SELECTED_INT_KIND
-DIM	IDIM	LEN	MIN0	SELECTED_REAL_KIND
-IABS	INDEX	MAX	MOD	SIGN
-IACHAR	ISIGN	MAX0	MODULO	SIZE
-.TE
-\fR
-.br
-The functions of integer arguments are evaluated only if the arguments
-are integer constant expressions.  (These may involve integer
-constants, parameters, and evaluated intrinsic functions.)  The
-function LEN is evaluated if its argument is an expression
-involving only character constants and variables whose length is not
-adjustable.  The functions ICHAR, IACHAR, and INDEX are evaluated
-only if the arguments are character constants.  The function KIND is
-evaluated for any argument.  The function SIZE is evaluated for any
-array argument whose size is fixed.   \fBftnchek\fP gives a
-warning if it needs the value of some intrinsic function that is not
-evaluated.
+flag is given.  Fortran 90 allows
+intrinsic functions in PARAMETER definitions, under specific conditions.
 .RE
 \}
 .\" The above brace is the end of the .if !\nb at section "OPTIONS"
@@ -4963,9 +4958,15 @@ to be implemented to fully support Fortran 95.
 Your feedback is appreciated.  We want to know about any bugs you notice.
 Bugs include not only cases in which \fBftnchek\fP issues an error message
 where no error exists, but also if \fBftnchek\fP fails to issue a warning when
-it ought to.  Note, however, that \fBftnchek\fP is not intended to catch all
-syntax errors (see section on Limitations).
-Also, it is not considered a bug for a variable to be
+it ought to.  Note, however, that \fBftnchek\fP does not try to catch all
+syntax errors (see section on Limitations).  Our development efforts focus
+on warning about things a compiler does not flag.  So please only
+report incorrect operation on code that passes the compiler without
+error, except for things that cause \fBftnchek\fP to crash.
+We especially want to know if \fBftnchek\fP crashes for any reason.  It is
+not supposed to crash, even on programs with syntax errors.
+.PP
+It is not considered a bug for a variable to be
 reported as used before set, if the reason is that the usage of the
 variable occurs prior in the text to where the variable is set.  For
 instance, this could occur when a GOTO causes execution to loop backward
@@ -4973,8 +4974,7 @@ to some previously skipped statements.  \fBftnchek\fP does not analyze the
 program flow, but assumes that statements occurring earlier in the text
 are executed before the following ones.
 .PP
-We especially want to know if \fBftnchek\fP crashes for any reason.  It is
-not supposed to crash, even on programs with syntax errors.  Suggestions
+Suggestions
 are welcomed for additional features which you would find useful.  Tell
 us if any of \fBftnchek\fP's
 messages are incomprehensible.  Comments on the
