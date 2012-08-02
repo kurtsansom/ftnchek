@@ -1359,6 +1359,10 @@ typedef struct IPNode {
 
 SHARED IncludePathNode *include_path_list; /* header to the list */
 
+
+/* handy macro for number of items in an array */
+#define NUM_LIST_ITEMS(list) (sizeof(list)/sizeof(list[0]))
+
 		/* Declare routines shared with main module ftnchek.c */
 
 

@@ -625,47 +625,96 @@ check_intrins_args(id, arg)
 	Lsymtab *symt=hashtab[h].loc_symtab;
 	IntrinsInfo *defn=symt->info.intrins_info;
 	unsigned args_given = ((arg == NULL)?0:arg_count(arg->next_token));
-	int numargs, numargs_ok, opt_kind_allowed, opt_kind_present;
+	int numargs, numargs_ok, opt_kind_allowed, opt_kind_index, i;
 	intrins_flags_t flags;
 	Token *t;
 
 	numargs = defn->num_args;
 	flags = defn->intrins_flags;
 	opt_kind_allowed = flags&I_OK;
-	opt_kind_present = FALSE;
+	opt_kind_index = -1;
+
+	/* find KIND keyword argument set an index to its location */
+	if (arg != NULL && numargs != 0) {
+	  t = arg;
+	  i = 0;
+	  while( (t = t->next_token) != NULL ) {
+	    if (opt_kind_index == -1 &&
+		keyword_present(t) && keyword_name_match(t,"KIND")) {
+	      opt_kind_index = i;
+	      break;
+	    }
+	    i++;
+	  }
+	}
 		/* Check number of args, allowing one more if optional kind OK */
 		/* Set opt_kind_present only if can tell for sure */
 	switch(numargs) {
 	case I_1or2:			/* 1 or 2 arguments allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 3);
-	  numargs_ok = (args_given == 1 || args_given == 2 || opt_kind_present);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if(flags&I_CMPLX &&		/* special case */
+	       args_given == 2) {	/* CMPLX(CPlX,KIND) or CMPLX(REAL,IMAG) */
+	      if(datatype_of(arg->next_token->TOK_type) == type_COMPLEX) {
+		opt_kind_index = 1;	/* 2nd arg is KIND */
+	      }
+	    }
+	    else {
+	      if (opt_kind_allowed && args_given == 3) /* last arg, no keyword */
+		opt_kind_index = 2;
+	    }
+	  }
+	  numargs_ok = (args_given == 1 || args_given == 2 ||
+	                (opt_kind_index != -1 && args_given == 3));
+
 	  break;
 	case I_2or3:			/* 2 or 3 arguments allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 4);
-	  numargs_ok = (args_given == 2 || args_given == 3 || opt_kind_present);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == 4) /* last arg, no keyword */
+	      opt_kind_index = 3;
+	  }
+	  numargs_ok = (args_given == 2 || args_given == 3 ||
+	                (opt_kind_index != -1 && args_given == 4));
 	  break;
 	case I_2up:			/* 2 or more allowed */
 	  numargs_ok = (args_given >= 2);
 	  break;
 	case I_1to3:			/* 1 2 or 3 arguments allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 4);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == 4) /* last arg, no keyword */
+	      opt_kind_index = 3;
+	  }
 	  numargs_ok = (args_given >= 1 && args_given <= (opt_kind_allowed? 4: 3));
 	  break;
 	case I_1to4:			/* 1 2 3 or 4 arguments allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 5);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == 5) /* last arg, no keyword */
+	      opt_kind_index = 4;
+	  }
 	  numargs_ok = (args_given >= 1 && args_given <= (opt_kind_allowed? 5: 4));
 	  break;
 	case I_0or1:			/* 0 or 1 argument allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 2);
-	  numargs_ok = (args_given == 0 || args_given == 1 || opt_kind_present);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == 2) /* last arg, no keyword */
+	      opt_kind_index = 1;
+	  }
+	  numargs_ok = (args_given == 0 || args_given == 1 ||
+	                (opt_kind_index != -1 && args_given == 2));
 	  break;
 	case I_2to4:			/* 2 3 or 4 arguments allowed */
-	  opt_kind_present = (opt_kind_allowed && args_given == 5);
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == 5) /* last arg, no keyword */
+	      opt_kind_index = 4;
+	  }
 	  numargs_ok = (args_given >= 2 && args_given <= (opt_kind_allowed? 5: 4));
 	  break;
 	default:		/* positive numargs: must agree */
-	  opt_kind_present = (opt_kind_allowed && args_given == (unsigned)(numargs+1));
-	  numargs_ok = (args_given == (unsigned)numargs || opt_kind_present);			
+	  if (opt_kind_index == -1) {	/* no KIND keyword found */
+	    if (opt_kind_allowed && args_given == (unsigned)(numargs+1)) /* last arg, no keyword */
+	      opt_kind_index = (unsigned)numargs;
+	  }
+	  numargs_ok = (args_given == (unsigned)numargs || 
+	                (opt_kind_index != -1 && 
+			 args_given == (unsigned)(numargs+1)));
 	  break;
 	}
 			/* positive numargs: must agree */
@@ -688,36 +737,51 @@ check_intrins_args(id, arg)
 #endif
 	if(arg != NULL && numargs != 0) {
 
-	  Token *prev_t,	/* one operand in type propagation  */
+	  Token *prev_t=NULL,	/* one operand in type propagation  */
 	         fake_op;	/* operator in binexpr_type call */
 	  int kind_arg_value;	/* set if optional kind is present */
+	  int arg_num = 0;
 
 	  t = arg->next_token;
-				/* Copy type & size info into result */
-	  arg->tclass = t->tclass;
-	  arg->tsubclass = t->tsubclass;
-#ifndef TOK_type
-	  arg->TOK_type = t->TOK_type;
-#endif
-#ifndef TOK_flags
-	  arg->TOK_flags = t->TOK_flags;
-#endif
-	  arg->size = t->size;
-	  prev_t = t;
+
+	  kind_arg_value = kind_DEFAULT_UNKNOWN; /* pre-set in case of errors below */
 
 	  while(t != NULL) {
 		  /* Allow integer as last argument if function takes optional KIND.
 		     In that case, skip checking and pick up value.
-		     FIXME: When call-by-name supported, change check if last arg
-		     to check for dummy arg being named KIND.
 		   */
-	    if( opt_kind_allowed && t->next_token == NULL &&
-		datatype_of(t->TOK_type) == type_INTEGER ) {
-	      if(opt_kind_present) { /* only take it if we are sure it's KIND */
+	    if(opt_kind_index == arg_num) { /* this is KIND param */
+		      /* If KIND keyword was never given and this is optional
+		       * last arg, possibly it has some other keyword. */
+	      if (keyword_present(t) && !keyword_name_match(t,"KIND") )
+		syntax_error(t->left_token->left_token->line_num,
+			     t->left_token->left_token->col_num,
+			     "keyword name not found");
+	      /* use it anyway */
+	      if( datatype_of(t->TOK_type) != type_INTEGER ) { /* verify type is OK */
+		syntax_error(t->left_token->left_token->line_num,
+			     t->left_token->left_token->col_num,
+			     "require INTEGER type for KIND parameter");
+	      }
+	      else {			/* all OK */
 		kind_arg_value = int_expr_value(t);
 	      }
-	    }
-	    else if( intrins_arg_cmp(defn,t) ) {
+	    }/*if KIND param*/
+	    else {
+	     if(prev_t == NULL) {	/* first non-KIND argument */
+		/* Copy type & size info into result */
+		arg->tclass = t->tclass;
+		arg->tsubclass = t->tsubclass;
+#ifndef TOK_type
+		arg->TOK_type = t->TOK_type;
+#endif
+#ifndef TOK_flags
+		arg->TOK_flags = t->TOK_flags;
+#endif
+		arg->size = t->size;
+		prev_t = t;
+	     }
+	     if( intrins_arg_cmp(defn,t) ) {
 				/* Propagate data type thru the list.
 				   Resulting type info is stored in
 				   args token.  */
@@ -731,13 +795,15 @@ check_intrins_args(id, arg)
 		binexpr_type(prev_t,&fake_op,t,arg);
 	      }
 	      prev_t = t;
+	     }
 	    }
 	    t = t->next_token;
+	    arg_num++;
 	  }/* end while */
 	/* If optional kind parameter present, set arg kind to its value.  This will
 	   be picked up by func_ref_expr().  I am not sure this is the right way to do this.
 	 */
-	  if(opt_kind_present) {
+	  if(opt_kind_index != -1) {
 				/*LINTED*/ /*not uninit*/
 	    arg->kind = kind_arg_value;
 	  }

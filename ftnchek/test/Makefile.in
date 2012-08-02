@@ -94,7 +94,7 @@ FREEFORM=model.f90 blockcheck.f90 pointer_alloc.f90 func_result.f90\
   internalfuns.f90 charfuns.f90 modvar-rename.f90 modvar-only-rename.f90\
   keyword_args.f90 keyword_args_intent.f90 keyword_args_unknown.f90\
   boz_constants.f90 type-unused-inherit.f90 type-unused-same-unit.f90\
-  type-unused.f90 type-unused2.f90
+  type-unused.f90 type-unused2.f90 optkind.f90 intrins-opt-args.f90
 
 # file set for testing mapping of derived types in module
 MODULETYPEMAP=typedef1-mod.f90 typedef2-mod.f90 typedef12-use.f90 

@@ -646,6 +646,7 @@ typedef struct MVHead {	/* ModVarListHeader: head node of module var list */
 #define I_ELEM		0x80000	/* Elemental (acts elementwise on arrays) */
 #define I_ARRY		0x100000/* Returns array result diff shape from arg */
 #define I_OK		0x200000/* Takes optional KIND argument */
+#define I_CMPLX		0x400000/* CMPLX intrinsic */
 
 			/* Define flag type big enough for 6 hex digits */
 #if (SIZEOF_SHORT > 2)
@@ -1037,6 +1038,15 @@ typedef struct PSpace {
 #define array_dim_info(DIM,SIZE) ((array_dim_t){(SIZE),(DIM)})
 				/* create info field for unknown size */
 #define array_dim_info_unk_size(DIM) ((array_dim_t){size_UNKNOWN,(DIM)})
+
+	/* Macros for testing keyword names */
+				/* test whether a token has keyword */
+#define keyword_present(t) ((t) != NULL && (t)->left_token != NULL && \
+      			    (t)->left_token->tclass == '=')
+			/* test whether a keyword matchs string.
+			 * Use only if keyword_present(t) is true.  */
+#define keyword_name_match(t,s) (strcmp((t)->left_token->left_token->src_text, (s)) == 0)
+	
 
 		/* Defns used by expression type propagation mechanisms
 		   in fortran.y and exprtype.c  The flags go in token.TOK_flags

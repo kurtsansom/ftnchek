@@ -167,7 +167,7 @@ SIGN (A, B)                        Transfer of sign
 {"AINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM|I_OK,NULL},
 {"ANINT",	1,	R|D,	type_GENERIC,	I_F77|I_ELEM|I_OK,NULL},
 {"CEILING",	1,	R|D,	type_INTEGER,	I_F90|I_ELEM|I_OK,NULL},
-{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_ELEM|I_NOTARG|I_OK,NULL},
+{"CMPLX",	I_1or2,	I|R|D|C|Z,type_COMPLEX,	I_F77|I_ELEM|I_NOTARG|I_OK|I_CMPLX,NULL},
 {"CONJG",	1,	C,	type_COMPLEX,	I_F77|I_ELEM,NULL},
 {"DBLE",	1,	I|R|D|C|Z,type_DP,	I_F77|I_ELEM|I_NOTARG,NULL},
 {"DIM",		2,	I|R|D,	type_GENERIC,	I_F77|I_ELEM,ii_dim},
@@ -907,131 +907,190 @@ kwd_hash(s)
 
  */
 
+/* List to match dummy args by name to tokens holding args */
+typedef struct {
+  const char* keyword;		/* name of dummy arg */
+  Token **arg;			/* arg to match */
+  int optional:1;		/* OPTIONAL flag */
+} KeywordArgList;
+
+
+PROTO(PRIVATE int match_keyword,(Token *args, KeywordArgList key_arg_list[], int n));
+
+int match_keyword(Token *args, KeywordArgList key_arg_list[], int n)
+{
+  Token *t = args->next_token;
+  int i, k;				/* arg number */
+
+  for(k=0; k<n; k++) 			/* initialize results to NULL */
+    *(key_arg_list[k].arg) = (Token *)NULL;
+
+					/* Go thru tokens and match
+					 * with keywords */
+  k=0;
+  while(k<n && t != NULL) {
+    if( keyword_present(t) ) {
+      for(i=0; i<n; i++) {		/* for legal code could start i=k */
+	if( keyword_name_match(t,key_arg_list[i].keyword) ) {
+	  *(key_arg_list[i].arg) = t;
+	  break;
+	}
+      }
+    }
+    else {				/* no keyword: match token to position */
+      *(key_arg_list[k].arg) = t;
+    }
+    t = t->next_token;
+    k++;
+  }
+					/* verify all non-optional args matched */
+  for(k=0; k<n; k++) {
+    if( *(key_arg_list[k].arg) == (Token *)NULL &&
+	!key_arg_list[k].optional )
+      return FALSE;
+  }
+  return TRUE;
+}
+
+
 PRIVATE int
 #if HAVE_STDC
-ii_abs(Token *args)
+ii_abs(Token *args)			/* ABS(A) */
 #else /* K&R style */
 ii_abs(args)
      Token *args;
 #endif /* HAVE_STDC */
 {
-  Token *t;
+  Token *a;
   int val, result=0;
-  t = args->next_token;
-  if(t->TOK_type != type_INTEGER) {/* wrong arg type: message given elsewhere */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val = int_expr_value(t);
-    result = (val >= 0? val: -val);
-  }
-  return result;
-}
 
-PRIVATE int
-#if HAVE_STDC
-ii_sign(Token *args)			/* SIGN(value,sign) */
-#else /* K&R style */
-ii_sign(args)			/* SIGN(value,sign) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val1,val2, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val1 = int_expr_value(t1);
-    if(val1 < 0) val1 = -val1;
-    val2 = int_expr_value(t2);
-    result = (val2 >= 0? val1: -val1);
-  }
-  return result;
-}
+  if( (a = args->next_token) != NULL ) {
 
-PRIVATE int
-#if HAVE_STDC
-ii_dim(Token *args)			/* DIM(int,int) */
-#else /* K&R style */
-ii_dim(args)			/* DIM(int,int) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val = int_expr_value(t1)-int_expr_value(t2);
-    result = (val >= 0? val: 0);
-  }
-  return result;
-}
-
-PRIVATE int
-#if HAVE_STDC
-ii_mod(Token *args)			/* MOD(int,int) */
-#else /* K&R style */
-ii_mod(args)			/* MOD(int,int) */
-     Token *args;
-#endif /* HAVE_STDC */
-{
-  Token *t1,*t2;
-  int val1,val2,quotient, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val1 = int_expr_value(t1);
-    val2 = int_expr_value(t2);
-    if(val2 != 0) {
-      if((val1 < 0) == (val2 < 0)) {
-	quotient = val1/val2;	/* Both positive or both negative*/
-      }
-      else {
-	quotient = -(-val1/val2);	/* Unlike signs */
-      }
-      result = val1 - quotient*val2;
+    if(a->TOK_type != type_INTEGER) {/* wrong arg type: message given elsewhere */
+      make_false(EVALUATED_EXPR,args->TOK_flags);
     }
-  }  
+    else {
+      val = int_expr_value(a);
+      result = (val >= 0? val: -val);
+    }
+  }
+
+  return result;
+}
+
+PRIVATE int
+ii_sign(Token *args)			/* SIGN(A=magnitude,B=sign) */
+{
+  Token *a,*b;
+  int magnitude,sign, result=0;
+  KeywordArgList key_arg_list[] = {
+    {"A",	&a,	0},
+    {"B",	&b,	0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
+    if(a->TOK_type != type_INTEGER || b->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      magnitude = int_expr_value(a);
+      if(magnitude < 0) magnitude = -magnitude;
+      sign = int_expr_value(b);
+      result = (sign >= 0? magnitude: -magnitude);
+    }
+  }
+
+  return result;
+}
+
+PRIVATE int
+ii_dim(Token *args)			/* DIM(X=int,Y=int) */
+{
+  Token *x,*y;
+  int val, result=0;
+  KeywordArgList key_arg_list[] = {
+    {"X",	&x,	0},
+    {"Y",	&y,	0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
+    if(x->TOK_type != type_INTEGER || y->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      val = int_expr_value(x)-int_expr_value(y);
+      result = (val >= 0? val: 0);
+    }
+  }
+
+  return result;
+}
+
+PRIVATE int
+ii_mod(Token *args)			/* MOD(A=int,P=int) */
+{
+  Token *a,*p;
+  int val1,val2,quotient, result=0;
+  KeywordArgList key_arg_list[] = {
+    {"A",	&a,	0},
+    {"P",	&p,	0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
+    if(a->TOK_type != type_INTEGER || p->TOK_type != type_INTEGER) {/* wrong arg type: message given elswr */
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      val1 = int_expr_value(a);
+      val2 = int_expr_value(p);
+      if(val2 != 0) {
+	if((val1 < 0) == (val2 < 0)) {
+	  quotient = val1/val2;	/* Both positive or both negative*/
+	}
+	else {
+	  quotient = -(-val1/val2);	/* Unlike signs */
+	}
+	result = val1 - quotient*val2;
+      }
+    }  
+  }
+
   return result;
 }
 
 PRIVATE int
 ii_modulo(Token *args)			/* MODULO(A,P) */
 {
-  Token *t1,*t2;
+  Token *a,*p;
   int val1,val2,quotient, result=0;
-  t1 = args->next_token;
-  t2 = t1->next_token;
-  if(t2 == NULL || t1->TOK_type != type_INTEGER
-     || t2->TOK_type != type_INTEGER) {/* don't evaluate with real args */
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    val1 = int_expr_value(t1);
-    val2 = int_expr_value(t2);
-    if(val2 != 0) {
-      if((val1 < 0) == (val2 < 0)) {
-	quotient = val1/val2;	/* Both positive or both negative*/
+  KeywordArgList key_arg_list[] = {
+    {"A",	&a,	0},
+    {"P",	&p,	0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
+    if(a->TOK_type != type_INTEGER || p->TOK_type != type_INTEGER) {/* don't evaluate with real args */
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      val1 = int_expr_value(a);
+      val2 = int_expr_value(p);
+      if(val2 != 0) {
+	if((val1 < 0) == (val2 < 0)) {
+	  quotient = val1/val2;	/* Both positive or both negative*/
+	}
+	else {
+	  quotient = -((-val1/val2)+1);	/* Unlike signs */
+	}
+	result = val1 - quotient*val2;
       }
-      else {
-	quotient = -((-val1/val2)+1);	/* Unlike signs */
-      }
-      result = val1 - quotient*val2;
     }
   }
+
   return result;
 }
 
@@ -1098,79 +1157,73 @@ ii_min(args)			/* MIN(int,int,...) */
 }
 
 PRIVATE int
-#if HAVE_STDC
-ii_ichar(Token *args)		/* ICHAR(string) */
-#else /* K&R style */
-ii_ichar(args)		/* ICHAR(string) */
-     Token *args;
-#endif /* HAVE_STDC */
+ii_ichar(Token *args)		/* ICHAR(C=string) */
 {
-  Token *t=args->next_token;
+  Token *c = args->next_token;
+  if( c != NULL ) {
+    if(c->TOK_type != type_STRING || !is_true(LIT_CONST,c->TOK_flags)) {
+      make_false(PARAMETER_EXPR,args->TOK_flags);
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      return c->value.string[0];	/* Processor collating sequence is used */
+    }
+  }
 
-  if(t->TOK_type != type_STRING || !is_true(LIT_CONST,t->TOK_flags)) {
-    make_false(PARAMETER_EXPR,args->TOK_flags);
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    return t->value.string[0];	/* Processor collating sequence is used */
-  }
   return 0;
 }
 
 PRIVATE int
-#if HAVE_STDC
-ii_len(Token *args)		/* LEN(string) */
-#else /* K&R style */
-ii_len(args)		/* LEN(string) */
-     Token *args;
-#endif /* HAVE_STDC */
+ii_len(Token *args)		/* LEN(STRING) */
 {
-  Token *t=args->next_token;
+  Token *string=args->next_token;
   int val,result=0;
 
-		/* Set the PARAMETER_EXPR flag since LEN of string does
-		   not require contents to be known */
-  if( t != NULL && t->TOK_type == type_STRING && (val = t->size) > 0 ) {
-    make_true(PARAMETER_EXPR,args->TOK_flags);
-    make_true(EVALUATED_EXPR,args->TOK_flags);
-    result = val;
-  }
-  else {			/* nonstring or adjustable or unknown */
-    make_false(PARAMETER_EXPR,args->TOK_flags);
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
+    /* Set the PARAMETER_EXPR flag since LEN of string does
+       not require contents to be known */
+    if( string != NULL && string->TOK_type == type_STRING && (val = string->size) > 0 ) {
+      make_true(PARAMETER_EXPR,args->TOK_flags);
+      make_true(EVALUATED_EXPR,args->TOK_flags);
+      result = val;
+    }
+    else {			/* nonstring or adjustable or unknown */
+      make_false(PARAMETER_EXPR,args->TOK_flags);
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
 
   return result;
 }
 
 PRIVATE int
-#if HAVE_STDC
-ii_index(Token *args)		/* INDEX(str1,str2) */
-#else /* K&R style */
-ii_index(args)		/* INDEX(str1,str2) */
-     Token *args;
-#endif /* HAVE_STDC */
+ii_index(Token *args)		/* INDEX(STRING,SUBSTRING,[,BACK]) */
 {
-  Token *t1,*t2;
-  t1=args->next_token;
-  t2=t1->next_token;
+  Token *string,*substring,*back;
+  KeywordArgList key_arg_list[] = {
+    {"STRING",		&string,	0},
+    {"SUBSTRING",	&substring,	0},
+    {"BACK",		&back,		1},
+  };
 
-  if(t2 == NULL || t1->TOK_type != type_STRING
-     || t2->TOK_type != type_STRING
-     || !is_true(LIT_CONST,t1->TOK_flags) || !is_true(LIT_CONST,t2->TOK_flags)) {
-    make_false(EVALUATED_EXPR,args->TOK_flags);
-  }
-  else {
-    int i;
-    char *s1=t1->value.string;
-    char *s2=t2->value.string;
-    int n1=strlen(s1), n2=strlen(s2);
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
 
-    for(i=1; n1 > 0 && n1 >= n2; i++,s1++,n1--) {
-      if(strncmp(s1,s2,n2) == 0)
-	return i;
+    if(string->TOK_type != type_STRING
+	|| substring->TOK_type != type_STRING
+	|| !is_true(LIT_CONST,string->TOK_flags) || !is_true(LIT_CONST,substring->TOK_flags)) {
+      make_false(EVALUATED_EXPR,args->TOK_flags);
+    }
+    else {
+      int i;
+      char *s1=string->value.string;
+      char *s2=substring->value.string;
+      int n1=strlen(s1), n2=strlen(s2);
+
+      for(i=1; n1 > 0 && n1 >= n2; i++,s1++,n1--) {
+	if(strncmp(s1,s2,n2) == 0)
+	  return i;
+      }
     }
   }
+
   return 0;
 }
 
@@ -1195,34 +1248,40 @@ PRIVATE int
 ii_reshape(Token *args)  /* RESHAPE ( SOURCE, SHAPE [,PAD] [,ORDER] ) */
 
 {
-  Token *array, *shape;
+  Token *source, *shape, *pad, *order;
   int result = 0;
+  KeywordArgList key_arg_list[] = {
+    {"SOURCE",	&source,	0},
+    {"SHAPE",	&shape,		0},
+    {"PAD",	&pad,		1},
+    {"ORDER",	&order,		1},
+  };
 
-			/* Ensure args present; error message given elsewhere */
-  if( (array = args->next_token) != NULL &&
-      (shape = array->next_token) != NULL ) {
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
     /* Since array-valued results are not yet supported, we ignore PAD
        and ORDER */
     /* Both arguments must be arrays. Error message NOT given
        elsewhere -- it should be. */
-    if( is_true(ARRAY_EXPR,array->TOK_flags) &&
+    if( is_true(ARRAY_EXPR,source->TOK_flags) &&
 	is_true(ARRAY_EXPR,shape->TOK_flags) ) {
       if( array_dims(shape->array_dim) != 1 ) {
 	syntax_error(shape->line_num, shape->col_num,
-		     "shape must be 1-dimensional array");
+	    "shape must be 1-dimensional array");
       }
       else {
 	make_true(ARRAY_EXPR,args->TOK_flags);
-      /* When storing of array valued parameters is supported, we
-	 should copy shape to array_dim.  For now, just record new
-	 number of dimensions, and total size same as before.
-       */
+	/* When storing of array valued parameters is supported, we
+	   should copy shape to array_dim.  For now, just record new
+	   number of dimensions, and total size same as before.
+	   */
 	args->array_dim = array_dim_info(array_size(shape->array_dim), /* new dims */
-				       array_size(array->array_dim)); /* new size */
+	    array_size(source->array_dim)); /* new size */
 	result = 0; /* if both source & shape are int constants this should be array-valued result */
       }
     }
   }
+
   return result;
 }
 
@@ -1230,11 +1289,14 @@ PRIVATE int
 ii_dot_product(Token *args)  /* DOT_PRODUCT (VECTOR_A, VECTOR_B) */
 {
   int result = 0;
-  Token *a = args->next_token;
-  Token *b = a->next_token;
+  Token *a, *b;
+  KeywordArgList key_arg_list[] = {
+    {"VECTOR_A",	&a,	0},
+    {"VECTOR_B",	&b,	0},
+  };
 
-  /* checking of existence of VECTOR_A and VECTOR_B is done elsewhere */
-  if( !(a == NULL || b == NULL) ) {
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
     /* check if a is vector of rank 1 */
     if (!is_true(ARRAY_EXPR, a->TOK_flags) ||
 	array_dims(a->array_dim) != 1) {
@@ -1265,11 +1327,14 @@ PRIVATE int
 ii_matmul(Token *args)  /* MATMUL (MATRIX_A, MATRIX_B) */
 {
   int result = 0;
-  Token *a = args->next_token;
-  Token *b = a->next_token;
+  Token *a, *b;
+  KeywordArgList key_arg_list[] = {
+    {"MATRIX_A",	&a,	0},
+    {"MATRIX_B",	&b,	0},
+  };
 
-  /* checking of existence of VECTOR_A and VECTOR_B is done elsewhere */
-  if( !(a == NULL || b == NULL) ) {
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
     /* check if a is matrix of rank 1 or 2 */
     if( !is_true(ARRAY_EXPR, a->TOK_flags) ||
 	( array_dims(a->array_dim) != 1 && 
@@ -1287,11 +1352,11 @@ ii_matmul(Token *args)  /* MATMUL (MATRIX_A, MATRIX_B) */
     /* array multiplication rank constraint is not implemented
      * properly because we don't store length in each dimension */
     else if( (array_dims(a->array_dim) == 1 && 
-		array_size(a->array_dim) != array_dims(b->array_dim)) ||
-	     (array_dims(a->array_dim) == 2 &&
-		(array_dims(b->array_dim) == 1 &&
-		  array_size(b->array_dim) != 2) ) 
-	     ) {
+	  array_size(a->array_dim) != array_dims(b->array_dim)) ||
+	(array_dims(a->array_dim) == 2 &&
+	 (array_dims(b->array_dim) == 1 &&
+	  array_size(b->array_dim) != 2) ) 
+	) {
       char *a_dims = ulongtostr(array_dims(a->array_dim));
       char *b_dims = ulongtostr(array_dims(b->array_dim));
       syntax_error(a->line_num, a->col_num, 
@@ -1317,19 +1382,27 @@ PRIVATE int
 ii_merge( Token *args )  /* MERGE (TSOURCE, FSOURCE, MASK) */
 
 {
-  Token *tsource;
-  /* Result array properties are those of TSOURCE */
-  if( (tsource = args->next_token) != NULL ) {
+  Token *tsource, *fsource, *mask;
+  KeywordArgList key_arg_list[] = {
+    {"TSOURCE",	&tsource,	0},
+    {"FSOURCE",	&fsource,	0},
+    {"MASK",	&mask,		0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
+    /* Result array properties are those of TSOURCE */
     copy_flag(ARRAY_EXPR,args->TOK_flags,tsource->TOK_flags);
     args->array_dim = tsource->array_dim;
   }
+
   return 0;
 }
 
 PRIVATE int
 ii_pack( Token *args )		/* PACK (ARRAY, MASK [, VECTOR]) */
 {
-  /* IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
+  /* FIXME: IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
      known shape results, which it will be in some cases.  Only dims
      of result (always 1) will be correct. */
   make_true(ARRAY_EXPR,args->TOK_flags);
@@ -1340,9 +1413,14 @@ ii_pack( Token *args )		/* PACK (ARRAY, MASK [, VECTOR]) */
 PRIVATE int
 ii_spread( Token *args )	/* SPREAD (SOURCE, DIM, NCOPIES) */
 {
-  Token *source;
-  if( (source = args->next_token) != NULL ) {
-  /* IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
+  Token *source, *dim, *ncopies;	/* dim, ncopies not used yet */
+  KeywordArgList key_arg_list[] = {
+    {"SOURCE",	&source,	0},
+    {"DIM",	&dim,		0},
+    {"NCOPIES",	&ncopies,	0},
+  };
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+  /* FIXME: IMPLEMENTATION IS INCOMPLETE: does not try to determine if a
      known shape results, which it will be in some cases.  Only dims
      of result (1+dims of SOURCE) will be correct. */
     make_true(ARRAY_EXPR,args->TOK_flags);
@@ -1354,9 +1432,15 @@ ii_spread( Token *args )	/* SPREAD (SOURCE, DIM, NCOPIES) */
 PRIVATE int
 ii_unpack( Token *args )	/* UNPACK (VECTOR, MASK, FIELD) */
 {
-  Token *vector, *mask;
-  if( (vector=args->next_token) != NULL &&
-      (mask = vector->next_token) != NULL ) {
+  Token *vector, *mask, *field;
+  KeywordArgList key_arg_list[] = {
+    {"VECTOR",	&vector,	0},
+    {"MASK",	&mask,		0},
+    {"FIELD",	&field,		0},
+  };
+
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+
     if(is_true(ARRAY_EXPR,mask->TOK_flags)) { /* should check all 3 */
       make_true(ARRAY_EXPR,args->TOK_flags);
       args->array_dim = mask->array_dim;
@@ -1367,28 +1451,31 @@ ii_unpack( Token *args )	/* UNPACK (VECTOR, MASK, FIELD) */
 }
 
 PRIVATE int
-ii_shape(Token *args)		/* SHAPE( array ) */
+ii_shape(Token *args)		/* SHAPE( SOURCE ) */
 {
-  Token *array;
+  Token *source;
   int result=size_UNKNOWN;
+  KeywordArgList key_arg_list[] = {
+    {"SOURCE",	&source,	0},
+  };
 
-  array = args->next_token;
-  if(array != NULL) { 		/* ensure arg is present */
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
 
     /* When storing of constant array values is implemented, these flags
        will be meaningful.  For now, they are bogus.
-     */
+       */
     make_true(PARAMETER_EXPR,args->TOK_flags);
     make_true(EVALUATED_EXPR,args->TOK_flags);
 
     /* Result is a rank-one array of size equal to number of
        dimensions of argument.  Scalar arg OK, gives dims 1 size 0 */
     make_true(ARRAY_EXPR,args->TOK_flags);
-    args->array_dim = array_dim_info(1,array_dims(array->array_dim));
-		/* Here we should assign an array value equal to sizes
-		   of the dimensions of argument if known. */
+    args->array_dim = array_dim_info(1,array_dims(source->array_dim));
+    /* FIXME: Here we should assign an array value equal to sizes
+       of the dimensions of argument if known. */
     result = 0;
   }
+
   return result;
 }
 
@@ -1396,16 +1483,19 @@ PROTO(PRIVATE int ii_lubound,(Token *args, int lower));
 
 /* Routine to return lower or upper bound
    array of argument, depending on value of lower=TRUE, FALSE rsptly.
-   Since array shapes are not stored, there is no difference at present.
+FIXME: Since array shapes are not stored, there is no difference at present.
  */
 PRIVATE int
 ii_lubound(Token *args, int lower)
 {
   Token *array, *dim;
   int result=0;
+  KeywordArgList key_arg_list[] = {
+    {"ARRAY",	&array,	0},
+    {"DIM",	&dim,	1},
+  };
 
-  array = args->next_token;
-  if(array != NULL) { 		/* ensure arg is present */
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
     if( is_true(ARRAY_EXPR,args->TOK_flags) ) { /* arg must be array */
     /* When storing of constant array values is implemented, these flags
        will be meaningful.  For now, they are bogus.
@@ -1413,8 +1503,6 @@ ii_lubound(Token *args, int lower)
       make_true(PARAMETER_EXPR,args->TOK_flags);
       make_true(EVALUATED_EXPR,args->TOK_flags);
 
-      dim = array->next_token;	/* this may be null */
-    
       if( dim != NULL ) {
 	/* If DIM given, result is scalar. */
 	/* Here we should look up the size of dimension dim */
@@ -1432,6 +1520,7 @@ ii_lubound(Token *args, int lower)
       }
     }
   }
+
   return result;
 }
 
@@ -1447,7 +1536,7 @@ ii_ubound(Token *args)		/* UBOUND( array [,dim] ) */
   return ii_lubound(args, FALSE);
 }
 
-/* Handler for minloc and maxloc.  Result will be same for both until
+/* Handler for minloc and maxloc.  FIXME: Result will be same for both until
    some day array-valued constants are stored, then sometimes it may
    be evaluated.
  */
@@ -1458,12 +1547,20 @@ ii_minmaxloc(Token *args, int min)
 {
   Token *array, *dim, *mask = (Token *)NULL;
   int result=0;
-  if( (array = args->next_token) != NULL ) { /* ensure array is present */
+  KeywordArgList key_arg_list[] = {
+    {"ARRAY",	&array,	0},
+    {"DIM",	&dim,	1},
+    {"MASK",	&mask,	1},
+  };
 
-    if( (dim = array->next_token) != NULL ) { /* DIM or MASK present */
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+  /* if mask is NULL, but dim is not, then it could be MAXLOC(ARRAY,MASK).
+   * Disambiguate by data type. */
+ 
+    if( mask == NULL && dim != NULL ) {
       if( datatype_of(dim->TOK_type) == type_LOGICAL ) { /* it is MASK */
 	mask = dim;
-	dim = mask->next_token;	/* get DIM */
+	dim = NULL;
       }
       if( dim != NULL ) {	/* we really do have DIM */
 	/* Result is of rank 1 less than array and shape of array with
@@ -1506,15 +1603,16 @@ ii_size(Token *args)		/* SIZE( array [,dim] ) */
   Token *array, *dim;
   array_dim_t array_dim;
   int result=size_UNKNOWN;
+  KeywordArgList key_arg_list[] = {
+    {"ARRAY",	&array,	0},
+    {"DIM",	&dim,	1},
+  };
 
-  array = args->next_token;
-  if(array != NULL) { 		/* ensure arg is present */
-
-    dim = array->next_token;	/* this may be null */
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
 
     if( is_true(ARRAY_EXPR,args->TOK_flags) ) {
       /* Here if dim is provided, we should access shape of array to
-	 get size of the the given dimension.  Since shape is not
+	 get size of the the given dimension.  FIXME: Since shape is not
 	 stored, do the right thing only if dim absent, otherwise set
 	 result size to unknown.
        */
@@ -1535,12 +1633,13 @@ ii_size(Token *args)		/* SIZE( array [,dim] ) */
 		   "array-valued argument expected");
     }
   }
+
   return result;
 }
 
 /* Kind functions */
 PRIVATE int
-ii_kind( Token *args )
+ii_kind( Token *args )			/* KIND( X ) */
 {
   make_true(PARAMETER_EXPR,args->TOK_flags);
   make_true(EVALUATED_EXPR,args->TOK_flags);
@@ -1553,7 +1652,7 @@ ii_kind( Token *args )
 }
 
 PRIVATE int
-ii_selected_int_kind( Token *args )
+ii_selected_int_kind( Token *args )	/* SELECTED_INT_KIND( R ) */
 {
   Token *range = args->next_token;
   int kind = kind_DEFAULT_INTEGER;
@@ -1573,25 +1672,31 @@ ii_selected_int_kind( Token *args )
 /* This needs to be rewritten when call-by-name is supported, to
    distinguish one-arg cases of P or R. */
 PRIVATE int
-ii_selected_real_kind( Token *args )
+ii_selected_real_kind( Token *args )	/* SELECTED_REAL_KIND([P], [R]) */
 {
   Token *precision, *range;
   int kind = kind_DEFAULT_REAL;
-
-  precision = args->next_token;
-  if( precision != NULL ) {	   /* make sure one arg is present */
-    range = precision->next_token; /* may be null */
-
-    if( precision->TOK_type != type_INTEGER ||/* wrong arg type: message given elswr */
-	( range != NULL && range->TOK_type != type_INTEGER ) ) {
-      make_false(EVALUATED_EXPR,args->TOK_flags);
+  KeywordArgList key_arg_list[] = {
+    {"P",	&precision,	1},
+    {"R",	&range,		1},
+  };
+  if( match_keyword(args,key_arg_list,NUM_LIST_ITEMS(key_arg_list)) ) {
+    if( (precision != NULL && datatype_of(precision->TOK_type) != type_INTEGER) ||
+	(range != NULL && datatype_of(range->TOK_type) != type_INTEGER) ||
+	(precision == NULL && range == NULL) ) {
+	make_false(EVALUATED_EXPR,args->TOK_flags);/* invalid args: message given elswr */
     }
-    else {
-      if( range != NULL ) {		/* (P,R) form */
-	kind = selected_real_kind_p_r(int_expr_value(precision),int_expr_value(range));
+    else {				/* all valid: proceed */
+      if( precision != NULL ) {
+	if( range != NULL ) {		/* (P,R) form */
+	  kind = selected_real_kind_p_r(int_expr_value(precision),int_expr_value(range));
+	}
+	else {				/* (P) form */
+	  kind = selected_real_kind_p( int_expr_value(precision) );
+	}
       }
-      else {			/* (P) form */
-	kind = selected_real_kind_p( int_expr_value(precision) );
+      else {				/* (R) form */ 
+	kind = selected_real_kind_r(int_expr_value(range));
       }
       make_true(PARAMETER_EXPR,args->TOK_flags);
       make_true(EVALUATED_EXPR,args->TOK_flags);
