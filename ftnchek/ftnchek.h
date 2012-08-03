@@ -44,7 +44,7 @@ changes, from the XFree86 Project.
 modify it and/or redistribute it, retaining this notice.\n\
 No guarantees accompany this software."
 #define VERSION_NUMBER		"FTNCHEK Version 4.beta July 2012"
-#define PATCHLEVEL		"Patch Level 0"
+#define PATCHLEVEL		"Patch Level 1"
 #define PROJECT_VERSION		"P4" /* Project file format version number */
 #define MODULE_VERSION		"M1" /* Module file format version number */
 

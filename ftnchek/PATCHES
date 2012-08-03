@@ -1,4 +1,49 @@
-		 Ftnchek Version 4 beta patch 0
-			    July 23, 2012
+		    Ftnchek Version 4 beta patch 1
+			    August 3, 2012
 
-This is the initial release of version 4 beta.
+In patch 1, the following updates were made:
+
+User manual updated to reflect version 4.  The distribution now
+includes a PDF version of the manual.
+
+Updated the project.magic file to include magic strings for ftnchek
+module files.  This file is intended to be merged with the system
+magic file.
+
+Added new command-line setting -module=DIR which specifies a directory
+to which module files are written, and/or in which to search for
+module files for input.  Modules are also searched for in the
+directories specified by -include=DIR option.
+
+Added new command-line setting -type=optionlist to control warnings
+about derived types.  Added new options to setting -usage to control
+warnings about usage of pointers and allocatable variables.  Placed
+some other new warnings and error messages under control of -nocheck.
+
+Added new check for agreement of corresponding common variables by
+name, controlled by -common=name, off by default.  This check can be
+useful when porting code from using COMMON blocks to using module
+variables or when putting COMMON blocks into include files, in which
+situations it will be necessary for all program units to refer to the
+variables by the same names.
+
+Changed the way -f77 setting works: removed all options referring to
+Fortran 90 features, placing all these warnings under the control of a
+new option -f77=f90.  The only remaining options control warnings
+about extensions that are not standard in Fortran 90.
+
+Removed obsolete settings -reference, -vcg, and -volatile.  These are
+options within other settings so there is no need for them to have
+their own top-level settings.
+
+Added recognition of keyword arguments for intrinsic functions and
+user-defined functions, so actual arguments of form keyword=value are
+correctly matched to dummy arguments.
+
+Fixed bug: warning about nonstandard VMS Fortran statement
+OPEN(NAME=filename...) was not being given.
+
+Fixed a bug in reading modules, not closing the file when done.  This
+could cause problems if a program uses many modules, running up
+against the limit on the number of open file descriptors so it can no
+longer open more files.

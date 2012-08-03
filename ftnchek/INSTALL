@@ -68,7 +68,7 @@ For other systems it may work but you are on your own.
 
    There is also a small file, project.magic, which can be added to
    your system's magic file, so that the ``file'' program will
-   recognize ftnchek project files for what they are.
+   recognize ftnchek project and module files for what they are.
 
    If emacs is installed on your system, the lisp file ftnchek.el will
    also be installed in the system site-lisp directory.
@@ -88,10 +88,11 @@ For other systems it may work but you are on your own.
    notice will be issued, and the flat ascii ("doc") versions will be
    used.
 
-   The UNIX Makefile employs a private script, man2ps, for converting
-   manual pages to PostScript (linked to names me2ps, mm2ps, and
-   ms2ps, it will support the -me, -mm, and -ms formats as well).  The
-   script currently knows about GNU groff, Sun Solaris 2.x troff +
+   The distribution includes a script, man2ps, for converting manual
+   pages to PostScript (linked to names me2ps, mm2ps, and ms2ps, it
+   will support the -me, -mm, and -ms formats as well).  The Makefile
+   uses groff if installed, but if it is not you can try this script.
+   The script currently knows about GNU groff, Sun Solaris 2.x troff +
    dpost and psroff; it will use any of these, with groff preferred.
    For troff + dpost, if you get errors like this
 
@@ -358,7 +359,7 @@ html is a directory containing a hypertext version of the
     that converts man pages to HTML on the fly, you may want to edit
     these links so they will work correctly.  As distributed, the html
     files contain URLs of the form:
-       "http://localhost/cgi-bin/man/man2html?n+prog"
+       "/man/man2html?n+prog"
     for a reference to program prog in manual section n.
 
 				Notes
