@@ -511,7 +511,10 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),
       fprintf(list_fd," %s",glob_symtab[i].private?"private":"public");
   }
 #endif
-      if(glob_symtab[i].valid &&
+  /* In case module is processed after an earlier USE, module entry may be
+     early in global symtab so make sure only valid module subprogs are stored.
+   */
+    if(glob_symtab[i].valid && (!module_mode || i==start_i || glob_symtab[i].module_subprog) &&
 	storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
 	!glob_symtab[i].private && /* for module: omit private routines */
 	(alist=glob_symtab[i].info.arglist) != NULL) {

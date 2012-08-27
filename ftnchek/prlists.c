@@ -248,7 +248,20 @@ else {
 			  a->actual_arg = head_ptr->actual_arg;
 			  }
 
-			  a->next = gsymt->info.arglist;
+			  /* If a module is processed after earlier USE, there
+			     will be a stub arglist with null fields.  Replace it
+			     this one.
+			   */
+			  if(gsymt->info.arglist != NULL &&
+			     gsymt->info.arglist->prog_unit == (Gsymtab*)NULL) {
+			    warning(NO_LINE_NUM,NO_COL_NUM,"module");
+			    msg_tail(gsymt->name);
+			    msg_tail("processed after earlier USE");
+			    a->next = NULL;
+			  }
+			  else {
+			    a->next = gsymt->info.arglist;
+			  }
 			  gsymt->info.arglist = a;
 		/* put arglist into local symtab for -mkhtml use */
 			  if( html_documents )
