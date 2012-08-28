@@ -777,7 +777,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int mode)
 	}
 	WRITE_NUM(" cndx",arg[i].common_index);
 	WRITE_NUM(" same",arg[i].same_as);
-	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d %d",
+	(void)fprintf(fd," flags %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
 		arg[i].is_lvalue,
 		arg[i].set_flag,
 		arg[i].assigned_flag,
@@ -787,7 +787,12 @@ alist_out(Gsymtab *gsymt, FILE *fd, int mode)
 		arg[i].declared_external,
 		arg[i].active_do_var,
 		arg[i].intent_in,
-		arg[i].intent_out);
+		arg[i].intent_out,
+		arg[i].optional,
+		0,
+		0,
+		0,
+		0);
 	NEXTLINE;
       }
       }/* end if ! proj_trim_calls ...*/
@@ -1746,7 +1751,12 @@ arg_info_in(fd,filename,is_defn,item_list)
 		arg_declared_external,
 		arg_active_do_var,
 		arg_intent_in,
-		arg_intent_out;
+		arg_intent_out,
+		arg_optional,
+		var_future_4,
+		var_future_3,
+		var_future_2,
+		var_future_1;
     const char *local_name;
     int in_list;
 
@@ -2044,7 +2054,7 @@ id_name,id_class,id_type);
 	READ_STR(" cblk",arg_common_block);
 	READ_LONG(" cndx",arg_common_index);
 	READ_NUM(" same",arg_same_as);
-	if(fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d",
+	if(fscanf(fd," flags %d %d %d %d %d %d %d %d %d %d %d %d %d %d %d",
 		&arg_is_lvalue,
 		&arg_set_flag,
 		&arg_assigned_flag,
@@ -2054,7 +2064,12 @@ id_name,id_class,id_type);
 		&arg_declared_external,
 		&arg_active_do_var,
 		&arg_intent_in,
-		&arg_intent_out) != 10) READ_ERROR;
+		&arg_intent_out,
+		&arg_optional,
+		&var_future_4,
+		&var_future_3,
+		&var_future_2,
+		&var_future_1) != 15) READ_ERROR;
 
 	mapped_arg_type = map_type(arg_type);
 
@@ -2105,6 +2120,7 @@ id_name,id_class,id_type);
 	alist[iarg].active_do_var = arg_active_do_var;
 	alist[iarg].intent_in = arg_intent_in;
 	alist[iarg].intent_out = arg_intent_out;
+	alist[iarg].optional = arg_optional;
    } /* end if new module */
 	NEXTLINE;
 #ifdef DEBUG_PROJECT

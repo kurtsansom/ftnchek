@@ -72,26 +72,90 @@ arg_array_cmp(name,args1,args2)
 	int i;
 	int  n,
 	     n1 = args1->numargs,
-	     n2 = args2->numargs;
+	     n2 = args2->numargs,
+	     n_optional_dummys,
+	     missing_non_optionals;
 	ArgListElement *a1 = args1->arg_array,
 		       *a2 = args2->arg_array;
 
+	/* An array that marks whether an argument is missing.
+	 * missing[i] == 0 (not missing || optional)
+	 * missing[i] == 1 (missing)
+	 * calloc should initialize the array to zeroes.
+	 */
+	char *arg_missing = (char *)calloc(n1, sizeof(char));
+
 	n = (n1 > n2) ? n2: n1;		/* n = min(n1,n2) */
 
-	if (argcheck_argnumber && n1 != n2){
-	  cmp_error_count = 0;
-	  (void) argcmp_error_head(name,args1,"varying number of arguments:");
-
-	  sub_error_report(args1,args1->is_defn? "Defined":"Invoked");
-	  msg_tail("with");
-	  msg_tail(ulongtostr((unsigned long)n1));
-	  msg_tail(n1==1?"argument":"arguments");
-
-	  sub_error_report(args2,args2->is_defn? "Defined":"Invoked");
-	  msg_tail("with");
-	  msg_tail(ulongtostr((unsigned long)n2));
-	  msg_tail(n2==1?"argument":"arguments");
+	n_optional_dummys = 0;
+	missing_non_optionals = 0;
+	/* check for optional arguments in defn list
+	 * and also whether a non-optional argument occurs in call list */
+	for (i = 0; i < n1; i++) {
+	    if (a1[i].optional) n_optional_dummys++;
+	    else {
+		int j;
+		int found = FALSE;
+		for (j = 0; j < n2; j++) {
+		    if (i == a2[j].keyword_index) {
+			found = TRUE;
+			break;
+		    }
+		}
+		if (!found) {
+		    missing_non_optionals++;
+		    arg_missing[i] = TRUE;
+		}
+	    }
 	}
+
+	if( argcheck_argnumber && 
+	    (missing_non_optionals > 0 || n1 < n2) ) {
+	  cmp_error_count = 0;
+
+	  if (n_optional_dummys == 0 || n1 < n2) {
+	    (void) argcmp_error_head(name,args1,"varying number of arguments:");
+
+	    sub_error_report(args1,args1->is_defn? "Defined":"Invoked");
+	    msg_tail("with");
+	    msg_tail(ulongtostr((unsigned long)n1));
+	    msg_tail(n1==1?"argument":"arguments");
+
+	    sub_error_report(args2,args2->is_defn? "Defined":"Invoked");
+	    msg_tail("with");
+	    msg_tail(ulongtostr((unsigned long)n2));
+	    msg_tail(n2==1?"argument":"arguments");
+	  }
+	  else { /* list the missing dummy arguments */
+	    int invoked_warn = FALSE;
+
+	    for (i = 0; i < n1; i++) {
+	      if (arg_missing[i]) {
+		if (!invoked_warn) {
+		  (void) argcmp_error_head(name,args1,
+		      "missing non-optional dummy arguments:");
+		  invoked_warn = TRUE;
+		}
+		msg_tail(a1[i].name);
+	      }
+	    }
+
+	    if (invoked_warn) {
+	      sub_error_report(args1,args1->is_defn? "Defined":"Invoked");
+	      msg_tail("with");
+	      msg_tail(ulongtostr((unsigned long)n1));
+	      msg_tail(n1==1?"argument":"arguments");
+
+	      sub_error_report(args2,args2->is_defn? "Defined":"Invoked");
+	      msg_tail("with");
+	      msg_tail(ulongtostr((unsigned long)n2));
+	      msg_tail(n2==1?"argument":"arguments");
+	    }
+
+	  }
+	}
+
+	free(arg_missing);
 
 	if(argcheck_argtype)
 	{	/* Look for type and kind mismatches */

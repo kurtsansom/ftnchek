@@ -6357,6 +6357,8 @@ process_attrs(Token *t,Token *dim_bounds)
         apply_attr(t,tok_PRIVATE);
     if(current_intent_in_attr || current_intent_out_attr)
 	apply_intent_attr(t);
+    if(current_optional_attr)
+        apply_attr(t,tok_OPTIONAL);
 
     if(dim_bounds != NULL)
 	def_array_dim(t,dim_bounds);

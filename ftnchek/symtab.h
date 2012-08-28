@@ -515,7 +515,8 @@ typedef struct {	/* ArgListElement: holds subprog argument data */
 		 declared_external: 1,
 		 active_do_var: 1,
 		 intent_in: 1,
-		 intent_out: 1;
+		 intent_out: 1,
+		 optional: 1;
 } ArgListElement;
 
 

@@ -818,6 +818,7 @@ make_dummy_arg_array (t)
 		arglist[i].declared_external = symt->declared_external;
 		arglist[i].intent_in = symt->intent_in;
 		arglist[i].intent_out = symt->intent_out;
+		arglist[i].optional = symt->optional;
 	    }
 	    else {	/* It is a label */
 	        arglist[i].array_dim = array_dim_info(0,0);
