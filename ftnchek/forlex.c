@@ -310,9 +310,15 @@ yylex(VOID)
 	else if(isadigit(curr_char)) {
 			/* Identify label:
 			      Fixed form: Number in cols 1-5.
-			      Free form:  Number at start of statement.
+			      Free form:  Number at start of statement.  Be careful:
+			      initial_flag normally tells, but it gets turned on in
+			      attrbased type decls where dimensions can be, and following
+			      an IF(expr) which might be an arithmetic IF (the labels that
+			      follow are lexed as integers not label tokens).
 			 */
-	    if( (free_form)? (initial_flag && !in_attrbased_typedecl): (col_num < 6))
+	    if( (free_form)?
+		(initial_flag && !(in_attrbased_typedecl || curr_stmt_class == tok_IF)):
+		(col_num < 6))
 			get_label(&token);      /* Stmt label */
 		else
 			get_number(&token);     /* Numeric or hollerith const */
@@ -1376,6 +1382,7 @@ get_punctuation(token)
 	int multichar,	   /* Flags To catch spaces inside multi-char token */
 	    space_seen_lately;
 	extern int in_attrbased_typedecl;	/* shared with fortran.y */
+	extern int disallow_double_colon;	/* shared with fortran.y */
 	multichar = FALSE;
 
 	src_text_buf[src_text_len++] = curr_char;
@@ -1424,7 +1431,7 @@ get_punctuation(token)
 		src_text_buf[src_text_len++] = curr_char;
 	}
 		/* double colon :: treat as single token */
-	else if(curr_char == ':' && next_char == ':') {
+	else if(curr_char == ':' && next_char == ':' && !disallow_double_colon) {
 		token->tclass = tok_double_colon;
 		multichar = TRUE;
 		advance();
@@ -1502,6 +1509,16 @@ get_punctuation(token)
 	  else {
 	    token->tclass = curr_char;
 	  }
+
+	  /* Do not recognize double colons within parenthesis to prevent
+	   * them from being parsed as a single token.  This is needed
+	   * for array sections with missing subscripts e.g. array(1::10).
+	   * Here the occurrence of '::' could be mistaken for that token.
+	   */
+	  if (curr_char == '(')
+	      disallow_double_colon = TRUE;
+	  if (curr_char == ')')
+	      disallow_double_colon = FALSE;
 	}
 
 	token->src_text = new_src_text(src_text_buf,src_text_len);

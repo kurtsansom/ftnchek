@@ -192,7 +192,9 @@ int
     inside_format=FALSE,	/* when inside parens of FORMAT  */
     integer_context=FALSE,	/* says integers-only are to follow */
     use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
-    generic_spec_allowed=FALSE; /* help for recognizing generic_spec */
+    generic_spec_allowed=FALSE, /* help for recognizing generic_spec */
+    disallow_double_colon=FALSE;/* help for recognizing array sections 
+    				   with missing subscripts */
 
 		/* Macro for initializing attributes of type decl. */
 #define reset_type_attrs() (\
@@ -547,8 +549,10 @@ stmt_list_item	:	ordinary_stmt
 			    goto_flag = prev_goto = FALSE;
 			  }
 			  prev_stmt_class = curr_stmt_class;
+			  curr_stmt_class = 0; /* none yet */
 			  integer_context = FALSE;
 			  in_attrbased_typedecl = FALSE;
+			  disallow_double_colon = FALSE;
 			  true_prev_stmt_line_num = $$.line_num;
 			}
  		|	include_stmt
@@ -5306,6 +5310,7 @@ ac_implied_do	:	'(' ac_value_list ',' implied_do_control ')'
 			    $$.left_token = add_tree_node(&($3),&($2),&($4));
 			    $$.TOK_type = $2.TOK_type;
 			    $$.size = $2.size;
+			    $$.kind = $2.kind;
 			    $$.TOK_flags = 0;
 			    copy_flag(CONST_EXPR,$$.TOK_flags,$2.TOK_flags);
 			    copy_flag(PARAMETER_EXPR,$$.TOK_flags,$2.TOK_flags);
@@ -5961,11 +5966,13 @@ data_constant	:	numeric_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_LOGICAL);
 			    $$.size = size_DEFAULT;
+			    $$.kind = default_kind(type_LOGICAL);
 			}
    		|	char_literal_const
 			{
 			    $$.TOK_type = type_pack(class_VAR,type_STRING);
 			    $$.size = size_DEFAULT;
+			    $$.kind = default_kind(type_STRING);
 			}
 		|	tok_hollerith
 			{
