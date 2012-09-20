@@ -534,6 +534,7 @@ typedef struct ALHead {	    /* ArgListHeader: head node of argument list */
 	     array_result: 1,	/* function return array result */
 	     is_defn: 1,
 	     is_call: 1,
+	     is_interface: 1,
 	     external_decl: 1,	/* EXTERNAL decl, not arg list */
              actual_arg: 1;	/* subprog passed as arg */
 	struct ALHead *next;
@@ -577,6 +578,7 @@ typedef struct TLHead {	/* TokenListHeader: head node of token list */
 	unsigned
 	  external_decl:1,
 	  actual_arg:1,
+	  is_interface:1,
 	  is_defn:1;
 } TokenListHeader;
 

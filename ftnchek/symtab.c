@@ -488,11 +488,10 @@ call_subr(id,arg)	/* Process call statements */
 	t = datatype_of(symt->type);
 		/* Symbol seen before: check it & change class */
 
-	if( (storage_class_of(symt->type) == class_VAR
-	     || symt->external ) && t == type_UNDECL) {
-		t = type_SUBROUTINE;
-		symt->info.toklist = NULL;
+	if(storage_class_of(symt->type) == class_VAR) {
+	    symt->info.toklist = NULL;
 	}
+	t = type_SUBROUTINE;
 	symt->type = type_pack(class_SUBPROGRAM,t);
 	symt->kind = 0;
 
@@ -1427,6 +1426,7 @@ void def_function(int datatype, long int size, char *size_text, kind_t kind,
 	Gsymtab *gsymt;
 	TokenListHeader *TH_ptr;
    	storage_class = class_SUBPROGRAM;
+	extern int interface_block;	/* shared with fortran.y */
 
    	if((symt = (hashtab[h].loc_symtab)) == NULL || !(in_curr_scope(symt)) ) {
 	   old_symt = symt;	/* save masked entry */
@@ -1525,7 +1525,8 @@ void def_function(int datatype, long int size, char *size_text, kind_t kind,
 
 	TH_ptr->tokenlist = (args == NULL ? NULL: args->next_token);
 	TH_ptr->next = symt->info.toklist;
-	TH_ptr->is_defn = TRUE;
+	if (interface_block) TH_ptr->is_interface = TRUE;
+	else TH_ptr->is_defn = TRUE;
 
 	symt->info.toklist = TH_ptr;
 

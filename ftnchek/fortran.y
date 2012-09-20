@@ -174,7 +174,6 @@ PRIVATE int
     contains_ended,		/* var to remember that a CONTAINS block just ended */
     inside_function=FALSE,	/* is inside a function */
     contains_sect=FALSE,	/* for contains block */
-    interface_block=FALSE,	/* for interface block */
     in_forall_construct=FALSE,	/* for FORALL construct */
     in_where_construct=FALSE,	/* for WHERE construct */
     sequence_dtype=FALSE,	/* for derived types with SEQUENCE attr */
@@ -193,8 +192,9 @@ int
     integer_context=FALSE,	/* says integers-only are to follow */
     use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
     generic_spec_allowed=FALSE, /* help for recognizing generic_spec */
-    disallow_double_colon=FALSE;/* help for recognizing array sections 
+    disallow_double_colon=FALSE,/* help for recognizing array sections 
     				   with missing subscripts */
+    interface_block=FALSE;	/* for interface block */
 
 		/* Macro for initializing attributes of type decl. */
 #define reset_type_attrs() (\
@@ -6466,6 +6466,13 @@ END_processing(t)
 	if(! interface_block) {	/* but not for INTERFACE declaration */
 	  print_loc_symbols();
 	}
+	/* When inside an interface block, move the local symbol entries
+  	   for procedures to the outer scope
+  	*/
+  	else {
+  	  Lsymtab *symt = hashtab[current_prog_unit_hash].loc_symtab;
+  	  if (symt != NULL) move_outside_scope(symt);
+  	}
 
 	/* At END MODULE, need to check internal usage of module subprograms
 	   and then save module info to a file.  [LATTER NOT DONE YET] */

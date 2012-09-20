@@ -180,12 +180,30 @@ if((gsymt=hashtab[h].glob_symtab) == NULL) {
 else {
                         ArgListHeader *a;
 			int implied_type;
+			extern int interface_block; /* shared with fortran.y */
 			while (head_ptr != NULL){
 			  if (head_ptr->is_defn) {
 			    /* function/subroutine/entry definition */
 			     a=make_dummy_arg_array(head_ptr->tokenlist);
 			     make_arg_names(head_ptr->tokenlist,
 					   a,gsymt->info.arglist);
+			  }
+			  else if (head_ptr->is_interface) {
+			      /* For interface, create the dummy array
+			       * while in the interface block because
+			       * the dummies will be lost when the scope
+			       * gets popped off ( when interface block
+			       * is closed )
+			       */
+			      if (interface_block) {
+			     a=make_dummy_arg_array(head_ptr->tokenlist);
+			     make_arg_names(head_ptr->tokenlist,
+					   a,gsymt->info.arglist);
+			      }
+			      /* Interface is not a definition so set
+			       * to false.
+			       */
+			      loc_symtab[i].entry_point = FALSE;
 			  }
 			  /* Subprogram invoked in an internal subprogram 
 			   * may also have invocations in the containing
@@ -781,6 +799,7 @@ make_dummy_arg_array (t)
 	Token *s;
 	ArgListElement *arglist;
 	ArgListHeader *alhead;
+	extern int interface_block;	/* shared with fortran.y */
 
 	count = arg_count(t);
 	if(((alhead=new_arglistheader())
@@ -835,7 +854,8 @@ make_dummy_arg_array (t)
 	    s = s->next_token;
 	}
 	alhead->numargs = (short)count;
-	alhead->is_defn = TRUE;
+	if (interface_block) alhead->is_interface = TRUE;
+	else alhead->is_defn = TRUE;
 	alhead->is_call = FALSE;
 	alhead->external_decl = FALSE;
 	alhead->actual_arg = FALSE;
