@@ -58,6 +58,9 @@ PROTO(PRIVATE void arg_array_cmp,( char *name, ArgListHeader *args1,
 PROTO(PRIVATE void report_dtype_line_declared, (int line_declared));
 PROTO(PRIVATE void index_keyword_args,( const char *name, ArgListHeader *defn_head,
 	    ArgListHeader *call_head ));
+int get_defn_list(const ArgListHeader *ahead_list, 
+	          ArgListHeader ***defn_addrs);
+int match_args(ArgListHeader **defn_addrs, int n_defns, ArgListHeader *alist);
 
      		/* Compares subprogram calls with definition */
 PRIVATE void
@@ -817,6 +820,8 @@ if(debug_latest) {
 	    else{	/* alist != NULL */
 		int num_defns= 0;
 		ArgListHeader *list_item;
+		int is_generic = 
+		    datatype_of(glob_symtab[i].type) == type_GENERIC;
 
 			/* use 1st invocation instead of defn if no defn */
 		defn_list = alist;
@@ -843,7 +848,8 @@ if(debug_latest) {
 #endif
 		    if(list_item->is_defn){
 					/* report multiple defns */
-			if(usage_ext_multiply_defined && num_defns > 0) {
+			if(!is_generic &&
+			   usage_ext_multiply_defined && num_defns > 0) {
 			    if(num_defns == 1) {
 				cmp_error_count = 0;
 				(void)argcmp_error_head(glob_symtab[i].name,
@@ -869,7 +875,7 @@ if(debug_latest) {
 
 		    list_item = list_item->next;
 		}
-		if(num_defns == 0){
+		if(num_defns == 0 && !is_generic){
 				/* If no defn found, and all calls are
 				   from unvisited library prog units, skip. */
 		  if(irrelevant(defn_list))
@@ -929,7 +935,7 @@ if(debug_latest) {
 		  cmp_error_count = 0;
 		  while(alist != NULL){
 			if(alist != defn_list && !alist->external_decl
-			   && !irrelevant(alist)) {
+			   && !irrelevant(alist) && !is_generic) {
 			  int c1 = storage_class_of(defn_list->type),
 			      c2 = storage_class_of(alist->type),
 			      t1 = datatype_of(defn_list->type),
@@ -997,6 +1003,43 @@ if(debug_latest) {
 	        }/* end if(defn) */
 
 		alist = glob_symtab[i].info.arglist;
+
+		if (is_generic) {
+		    ArgListHeader **defn_addrs = NULL;
+		    int n_defns = 
+			get_defn_list(glob_symtab[i].info.arglist,
+				      &defn_addrs);
+#ifdef DEBUG_GENERIC
+if (debug_latest) {
+    int k;
+    fprintf(list_fd,
+	    "For generic %s, found %d defns/interfaces\n",
+	    glob_symtab[i].name, n_defns);
+    for (k = 0; k < n_defns; k++) {
+	fprintf(list_fd,"defn/interface on line number = %d\n",
+		defn_addrs[k]->line_num);
+    }
+}
+#endif
+		    /* Find calls then check for their definitions */
+		    while(alist != NULL){
+			if((alist->is_call && !irrelevant(alist)) ){
+			    if (match_args(defn_addrs,n_defns,alist)) {
+				/* Found a match */
+			    }
+			    else {
+				syntax_error(alist->line_num, NO_COL_NUM,
+				"Matching definition not found for generic");
+				msg_tail(glob_symtab[i].name);
+			    }
+			}
+			alist = alist->next;
+		    }
+
+		}
+		else {
+
+		alist = glob_symtab[i].info.arglist;
 		while(alist != NULL){
 		  /* Here we require true call, not use as actual arg.
 		     Also, do not compare multiple defns against each
@@ -1010,6 +1053,8 @@ if(debug_latest) {
 			alist = alist->next;
 
 		}/* end while(alist != NULL) */
+
+		}
 	    }/* end else <alist != NULL> */
 	}
     }
@@ -1070,4 +1115,87 @@ index_keyword_args(const char *subprog_name, ArgListHeader *defn_head, ArgListHe
 		    "requires keyword",i);
 	}
     }
+}
+
+/* @param 'ahead_list' : List of argument list headers.
+ * @param 'defn_addrs' : address of a List of addresses to defn/interface 
+ * 	argument list headers.
+ * @returns : Number of defn/interface argument list headers found
+ * 	in 'ahead_list'. 
+ * Sets 'defn_addrs' to a list of addresses to defn/interface argument
+ * list headers found in 'ahead_list'.
+ */
+int get_defn_list(const ArgListHeader *ahead_list, 
+	          ArgListHeader ***defn_addrs)
+{
+    int n = 0, i = 0;
+    const ArgListHeader *ahead = ahead_list;
+    ArgListHeader **array_addrs = NULL;
+
+    /* First get count of defns/interfaces */
+    while (ahead != NULL) {
+	if (ahead->is_defn || ahead->is_interface)
+	    n++;
+	ahead = ahead->next;
+    }
+
+    /* An array for the addresses */
+    if ((array_addrs=(ArgListHeader**)malloc(n*sizeof(ArgListHeader*))) == NULL) {
+	oops_message(OOPS_FATAL,NO_LINE_NUM,NO_COL_NUM,
+		"Cannot malloc space for argument list header addresses");
+    }
+
+    /* Now store the addresses */
+    ahead = ahead_list;
+    while (ahead != NULL) {
+	if (ahead->is_defn || ahead->is_interface)
+	    array_addrs[i++] = (ArgListHeader *)ahead;
+	ahead = ahead->next;
+    }
+
+    *defn_addrs = array_addrs;
+
+    return n;
+}
+
+/* @param 'defn_addrs' : List of addresses of argument list headers
+ * @param 'n' : Count of the list
+ * @param 'alist' : Call argument list header
+ * @returns : TRUE if a match of argument types is found else FALSE
+ */
+int match_args(ArgListHeader **defn_addrs, int n_defns, ArgListHeader *alist)
+{
+    int k, a, not_matched = 0;
+    ArgListElement *dummy_arg = NULL, *actual_arg = NULL;
+
+    for (k = 0; k < n_defns; k++) {
+	/* cycle through the arguments */
+	for (a = 0; a < defn_addrs[k]->numargs; a++) {
+	    dummy_arg = &(defn_addrs[k]->arg_array[a]);
+	    actual_arg = &(alist->arg_array[a]);
+
+	    if (datatype_of(dummy_arg->type) != 
+		           datatype_of(actual_arg->type)) {
+		not_matched++;
+		break;
+	    }
+	    if (dummy_arg->kind != dummy_arg->kind) {
+		not_matched++;
+		break;
+	    }
+	    if (array_dims(dummy_arg->array_dim) !=
+		array_dims(actual_arg->array_dim)) {
+		not_matched++;
+		break;
+	    }
+	    if (array_size(dummy_arg->array_dim) !=
+		array_size(actual_arg->array_dim)) {
+		not_matched++;
+		break;
+	    }
+	}
+
+    }
+
+    return not_matched != n_defns;
 }

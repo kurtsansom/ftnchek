@@ -1206,6 +1206,7 @@ PROTO(void process_forall_construct,(Token *t));
 			/* in prlists.c */
 PROTO(ModVar * new_modvar,( unsigned count ));
 PROTO(ModVarListHeader * new_modvarlistheader,( void ));
+ArgListHeader *make_dummy_arg_array_wrapper(Token *t);
 
 			/* in prlocsym.c */
 PROTO(void print_loc_symbols,( void ));

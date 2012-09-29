@@ -295,6 +295,8 @@ SUBPROG_TYPE find_subprog_type(int stmt_class);
 PRIVATE int get_curr_block_class();
 PRIVATE char *get_curr_block_name();
 PRIVATE void block_stack_top_swap();
+PRIVATE void create_generic_procedure(char *generic_name, Token *proc_list);
+PRIVATE void clone_defn_ahead(Gsymtab *proc_gsymt, Gsymtab *gen_gsymt);
 
 		/* Uses of Token fields for nonterminals: */
 /* NOTE: As of Aug 1994 these are undergoing revision to separate the
@@ -2781,7 +2783,17 @@ interface_stmt  :   interface_handle EOS
 		    curr_stmt_name = (char *)NULL;
 		}
 	        |   interface_handle generic_spec EOS
+		{
 		    /* curr_stmt_name is set in generic_spec production */
+		    def_function(
+			         type_GENERIC,
+			         size_DEFAULT,
+			         (char *)NULL,
+			         (kind_t)0,
+			         &($2),
+			         (Token*)NULL,
+				 not_subprog);
+		}
 	        ;
 
 interface_handle    :   tok_INTERFACE
@@ -2800,6 +2812,9 @@ interface_handle    :   tok_INTERFACE
         ;
 
 procedure_stmt  :   procedure_stmt_handle non_empty_arg_list
+		{
+		  create_generic_procedure(curr_stmt_name, &($2));
+		}
         ;
 
 procedure_stmt_handle  :   tok_PROCEDURE 
@@ -6468,10 +6483,38 @@ END_processing(t)
 	}
 	/* When inside an interface block, move the local symbol entries
   	   for procedures to the outer scope
+	   !!! but not for generic interface
   	*/
   	else {
-  	  Lsymtab *symt = hashtab[current_prog_unit_hash].loc_symtab;
-  	  if (symt != NULL) move_outside_scope(symt);
+	  char *generic_name = get_curr_block_name();
+	  /* It is a generic interface */
+	  if (generic_name != NULL) {
+	    Gsymtab *proc_gsymt = 
+	  	  hashtab[current_prog_unit_hash].glob_symtab;
+	    Gsymtab *gen_gsymt = 
+	  	  hashtab[hash_lookup(generic_name)].glob_symtab;
+#ifdef DEBUG_GENERIC
+if (debug_latest) {
+  fprintf(list_fd, "\nAdding specific defn of %s to generic %s",
+	  proc_gsymt->name, gen_gsymt->name);
+}
+#endif
+	    /* Attach a argument list header of the specific definition
+	       to the generic definition
+	    */
+	    clone_defn_ahead(proc_gsymt, gen_gsymt);
+	  }
+	  else {
+  	    Lsymtab *symt = hashtab[current_prog_unit_hash].loc_symtab;
+  	    if (symt != NULL) {
+#ifdef DEBUG_GENERIC
+if (debug_latest) {
+  fprintf(list_fd, "\nMoving %s to parent local scope", symt->name);
+}
+#endif
+	      move_outside_scope(symt);
+	    }
+	  }
   	}
 
 	/* At END MODULE, need to check internal usage of module subprograms
@@ -7119,4 +7162,95 @@ void block_stack_top_swap()
 /* Used as a hook for DDD */
 PRIVATE void check_token(Token *id)
 {
+}
+
+/* @param 'generic_name' : name used to identify the generic procedure
+   @param 'proc_list' : list of tokens representing the specific
+          procedures with different argument types
+   Copies the argument list headers of definitions from the specific
+   procedures into the global entry of the generic procedure.
+*/
+PRIVATE void create_generic_procedure(char *generic_name, Token *proc_list)
+{
+  Gsymtab *proc_gsymt = NULL;
+  ArgListHeader *proc_ahead = NULL;
+  ArgListHeader *temp_ahead = NULL;
+  Token *t = proc_list->next_token;
+  Gsymtab *gen_gsymt = hashtab[hash_lookup(generic_name)].glob_symtab;
+
+#ifdef DEBUG_GENERIC
+if (debug_latest) {
+  fprintf(list_fd,
+          "\nCreating generic procedure for %s\n", gen_gsymt->name);
+}
+#endif
+  
+  /* cycle through specific procedure definition tokens */
+  while (t != NULL) {
+    proc_gsymt = hashtab[t->value.integer].glob_symtab;
+    /* TODO: need to copy interface to module file */
+    if (proc_gsymt == NULL) return;
+
+    /* find the definition */
+    proc_ahead = proc_gsymt->info.arglist;
+    while (proc_ahead != NULL) {
+      if (proc_ahead->is_defn)
+        break;
+      proc_ahead = proc_ahead->next;
+    }
+
+    /* now add specific definition to generic procedure */
+    if (proc_ahead != NULL) {
+#ifdef DEBUG_GENERIC
+if (debug_latest) {
+    fprintf(list_fd,
+            "Adding specific procedure of %s\n", proc_gsymt->name);
+}
+#endif
+      temp_ahead = make_dummy_arg_array_wrapper((Token *)NULL);
+      /* copy should be fine because argument arrays will be shared */
+      *temp_ahead = *proc_ahead;
+      temp_ahead->next = gen_gsymt->info.arglist;
+      gen_gsymt->info.arglist = temp_ahead;
+    }
+    else {
+      warning(t->line_num, t->col_num, proc_gsymt->name);
+      msg_tail("Definition not found");
+    }
+
+    t = t->next_token;
+  }
+}
+
+/* @param 'proc_gsymt' : Source of definition argument list headers
+   @param 'gen_gsymt' : Destination of definition argument list headers
+   Makes a clone of definition or interface argument list headers from
+   'proc_gsymt' and links them to 'gen_gsymt'.
+*/
+PRIVATE void clone_defn_ahead(Gsymtab *proc_gsymt, Gsymtab *gen_gsymt)
+{
+  ArgListHeader *clone_ahead = NULL;
+  ArgListHeader *proc_ahead = proc_gsymt->info.arglist;
+
+  if (proc_gsymt == NULL || gen_gsymt == NULL) {
+    warning(NO_LINE_NUM, NO_COL_NUM, NULL);
+    msg_tail("Global entries for procedures do not exist.");
+    return;
+  }
+
+  while (proc_ahead != NULL && 
+         !proc_ahead->is_defn && !proc_ahead->is_interface) 
+    proc_ahead = proc_ahead->next;
+
+  if (proc_ahead != NULL) {
+      clone_ahead = make_dummy_arg_array_wrapper((Token *)NULL);
+      /* copy should be fine because argument arrays will be shared */
+      *clone_ahead = *proc_ahead;
+      clone_ahead->next = gen_gsymt->info.arglist;
+      gen_gsymt->info.arglist = clone_ahead;
+  }
+  else {
+      warning(NO_LINE_NUM, NO_COL_NUM, proc_gsymt->name);
+      msg_tail("does not have a definition or an interface");
+  }
 }

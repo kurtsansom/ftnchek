@@ -785,6 +785,11 @@ make_com_names(tlist, clhead, prev_clhead)
 	}
 }
 
+ArgListHeader *make_dummy_arg_array_wrapper(Token *t)
+{
+    return make_dummy_arg_array(t);
+}
+
 PRIVATE ArgListHeader *
 #if HAVE_STDC
 make_dummy_arg_array (Token *t)
