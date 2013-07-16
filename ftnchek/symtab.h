@@ -223,7 +223,7 @@ unsigned char equiv_type[]
 #define LAB_IO		   7
 #define LAB_CALL           8
 SYM_SHARED
-char *lab_type_name[]
+const char *lab_type_name[]
 #ifdef SYMTAB
  = {
     "undef",
@@ -266,7 +266,7 @@ typedef struct {
 
 		/* Array of class and type name translations */
 SYM_SHARED
-char *class_name[]
+const char *class_name[]
 #ifdef SYMTAB
  = {
 	"",
@@ -281,7 +281,7 @@ char *class_name[]
 #endif
 ;
 SYM_SHARED
-char *elementary_type_name[]		/* Type names as used in warnings etc.
+const char *elementary_type_name[]		/* Type names as used in warnings etc.
 				   NOTE: Constrained to 4 letters */
 #ifdef SYMTAB
  = {
@@ -307,7 +307,7 @@ char *elementary_type_name[]		/* Type names as used in warnings etc.
 ;
 
 SYM_SHARED
-char *type_table[]		/* Names as used in FORTRAN statements */
+const char *type_table[]		/* Names as used in FORTRAN statements */
 #ifdef SYMTAB
  =  {
 	"??ERROR??",
@@ -665,7 +665,7 @@ typedef unsigned long intrins_flags_t;
 #endif
 
 typedef struct IInfo{
-	char *name;	   /* intrinsic name */
+	const char *name;	   /* intrinsic name */
 	short num_args;	   /* number of args (<0 codes for varying) */
 	unsigned arg_type; /* bitwise OR of 1<<type for allowed types */
 	int result_type;   /* type code of result */
@@ -1196,7 +1196,7 @@ PROTO(void implied_id_token,( Token *t, char *s ));
 PROTO(int yylex,( void ));
 
 			/* in keywords.c */
-PROTO(char *keytok_name,(int tclass));
+PROTO(const char *keytok_name,(int tclass));
 
 			/* in fortran.y/fortran.c */
 PROTO(void check_seq_header,( Token *t ));
@@ -1296,8 +1296,8 @@ PROTO(void save_com_block,( Token *id ));
 PROTO(void set_implicit_type,( int type, long size, char *len_text, int c1, int c2 ));
 PROTO(void stmt_function_stmt,( Token *id ));
 PROTO(char * token_name,( Token *t ));
-PROTO(char * type_name,( int t ));
-PROTO(char * global_type_name,( int t ));
+PROTO(const char * type_name,( int t ));
+PROTO(const char * global_type_name,( int t ));
 PROTO(void undef_do_variable,( int h ));
 PROTO(void use_actual_arg,( Token *id ));
 PROTO(void use_implied_do_index,( Token *id ));

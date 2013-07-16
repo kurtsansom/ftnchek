@@ -101,7 +101,7 @@ PROTO(PRIVATE srcPosn see_dowhile,( srcPosn pos ));
 
 PROTO(PRIVATE srcPosn see_expression,( srcPosn pos ));
 
-PROTO(PRIVATE srcPosn see_keyword,(srcPosn pos, char *matchstr ));
+PROTO(PRIVATE srcPosn see_keyword,(srcPosn pos, const char *matchstr ));
 
 PROTO(PRIVATE srcPosn skip_balanced_parens,( srcPosn pos ));
 
@@ -1470,7 +1470,7 @@ see_expression(srcPosn pos)
 	   be at start of keyword. */
 
 PRIVATE srcPosn
-see_keyword(srcPosn pos, char *matchstr)
+see_keyword(srcPosn pos, const char *matchstr)
 {
     int c;
     while(*matchstr != '\0' && pos.idx <= pos.Line->end_index) {
@@ -1768,7 +1768,7 @@ PRIVATE
 array_dim_t parsed_array_dim;		/* array attrs of function result */
 
 struct keywd_list {
-  char* keywd;			/* keyword string */
+  const char* keywd;		/* keyword string */
   int class;			/* token class of keyword */
 };
 

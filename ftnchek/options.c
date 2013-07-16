@@ -53,21 +53,21 @@ typedef enum {		/* for isacheck fields.  Used to suppress -nocheck */
 
 				/* Define WarnOptionList struct here */
 typedef struct {
-  char *name;			/* user knows the sub-setting by this name */
+  const char *name;			/* user knows the sub-setting by this name */
   int *flag;			/* ptr to the option variable itself */
-  char *explanation;		/* for use by -warning=help */
+  const char *explanation;		/* for use by -warning=help */
 } WarnOptionList;
 
 				/* Define StrsettingList struct here */
 typedef struct {
-    char *name;			/* user knows the setting by this name */
+    const char *name;			/* user knows the setting by this name */
     char **strvalue;		/* the string argument goes here */
-    char *turnon, *turnoff;	/* e.g. "all", "none" */
+    const char *turnon, *turnoff;	/* e.g. "all", "none" */
     isacheck_t isacheck;	/* tells -nocheck to turn it off */
     WarnOptionList *option_list;/* this holds the set of options */
 				/* For compatibility with -option=num form: */
-    PROTO(void (*numeric_form_handler),(int num, char *setting_name));
-    char *explanation;		/* for use by -help */
+    PROTO(void (*numeric_form_handler),(int num, const char *setting_name));
+    const char *explanation;		/* for use by -help */
 } StrsettingList;
 
 extern int yydebug;		/* for grammar debugging via -yydebug */
@@ -80,7 +80,7 @@ PROTO(PRIVATE FILE *find_rc,( void ));
 
 PROTO(PRIVATE void list_warn_options,( StrsettingList *strsetting ));
 
-PROTO(PRIVATE void make_env_name,( char *env_name, char *option_name ));
+PROTO(PRIVATE void make_env_name,( char *env_name, const char *option_name ));
 
 PROTO(PRIVATE void mutual_exclude, (  WarnOptionList wList[], const char *opt_name,
 		      int *thisflag, int *otherflags[] ));
@@ -90,43 +90,43 @@ PROTO(PRIVATE void process_warn_string,
 
 PROTO(PRIVATE int str_to_num,(char *s));
 
-PROTO(PRIVATE int read_setting,( char *s, int *setvalue, char *name, int
+PROTO(PRIVATE int read_setting,( char *s, int *setvalue, const char *name, int
 			 minlimit, int maxlimit, int turnoff, int
 			 turnon, int min_default_value, int
 			 max_default_value ));
 
 PROTO(PRIVATE void set_warn_option,
- ( char *s, WarnOptionList warn_option[] ));
+ ( const char *s, WarnOptionList warn_option[] ));
 
 PROTO(PRIVATE void set_warn_option_value, ( int *flag, int value));
 
 PROTO(PRIVATE void update_str_options,( StrsettingList *strset ));
 
-PROTO(PRIVATE int wildcard_match, (char *pat, char *str));
+PROTO(PRIVATE int wildcard_match, (const char *pat, const char *str));
 
 
 		/* The following routines handle compatibility with older
 		   numeric form of settings that are now WarnOptionLists.
 		 */
-PROTO(PRIVATE void argcheck_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void argcheck_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void arraycheck_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void arraycheck_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void calltree_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void calltree_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void comcheck_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void comcheck_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void intrinsic_numeric_option,( int value, char *setting_name ));
+PROTO(PRIVATE void intrinsic_numeric_option,( int value, const char *setting_name ));
 
-PROTO(PRIVATE void makedcl_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void makedcl_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void mkhtml_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void mkhtml_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void source_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void source_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void usage_numeric_option, ( int value, char *setting_name ));
+PROTO(PRIVATE void usage_numeric_option, ( int value, const char *setting_name ));
 
-PROTO(PRIVATE void numeric_option_error,( char *s, int minlimit, int maxlimit ));
+PROTO(PRIVATE void numeric_option_error,( const char *s, int minlimit, int maxlimit ));
 
 	/* Here we define the commandline options.  Most options are boolean
 	   switchopts, with "no" prefix to unset them.  Others (called
@@ -202,9 +202,9 @@ PROTO(PRIVATE void numeric_option_error,( char *s, int minlimit, int maxlimit ))
 		   switch was previously given.
 		 */
 PRIVATE struct {
-    char *name;			/* User knows it by this name */
+    const char *name;			/* User knows it by this name */
     int *switchflag;		/* Pointer to variable that controls it */
-    char *explanation;		/* For use by -help */
+    const char *explanation;		/* For use by -help */
     isacheck_t isacheck;	/* Tells -nocheck to turn it off */
 } switchopt[]={
 	{"brief",	&brief,
@@ -264,11 +264,11 @@ PRIVATE struct {
 		   followed by brief explanation.
 		   See set_option() for processing. */
 PRIVATE struct {
-    char *name;
+    const char *name;
     int *setvalue;
     int minlimit,maxlimit,turnoff,turnon,min_default_value,max_default_value;
     isacheck_t isacheck;
-    char *explanation;
+    const char *explanation;
 } setting[]={
   {"columns",	&fixed_max_stmt_col,  72, MAXLINE, 72, MAXLINE, 72, MAXLINE, NOT_A_CHECK,
 			"max fixed-form line length processed"},
@@ -1007,16 +1007,6 @@ PRIVATE WarnOptionList
 		   variable, value to set if "=str" omitted, and brief
 		   explanation.  See set_option() for processing. */
 
-/*** (struct was declared above: repeated in comment here for reference)
-StrsettingList {
-    char *name;
-    char **strvalue;
-    char *turnon, *turnoff;
-    isacheck_t isacheck;
-    WarnOptionList *option_list;
-    PROTO(void (*numeric_form_handler),(int num, char *setting_name));
-    char *explanation;
-};***/
 
 PRIVATE StrsettingList strsetting[]={
   {"arguments",	&argcheck_warn_list, "all", "none", IS_A_CHECK,
@@ -1046,7 +1036,7 @@ PRIVATE StrsettingList strsetting[]={
   {"identifier-chars", &idletter_list, DEF_IDLETTER_LIST, "", NOT_A_CHECK,
      (WarnOptionList *)NULL, NULL,
      "non-standard chars allowed in identifiers"},
-  {"include",	&include_path,  (char *)NULL, (char *)NULL, NOT_A_CHECK,
+  {"include",	&include_path,  (const char *)NULL, (const char *)NULL, NOT_A_CHECK,
      (WarnOptionList *)NULL, NULL,
      "include-file directory"},
 #ifndef STANDARD_INTRINSICS
@@ -1189,13 +1179,13 @@ get_env_options(VOID)
 		 || strncasecmp(value,"1",strlen(value)) == 0
 		 || strncasecmp(value,"yes",strlen(value)) == 0
 		 ) {
-		*(strsetting[i].strvalue) = strsetting[i].turnon;
+		*(strsetting[i].strvalue) = const_strcpy(strsetting[i].turnon);
 	      }
 	      else if(strncasecmp(value,"no",strlen(value)) == 0) {
-		*(strsetting[i].strvalue) = strsetting[i].turnoff;
+		*(strsetting[i].strvalue) = const_strcpy(strsetting[i].turnoff);
 	      }
 	      else {		/* Otherwise use the given value */
-	        *(strsetting[i].strvalue) = value;
+	        *(strsetting[i].strvalue) = const_strcpy(value);
 	      }
 
 	      if( *(strsetting[i].strvalue) == (char *)NULL ) {
@@ -1215,12 +1205,7 @@ get_env_options(VOID)
 		   and uppercase the result.
 		*/
 PRIVATE void
-#if HAVE_STDC
-make_env_name(char *env_name, char *option_name)
-#else /* K&R style */
-make_env_name( env_name, option_name)
-	char *env_name, *option_name;
-#endif /* HAVE_STDC */
+make_env_name(char *env_name, const char *option_name)
 {
     int i,c;
 
@@ -1336,7 +1321,6 @@ find_rc(VOID)
   free(fname);
   return fp;
 }
-
 
 	/* set_option processes an option from command line.  Argument
 	   s is the option string. First look if s starts with "no" or
@@ -1467,9 +1451,9 @@ set_option(s,where)
 		if( END_OF_OPT(*strstart) ) {
 				/* no = sign: use turnon/turnoff */
 		  if(is_a_turnoff)
-		    *(strsetting[i].strvalue) = strsetting[i].turnoff;
+		    *(strsetting[i].strvalue) = const_strcpy(strsetting[i].turnoff);
 		  else
-		    *(strsetting[i].strvalue) = strsetting[i].turnon;
+		    *(strsetting[i].strvalue) = const_strcpy(strsetting[i].turnon);
 		}
 		else {		/* = sign found: use it but forbid -no form */
 		    if(is_a_turnoff) {
@@ -1520,19 +1504,7 @@ set_option(s,where)
 	/* Routine to read integer setting from string s and check if valid */
 
 PRIVATE int
-#if HAVE_STDC
-read_setting(char *s, int *setvalue, char *name, int minlimit, int maxlimit, int turnoff, int turnon, int min_default_value, int max_default_value)
-#else /* K&R style */
-read_setting(s, setvalue, name, minlimit, maxlimit, turnoff, turnon,
-	     min_default_value,
-	     max_default_value)
-	char *s;
-	int *setvalue;
-	char *name;
-	int minlimit, maxlimit,
-	     turnon, turnoff,
-	     min_default_value, max_default_value;
-#endif /* HAVE_STDC */
+read_setting(char *s, int *setvalue, const char *name, int minlimit, int maxlimit, int turnoff, int turnon, int min_default_value, int max_default_value)
 {
 	int given_val;
 
@@ -1704,13 +1676,7 @@ list_warn_options(s)
 
 			/* Routine to set warning options to given values */
 PRIVATE void
-#if HAVE_STDC
-set_warn_option(char *s, WarnOptionList *warn_option)
-#else /* K&R style */
-set_warn_option(s, warn_option )
-     char *s;
-     WarnOptionList *warn_option;
-#endif /* HAVE_STDC */
+set_warn_option(const char *s, WarnOptionList *warn_option)
 {
   int i, matchlen, offset;
   int value;
@@ -1922,7 +1888,7 @@ mutual_exclude( wList, opt_name,
 
 PRIVATE void
 #if HAVE_STDC
-argcheck_numeric_option( int value, char *setting_name )
+argcheck_numeric_option( int value, const char *setting_name )
 #else
 argcheck_numeric_option( value, setting_name )
      int value;
@@ -1939,7 +1905,7 @@ argcheck_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-arraycheck_numeric_option( int value, char *setting_name )
+arraycheck_numeric_option( int value, const char *setting_name )
 #else
 arraycheck_numeric_option( value, setting_name )
      int value;
@@ -1956,7 +1922,7 @@ arraycheck_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-calltree_numeric_option( int value, char *setting_name )
+calltree_numeric_option( int value, const char *setting_name )
 #else
 calltree_numeric_option( value, setting_name )
      int value;
@@ -1984,7 +1950,7 @@ calltree_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-comcheck_numeric_option( int value, char *setting_name )
+comcheck_numeric_option( int value, const char *setting_name )
 #else
 comcheck_numeric_option( value, setting_name )
      int value;
@@ -2005,7 +1971,7 @@ comcheck_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-intrinsic_numeric_option( int value, char *setting_name )
+intrinsic_numeric_option( int value, const char *setting_name )
 #else
 intrinsic_numeric_option( value, setting_name )
      int value;
@@ -2040,7 +2006,7 @@ intrinsic_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-makedcl_numeric_option( int value, char *setting_name )
+makedcl_numeric_option( int value, const char *setting_name )
 #else
 makedcl_numeric_option( value, setting_name )
      int value;
@@ -2068,7 +2034,7 @@ makedcl_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-mkhtml_numeric_option( int value, char *setting_name )
+mkhtml_numeric_option( int value, const char *setting_name )
 #else
 mkhtml_numeric_option( value, setting_name )
      int value;
@@ -2094,7 +2060,7 @@ mkhtml_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-source_numeric_option( int value, char *setting_name )
+source_numeric_option( int value, const char *setting_name )
 #else
 source_numeric_option( value, setting_name )
      int value;
@@ -2123,7 +2089,7 @@ source_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-usage_numeric_option( int value, char *setting_name )
+usage_numeric_option( int value, const char *setting_name )
 #else
 usage_numeric_option( value, setting_name )
      int value;
@@ -2167,7 +2133,7 @@ usage_numeric_option( value, setting_name )
 
 PRIVATE void
 #if HAVE_STDC
-numeric_option_error( char *setting_name, int minlimit, int maxlimit )
+numeric_option_error( const char *setting_name, int minlimit, int maxlimit )
 #else
 numeric_option_error( setting_name, minlimit, maxlimit )
      char *setting_name;
@@ -2210,7 +2176,7 @@ void turn_off_checks(VOID)
 	    set_warn_option( strsetting[i].turnoff,
 			      strsetting[i].option_list);
 				/* Set strvalue so -help reports correctly */
-	    *(strsetting[i].strvalue) = strsetting[i].turnoff;
+	    *(strsetting[i].strvalue) = const_strcpy(strsetting[i].turnoff);
 	  }
 	}
 				/* Turn off checks without own options */
@@ -2224,15 +2190,9 @@ void turn_off_checks(VOID)
 				   (like strcmp) if match, 1 if not.
 				*/
 PRIVATE int
-#if HAVE_STDC
-wildcard_match(char *pat, char *str)
-#else /* K&R style */
-wildcard_match(pat, str)
-  char *pat;
-  char *str;
-#endif /* HAVE_STDC */
+wildcard_match(const char *pat, const char *str)
 {
-  register char *s, *p;			/* pointers that run thru each */
+  register const char *s, *p;			/* pointers that run thru each */
   register int sc, pc;			/* current str char and pat char */
   s = str;
   p = pat;

@@ -857,7 +857,7 @@ init_keyhashtab(VOID)
    used in error messages.
  */
 
-char *
+const char *
 keytok_name(int tclass)
 {
     int i;

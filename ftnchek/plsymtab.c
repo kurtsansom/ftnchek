@@ -192,7 +192,7 @@ local_msg_head(problem, mod_name, filename, lineno, symt, force_lineno, msg)
 #endif /* HAVE_STDC */
 {
     char intro[MAXIDSIZE+19];	/* introduction to warning/error message */
-    char *tag; /* placeholder in choose_tag call */
+    const char *tag; /* placeholder in choose_tag call */
 
 		/* Line number makes no sense in brief or novice modes,
 		   except when no detail follows.  For that case, caller
@@ -318,7 +318,7 @@ print_lsyms_verbosely(sym_list,n,do_types)
      int i,implicits=0;
      char msgbuf[6+MAX_TAG_LEN+MAXIDSIZE]; /* see sprintf below */
      for(i=0;i<n;i++) {
-	 char *tag;
+	 const char *tag;
 	 LINENO_t lineno;
 	 short inc_index;
 	 choose_tag(TAG_DEFN, sym_list[i], &tag, &lineno);
@@ -801,7 +801,7 @@ debug_symtabs(VOID) 	/* Debugging output: hashtable and symbol tables */
 			 */
 void
 #if HAVE_STDC
-choose_tag(int tag_type, const Lsymtab *symt, char **tag, LINENO_t *lineno)
+choose_tag(int tag_type, const Lsymtab *symt, const char **tag, LINENO_t *lineno)
 #else /* K&R style */
 choose_tag(tag_type, symt, tag, lineno)
     int tag_type;		/* what kind of tag: defn, set, used */

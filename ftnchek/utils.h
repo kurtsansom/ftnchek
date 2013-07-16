@@ -52,4 +52,7 @@ int our_strncasecmp(const char *s1, const char *s2, size_t n);
 #endif
 
 char *strtolower(char *s);
+
+char *const_strcpy(const char *src);
+
 #endif /* UTILS_H */

@@ -312,7 +312,7 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 		    LINENO_t lineno;
 		    int inc_index;
 		    char *filename;
-		    char *tag;
+		    const char *tag;
 		    char detail[MAXIDSIZE+MAX_TAG_LEN+6]; /* see sprintf below */
 		    if( ubs ) {
 			choose_tag(TAG_USED,list[i],&tag,&lineno);
@@ -435,7 +435,7 @@ check_pointer_flags(list,n,used,alloc,uba,msg,mod_name)
 		    LINENO_t lineno;
 		    int inc_index;
 		    char *filename;
-		    char *tag;
+		    const char *tag;
 		    char detail[MAXIDSIZE+MAX_TAG_LEN+6]; /* see sprintf below */
 		    if( uba ) {
 			choose_tag(TAG_USED,list[i],&tag,&lineno);

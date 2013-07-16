@@ -60,33 +60,33 @@ PROTO(PRIVATE char * base_filename,( char *curr_filename ));
 
 PROTO(PRIVATE char * str_end_strip,( char *str ));
 PROTO(PRIVATE void append_char_to_fragment,( int c ));
-PROTO(PRIVATE void append_string_to_fragment,( char *s ));
-PROTO(PRIVATE void append_expr_text_to_fragment,( char *s ));
+PROTO(PRIVATE void append_string_to_fragment,( const char *s ));
+PROTO(PRIVATE void append_expr_text_to_fragment,( const char *s ));
 
 PROTO(PRIVATE void new_fragment,( void ));
 PROTO(PRIVATE void print_blanks,( int nblanks ));
-PROTO(PRIVATE void print_common_decls,( Lsymtab *sym_entry, char **header ));
+PROTO(PRIVATE void print_common_decls,( Lsymtab *sym_entry, const char **header ));
 PROTO(PRIVATE void print_empty_comment_line,( void ));
-PROTO(PRIVATE void print_equivalence_decls,( Lsymtab *sym_entry, char **header ));
-PROTO(PRIVATE void print_list_decls,( Lsymtab *sym_list[], int n, char
-                              **header, char *list_type_name ));
-PROTO(PRIVATE int print_list_name,( char *list_type_name, char *name ));
-PROTO(PRIVATE void print_declaration_class,( Lsymtab *sym_list[], int n, char
-                                     *header ));
-PROTO(PRIVATE void print_one_list_decls,( Lsymtab *sym_entry, char
-                                  *list_type_name, char **pheader, int
+PROTO(PRIVATE void print_equivalence_decls,( Lsymtab *sym_entry, const char **header ));
+PROTO(PRIVATE void print_list_decls,( Lsymtab *sym_list[], int n, const char
+                              **header, const char *list_type_name ));
+PROTO(PRIVATE int print_list_name,( const char *list_type_name, const char *name ));
+PROTO(PRIVATE void print_declaration_class,( Lsymtab *sym_list[], int n,
+                                      const char *header ));
+PROTO(PRIVATE void print_one_list_decls,( Lsymtab *sym_entry, const char
+                                  *list_type_name, const char **pheader, int
                                   *pnd ));
 PROTO(PRIVATE void print_selected_declarations,( Lsymtab *sym_list[], int n,
-                                         int the_type, char
-                                         *the_type_name, char **pheader ));
+                                         int the_type, const char
+                                         *the_type_name, const char **pheader ));
 PROTO(PRIVATE int  print_selected_common_decls,( Lsymtab *sym_list[], int n,
-                                         int the_type, char
-                                         *the_type_name, char **pheader ));
+                                         int the_type, const char
+                                         *the_type_name, const char **pheader ));
 PROTO(PRIVATE int  print_selected_equiv_decls,(
                                           Lsymtab *sym_list[],
                                           int n,
-                                          char **pheader));
-PROTO(PRIVATE int print_typename,( int the_type, char *the_type_name, int
+                                          const char **pheader));
+PROTO(PRIVATE int print_typename,( int the_type, const char *the_type_name, int
                             the_size, Lsymtab *symt ));
 PROTO(PRIVATE int make_sym_list,( Lsymtab *sym_list[], int (*selector)(Lsymtab
                                                               *sym_entry) ));
@@ -604,7 +604,7 @@ int c;
 
 PRIVATE void
 #if HAVE_STDC
-append_string_to_fragment(char *s)
+append_string_to_fragment(const char *s)
 #else /* K&R style */
 append_string_to_fragment(s)
 char *s;
@@ -618,7 +618,7 @@ char *s;
                            down-casing the letters according to pref. */
 PRIVATE void
 #if HAVE_STDC
-append_expr_text_to_fragment(char *s)
+append_expr_text_to_fragment(const char *s)
 #else /* K&R style */
 append_expr_text_to_fragment(s)
   char *s;
@@ -744,7 +744,7 @@ make_html( sym_list, mod_name, prog_unit )
 
 #endif /* HAVE_STDC */
    {
-   char *header;
+   const char *header;
    char prog_unit_str[256];
    char modname[256];
    char *base_curr_filename;           /* basename of current input file */
@@ -918,7 +918,7 @@ PRIVATE void
 #if HAVE_STDC
 print_common_decls(
    Lsymtab  *sym_entry,         /* COMMON block symbol table entry */
-   char    **header)            /* Header to print IF there are variables printed*/
+   const char    **header)            /* Header to print IF there are variables printed*/
 
 #else /* K&R style */
 print_common_decls(sym_entry, header )
@@ -977,7 +977,7 @@ PRIVATE void
 #if HAVE_STDC
 print_equivalence_decls(
    Lsymtab *sym_entry,
-   char     **header)
+   const char     **header)
                                 /* COMMON block symbol table entry */
 #else /* K&R style */
 print_equivalence_decls( sym_entry, header )
@@ -1026,7 +1026,7 @@ print_equivalence_decls( sym_entry, header )
 
 PRIVATE void
 #if HAVE_STDC
-print_list_decls(Lsymtab **sym_list, int n, char **header, char *list_type_name)
+print_list_decls(Lsymtab **sym_list, int n, const char **header, const char *list_type_name)
 #else /* K&R style */
 print_list_decls(sym_list, n, header, list_type_name)
      Lsymtab *sym_list[];
@@ -1076,7 +1076,7 @@ print_list_decls(sym_list, n, header, list_type_name)
                                    name between slashes. */
 PRIVATE int
 #if HAVE_STDC
-print_list_name(char *list_type_name, char *name)
+print_list_name(const char *list_type_name, const char *name)
 #else /* K&R style */
 print_list_name(list_type_name,name)
   char *list_type_name;
@@ -1084,7 +1084,7 @@ print_list_name(list_type_name,name)
 #endif /* HAVE_STDC */
 {
     int column, len;
-    char *p;
+    const char *p;
 
                                 /* Compact mode:   COMMON /blknam/
                                    Padded mode:    COMMON / blknam /
@@ -1154,7 +1154,7 @@ print_list_name(list_type_name,name)
 
 PRIVATE void
 #if HAVE_STDC
-print_declaration_class(Lsymtab **sym_list, int n, char *header)
+print_declaration_class(Lsymtab **sym_list, int n, const char *header)
 #else /* K&R style */
 print_declaration_class(sym_list, n, header)
      Lsymtab *sym_list[];
@@ -1169,7 +1169,7 @@ print_declaration_class(sym_list, n, header)
       for (t = 0; t < sizeof(types_table)/sizeof(types_table[0]); ++t)
          {
          print_selected_declarations(sym_list, n, types_table[t],
-                                        (char*)NULL, &header);
+                                        (const char*)NULL, &header);
          }
       fprintf( html_fd, "</pre></td></tr></table>\n" );
       }
@@ -1178,7 +1178,7 @@ print_declaration_class(sym_list, n, header)
 
 PRIVATE void
 #if HAVE_STDC
-print_one_list_decls(Lsymtab *sym_entry, char *list_type_name, char **pheader, int *pnd)
+print_one_list_decls(Lsymtab *sym_entry, const char *list_type_name, const char **pheader, int *pnd)
 #else /* K&R style */
 print_one_list_decls(sym_entry, list_type_name, pheader, pnd)
      Lsymtab *sym_entry;
@@ -1281,7 +1281,7 @@ print_one_list_decls(sym_entry, list_type_name, pheader, pnd)
 
 PRIVATE void
 #if HAVE_STDC
-print_selected_declarations(Lsymtab **sym_list, int n, int the_type, char *the_type_name, char **pheader)
+print_selected_declarations(Lsymtab **sym_list, int n, int the_type, const char *the_type_name, const char **pheader)
 #else /* K&R style */
 print_selected_declarations(sym_list, n, the_type, the_type_name, pheader)
      Lsymtab *sym_list[];
@@ -1421,7 +1421,7 @@ PRIVATE int
 print_selected_equiv_decls(
    Lsymtab **sym_list,
    int n,
-   char **pheader)
+   const char **pheader)
 #else /* K&R style */
 int print_selected_equiv_decls(sym_list, n, pheader)
      Lsymtab *sym_list[];
@@ -1528,8 +1528,8 @@ print_selected_common_decls(
    Lsymtab **sym_list,
    int n,
    int the_type,
-   char *comname,
-   char **pheader)
+   const char *comname,
+   const char **pheader)
 #else /* K&R style */
 int print_selected_common_decls(sym_list, n, the_type, comname, pheader)
      Lsymtab *sym_list[];
@@ -1646,7 +1646,7 @@ int print_selected_common_decls(sym_list, n, the_type, comname, pheader)
 
 PRIVATE int
 #if HAVE_STDC
-print_typename(int the_type, char *the_type_name, int the_size, Lsymtab *symt)
+print_typename(int the_type, const char *the_type_name, int the_size, Lsymtab *symt)
                                 /* type_ERROR if typename non-NULL */
                                 /* non-NULL overrides type_table[] use */
 #else /* K&R style */
@@ -1659,7 +1659,7 @@ Lsymtab *symt;
 {                               /* return value is last column printed */
     int column;
     char digits[sizeof("*18446744073709551616")]; /* big enough for 2^64 */
-    char *p;
+    const char *p;
     char *size_expression;
 
     print_blanks(html_indent);
@@ -2176,8 +2176,8 @@ htmlout_io_unit_usages( )
 #endif
    {
    static int i, j;
-   static char* IO_access[]={"    ","DIR","SEQ"};
-   static char* IO_form[] ={"    ","UNF","FMTD"};
+   static const char* IO_access[]={"    ","DIR","SEQ"};
+   static const char* IO_form[] ={"    ","UNF","FMTD"};
 
    static char  opcode[] = "          ";
    static IO_Unit_Info **my_ioinfo, *ioinfo_ptr;

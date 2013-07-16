@@ -46,7 +46,7 @@ PROTO(void local_warn_head,( const char *mod_name, const char *filename, LINENO_
 PROTO(void local_detail,(int inc_index, LINENO_t lineno,
 			 const char *tag, const char *msg));
 
-PROTO(void choose_tag,(int tag_type, const Lsymtab *symt, char **tag, LINENO_t *lineno));
+PROTO(void choose_tag,(int tag_type, const Lsymtab *symt, const char **tag, LINENO_t *lineno));
 
 PROTO(int print_lsyms,( Lsymtab **sym_list,
 					  int n, int do_types ));

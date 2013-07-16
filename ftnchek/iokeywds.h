@@ -62,8 +62,8 @@ as the "MIT License."
 #define NML (1<<type_NAMELIST)	/* namelist name */
 #define ANYTYPE (unsigned short)(~0) /* used for unknown keywords */
 
-struct {
-    char *name;			/* Name of keyword */
+typedef struct {
+    const char *name;			/* Name of keyword */
     unsigned short allowed_stmts, /* Where keyword can occur */
     		   allowed_types; /* datatypes allowed for value */
     unsigned		/* Flags for handling the specifier value */
@@ -73,7 +73,8 @@ struct {
       nonstandard: 1,		/* not Fortran 77 standard keyword */
       nonf90:	   1,		/* not Fortran 90 either */
       vms_name:	   1;		/* Indicates special case: VMS-style NAME*/
-} io_keywords[]={
+} IO_Keywords;
+IO_Keywords io_keywords[]={ /* beware, sed in makefile looks for this line to make iokeywds_enum.h */
 			/* List has commonest ones first for fast lookup */
 /*Name	       Stmts   Types   UseSetInqStdF90Spcl */
 {"END",		RD,	LAB,	1, 0, 0, 0, 0, 0},
@@ -150,9 +151,10 @@ struct {
 	/* Lookup table which maps statement classes into
 	   the corresponding bit fields of io_keywords table.
 	   Order: commonest first for faster lookup. */
-struct {
+typedef struct {
 	short stmt_class, stmt_flag;
-} local_class[]= {
+} LocalClass;
+LocalClass local_class[]= {
 {tok_READ,	 RD},
 {tok_WRITE,	 WR},
 {tok_OPEN,	 OP},
@@ -170,7 +172,7 @@ struct {
 	   without the =value normally required for I/O control list
 	   keywords. */
 #ifdef ALLOW_VMS_IO
-char *special_open_keywds[]={
+const char *special_open_keywds[]={
 "NOSPANBLOCKS",
 "READONLY",
 "SHARED",

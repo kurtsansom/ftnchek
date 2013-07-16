@@ -651,8 +651,8 @@ print_io_unit_usages(VOID)
 			/* Arrays of names of access and formatting modes.
 			   Entries for default are left blank.
 			 */
-      static char* IO_access[]={"","DIR","SEQ"};
-      static char* IO_form[] ={"","UNF","FMTD"};
+      static const char* IO_access[]={"","DIR","SEQ"};
+      static const char* IO_form[] ={"","UNF","FMTD"};
 
 			/* variables for remembering what was printed */
       int old_id, old_no, old_op, old_acc, old_form;

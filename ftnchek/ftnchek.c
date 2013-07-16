@@ -83,7 +83,7 @@ PROTO( int shell_mung, (int *  argc_p, char ***  argv_p,
 #endif
 
 
-PROTO(PRIVATE void error_summary,( char *fname ));
+PROTO(PRIVATE void error_summary,( const char *fname ));
 
 PROTO(int main,( int argc, char *argv[] ));
 
@@ -99,7 +99,7 @@ PROTO(PRIVATE void print_version_number,( void ));
 
 PROTO(PRIVATE void resource_summary,( void ));
 
-PROTO(PRIVATE void src_file_in,( char *infile ));
+PROTO(PRIVATE void src_file_in,( const char *infile ));
 
 PROTO(PRIVATE void wrapup,( void ));
 
@@ -294,7 +294,7 @@ do_action:
                         *  for lack of a better place, create CallTree.html in the
                         *  local directory
                         */
-                        htmlcalltree_filename = "CallTree.html";
+			htmlcalltree_filename = const_strcpy("CallTree.html");
                         htmlcalltree_fd = fopen( htmlcalltree_filename, "w" );
                         (void)fprintf( htmlcalltree_fd,
                            "<HTML>\n<HEAD><TITLE>Program Call Tree</TITLE></HEAD>\n<BODY>\n<pre>" );
@@ -375,7 +375,7 @@ next_arg:
 		do_preps();	/* Any preparations needed before processing */
 
 		if(make_project_file) {
-		      projfile = STDIN_PROJ_FILENAME;
+		      projfile = const_strcpy(STDIN_PROJ_FILENAME);
 		      if( (project_fd = fopen(projfile,"w")) == (FILE *)NULL) {
 			(void)fflush(list_fd);
 			(void)fprintf(stderr,
@@ -424,13 +424,7 @@ do_preps(VOID)
 }
 
 PRIVATE void
-#if HAVE_STDC
-src_file_in(char *infile)
-                  		/* input filename */
-#else /* K&R style */
-src_file_in(infile)
-     char *infile;		/* input filename */
-#endif /* HAVE_STDC */
+src_file_in(const char *infile)
 {
 	note_filename(infile);
 
@@ -505,12 +499,7 @@ print_version_number(VOID)
 }
 
 PRIVATE void
-#if HAVE_STDC
-error_summary(char *fname)		/* Print out count of errors in file */
-#else /* K&R style */
-error_summary(fname)		/* Print out count of errors in file */
-	char *fname;
-#endif /* HAVE_STDC */
+error_summary(const char *fname)		/* Print out count of errors in file */
 {
 	FILE *fd = list_fd;
 

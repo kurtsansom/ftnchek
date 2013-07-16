@@ -108,6 +108,7 @@ this Software without prior written authorization from the author.
 #include "intrins.h"
 #include "tokdefs.h"
 #include "dtypes.h"
+#include "utils.h"
 
 #ifdef DEVELOPMENT		/* for maintaining the program */
 #define DEBUG_SIZES
@@ -2730,19 +2731,12 @@ char_expr_value(t)
 	/* note_filename():  This routine is called by main prog to give
 	   symbol table routines access to current input file name, to be
 	   stored in function arg list headers and common list headers, for
-	   the use in diagnostic messages. Since filenames are from argv,
-	   they are permanent, so pointer is copied, not the string.
+	   the use in diagnostic messages. 
 	*/
 void
-#if HAVE_STDC
-note_filename(char *s)
-#else /* K&R style */
-note_filename(s)
-	char *s;
-#endif /* HAVE_STDC */
+note_filename(const char *s)
 {
-	current_filename = s;
-	top_filename = s;
+  top_filename = current_filename = const_strcpy(s);
 }/* note_filename */
 
 		/* Routine to output expression tree via msg_tail.  For use

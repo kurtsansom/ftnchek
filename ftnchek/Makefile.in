@@ -397,7 +397,7 @@ block_match.h: tokdefs.h @BLOCKMATCH_DEP@
 # on #defines.  These are always adjacent.  The last sed command removes
 # comma from last item in enum list, in accordance with c89.
 iokeywds_enum.h: iokeywds.h
-	sed -n '/^} io_keywords\[\]={/,/^};$$/s/^{"\([^"]*\).*$$/IOKW_\1,/p' iokeywds.h \
+	sed -n '/^IO_Keywords io_keywords\[\]={/,/^};$$/s/^{"\([^"]*\).*$$/IOKW_\1,/p' iokeywds.h \
 		| uniq \
 		| sed '$$s/,$$//' > $@
 

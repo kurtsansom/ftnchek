@@ -768,7 +768,7 @@ alist_out(Gsymtab *gsymt, FILE *fd, int mode)
 	  WRITE_NUM(" elts",0);
 	}
 	  
-	{ char *cblk;
+	{ const char *cblk;
 	  if( arg[i].common_block == (Gsymtab *)NULL )
 	    cblk = "-";	/* place holder if no block name */
 	  else
@@ -1291,7 +1291,7 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
 }
 
 
-static char *prev_file_name="";/* used to reduce number of callocs */
+static const char *prev_file_name="";/* used to reduce number of callocs */
 
 
 PRIVATE void

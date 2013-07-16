@@ -1436,7 +1436,7 @@ PROTO(void proj_file_in, ( FILE *fd ));
 PROTO(void init_tables, ( void ));
 PROTO(void init_globals, ( void ));
 PROTO(void init_symtab, ( void ));
-PROTO(void note_filename, ( char *s ));
+PROTO(void note_filename, ( const char *s ));
 #ifdef DEBUG_SIZES
 PROTO(void print_sizeofs, ( void ));
 #endif

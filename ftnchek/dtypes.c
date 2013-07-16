@@ -355,7 +355,7 @@ void process_dtype_components(const char *name)
    the name of derived types.  Since derived types obtained via a module
    may be renamed, use name in symbol table, not dtype table.
  */
-char *type_name(int t)
+const char *type_name(int t)
 {
   if(is_elementary_type(t)) {		/* elementary type */
       return elementary_type_name[t];
@@ -372,7 +372,7 @@ char *type_name(int t)
 /* Routine used in global checking to return type name. For derived types,
  * it always returns the name in dtype table.
  */
-char *global_type_name(int t)
+const char *global_type_name(int t)
 {
   if(is_elementary_type(t)) {		/* elementary type */
       return elementary_type_name[t];

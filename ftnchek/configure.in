@@ -7,6 +7,15 @@ AC_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
 
+dnl Running configure with --enable-devel makes the default target be
+dnl the devel target with options turned on to assist development.
+AC_ARG_ENABLE(devel,dnl
+changequote(<<, >>)dnl
+<<  --enable-devel          compile with development options turned on [no]>>,
+changequote([, ])dnl
+	DEFAULT_TARGET="devel" BLOCKMATCH_DEP="make_blockmatch.pl",
+	DEFAULT_TARGET="all" BLOCKMATCH_DEP="")
+
 dnl Look for yacc or bison. If bison, then -y used, so don't need
 dnl to worry about YSTEM. (but what if it finds byacc?)
 dnl For consistency with all other configured programs, we eventually
@@ -430,15 +439,6 @@ AC_MSG_RESULT([\$(OPTIONS) is for optional defines, normally blank])
 if test $GCC; then
 AC_MSG_RESULT([If you prefer using cc, setenv CC cc and re-run configure])
 fi
-
-dnl Running configure with --enable-devel makes the default target be
-dnl the devel target with options turned on to assist development.
-AC_ARG_ENABLE(devel,dnl
-changequote(<<, >>)dnl
-<<  --enable-devel          compile with development options turned on [no]>>,
-changequote([, ])dnl
-	DEFAULT_TARGET="devel" BLOCKMATCH_DEP="make_blockmatch.pl",
-	DEFAULT_TARGET="all" BLOCKMATCH_DEP="")
 
 dnl Here we define EXE and CMD prefixes to be null, as needed by Unix.
 dnl Do this way just so they can be substituted otherwise for OS/2 et al.

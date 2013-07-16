@@ -61,7 +61,7 @@ extern int free_form;		/* for choosing 'C' or '!' as comment char */
 PROTO(PRIVATE char * base_filename,( char *curr_filename ));
 
 PROTO(PRIVATE void append_char_to_fragment,( int c ));
-PROTO(PRIVATE void append_string_to_fragment,( char *s ));
+PROTO(PRIVATE void append_string_to_fragment,( const char *s ));
 PROTO(PRIVATE void append_expr_text_to_fragment,( char *s ));
 
 PROTO(PRIVATE void maybe_print_prog_unit_header,( void ));
@@ -71,13 +71,13 @@ PROTO(PRIVATE void print_common_decls,( Lsymtab *sym_entry ));
 PROTO(PRIVATE void print_empty_comment_line,( void ));
 PROTO(PRIVATE void print_equivalence_decls,( Lsymtab *sym_entry ));
 PROTO(PRIVATE int count_undeclared_variables,( Lsymtab *sym_entry ));
-PROTO(PRIVATE void print_list_decls,( Lsymtab *sym_list[], int n, char
-			      *header, char *list_type_name ));
-PROTO(PRIVATE int print_list_name,( char *list_type_name, char *name ));
+PROTO(PRIVATE void print_list_decls,( Lsymtab *sym_list[], int n, const char
+			      *header, const char *list_type_name ));
+PROTO(PRIVATE int print_list_name,( const char *list_type_name, const char *name ));
 PROTO(PRIVATE void print_declaration_class,( Lsymtab *sym_list[], int n,
 				    const char *header ));
-PROTO(PRIVATE void print_one_list_decls,( Lsymtab *sym_entry, char
-				  *list_type_name, char **pheader, int
+PROTO(PRIVATE void print_one_list_decls,( Lsymtab *sym_entry, const char
+				  *list_type_name, const char **pheader, int
 				  *pnd ));
 PROTO(PRIVATE void print_parameter_statement,( Lsymtab *symt ));
 PROTO(PRIVATE void print_selected_declarations,( Lsymtab *sym_list[], int n,
@@ -227,7 +227,7 @@ int c;
 
 PRIVATE void
 #if HAVE_STDC
-append_string_to_fragment(char *s)
+append_string_to_fragment(const char *s)
 #else /* K&R style */
 append_string_to_fragment(s)
 char *s;
@@ -639,7 +639,7 @@ count_undeclared_variables(sym_entry)
 
 PRIVATE void
 #if HAVE_STDC
-print_list_decls(Lsymtab **sym_list, int n, char *header, char *list_type_name)
+print_list_decls(Lsymtab **sym_list, int n, const char *header, const char *list_type_name)
 #else /* K&R style */
 print_list_decls(sym_list, n, header, list_type_name)
      Lsymtab *sym_list[];
@@ -684,7 +684,7 @@ print_list_decls(sym_list, n, header, list_type_name)
 				   name between slashes. */
 PRIVATE int
 #if HAVE_STDC
-print_list_name(char *list_type_name, char *name)
+print_list_name(const char *list_type_name, const char *name)
 #else /* K&R style */
 print_list_name(list_type_name,name)
   char *list_type_name;
@@ -692,7 +692,7 @@ print_list_name(list_type_name,name)
 #endif /* HAVE_STDC */
 {
     int column, len;
-    char *p;
+    const char *p;
 
     maybe_print_prog_unit_header();
 
@@ -795,7 +795,7 @@ print_declaration_class(sym_list, n, header)
 
 PRIVATE void
 #if HAVE_STDC
-print_one_list_decls(Lsymtab *sym_entry, char *list_type_name, char **pheader, int *pnd)
+print_one_list_decls(Lsymtab *sym_entry, const char *list_type_name, const char **pheader, int *pnd)
 #else /* K&R style */
 print_one_list_decls(sym_entry, list_type_name, pheader, pnd)
      Lsymtab *sym_entry;

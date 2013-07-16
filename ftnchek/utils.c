@@ -131,3 +131,15 @@ strtolower(char *s)
   }
   return s;
 }
+
+/* const_strcpy replaces old method of assigning src pointer
+   to dest, which is illegal when src is const char *.  It allocates
+   new space and copies src to dest.  The contents of src must be
+   a null-terminated string.
+ */
+char *const_strcpy(const char *src)
+{
+  int numchars = strlen(src);
+  char *dest = (char *)malloc(numchars+1);
+  return strcpy(dest,src);
+}

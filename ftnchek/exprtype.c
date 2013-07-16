@@ -58,7 +58,7 @@ as the "MIT License."
 
 
 
-PROTO(PRIVATE char* sized_typename,( int type, long size ));
+PROTO(PRIVATE const char* sized_typename,( int type, long size ));
 PROTO(PRIVATE void report_mismatch,( const Token *term1, const Token *op, const Token *term2 ));
 PROTO(PRIVATE void report_type,( const Token *t ));
 PROTO(PRIVATE void report_kind_property,(int value, const char *tag));
@@ -142,7 +142,7 @@ PRIVATE unsigned char assignment_type[NumT][NumT]={
 	   unsized objects, "type*size" for explicitly sized things.  Due
 	   to use of local static variable, cannot be invoked twice in the
 	   same expression.  */
-PRIVATE char*
+PRIVATE const char*
 #if HAVE_STDC
 sized_typename(int type, long int size)
 #else /* K&R style */
@@ -151,8 +151,8 @@ sized_typename(type,size)
 #endif /* HAVE_STDC */
 {
   static char strbuf[]="type*000000"; /* template */
-  static char *char_unk="char*(?)";
-  static char *char_adj="char*(*)";
+  static const char *char_unk="char*(?)";
+  static const char *char_adj="char*(*)";
   if(size == size_DEFAULT) {
     return type_name(type);	/* no explicit size */
   }

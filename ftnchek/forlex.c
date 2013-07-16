@@ -52,6 +52,7 @@ as the "MIT License."
 #include "symtab.h"
 #include "tokdefs.h"
 #include "forlex.h"
+#include "utils.h"
 
 /* toascii() is widely supported, but in case it isn't, define it here.
    We need it mainly in order to avoid bounds violation in legal_chars array.
@@ -69,7 +70,7 @@ extern int complex_const_allowed,    /* shared flags operated by fortran.y */
 
 
 
-PROTO(PRIVATE void make_legal_char,( char *s ));
+PROTO(PRIVATE void make_legal_char,( const char *s ));
 
 
 
@@ -150,7 +151,7 @@ void make_legal_char_list(VOID)
 			  '-',
 #endif
 		idletter_list[i]);
-	idletter_list = DEF_IDLETTER_LIST;	/* restore to default */
+	idletter_list = const_strcpy(DEF_IDLETTER_LIST);	/* restore to default */
 	break;
       }
     }
@@ -167,7 +168,7 @@ void make_legal_char_list(VOID)
 
 PRIVATE void
 #if HAVE_STDC
-make_legal_char(char *s)
+make_legal_char(const char *s)
 #else /* K&R style */
 make_legal_char(s)
      char *s;			/* List of legal chars */
@@ -516,7 +517,7 @@ get_dot(token)
 
 
 PRIVATE const struct {
-	char *name;
+	const char *name;
 	int tclass,tsubclass;
  } dotted_keywords[]={
 			{".EQ.",tok_relop,relop_EQ},
@@ -597,7 +598,7 @@ get_dotted_keyword(token)
 		     src_text_len-2) == 0) {
 	    token->tclass = dotted_keywords[i].tclass;
 	    token->tsubclass = dotted_keywords[i].tsubclass;
-	    token->value.string = token->src_text = dotted_keywords[i].name;
+	    token->value.string = token->src_text = const_strcpy(dotted_keywords[i].name);
 #ifdef DEBUG_FORLEX
 			if(debug_lexer)
 			   (void)fprintf(list_fd,"\nDotted keyword:\t\t%s",
@@ -1584,12 +1585,12 @@ f90_relop(token, multichar)
   if( curr_char == '>' ) {
     if( next_char == '=' ) {
       token->tsubclass = relop_GE;
-      token->src_text = ">=";
+      token->src_text = const_strcpy(">=");
       goto twochar_relop;
     }
     else {
       token->tsubclass = relop_GT;
-      token->value.string = ">";
+      token->value.string = const_strcpy(">");
       return TRUE;
     }
   }
@@ -1597,25 +1598,25 @@ f90_relop(token, multichar)
   if( curr_char == '<' ) {
     if( next_char == '=' ) {
       token->tsubclass = relop_LE;
-      token->value.string = "<=";
+      token->value.string = const_strcpy("<=");
       goto twochar_relop;
     }
     else {
       token->tsubclass = relop_LT;
-      token->value.string = "<";
+      token->value.string = const_strcpy("<");
       return TRUE;
     }
   }
 
   if( curr_char == '=' && next_char == '=' ) {
       token->tsubclass = relop_EQ;
-      token->value.string = "==";
+      token->value.string = const_strcpy("==");
       goto twochar_relop;
   }
 
   if( curr_char == '/'  && next_char == '=' ) {
       token->tsubclass = relop_NE;
-      token->value.string = "/=";
+      token->value.string = const_strcpy("/=");
       goto twochar_relop;
   }
 
