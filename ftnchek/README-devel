@@ -7,7 +7,7 @@ it is not quite ready, and a few more steps are needed.
 
 First, for reference, here is the way to check it out:
 
-svn checkout https://ftnchek.svn.sourceforge.net/svnroot/ftnchek/ftnchek ftnchek
+svn checkout svn+ssh://moniot@svn.code.sf.net/p/ftnchek/svn/ftnchek ftnchek
 
 
 Now, do the following steps:
