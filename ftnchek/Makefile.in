@@ -9,14 +9,14 @@
 #	check			run validation test suite
 #	clean			remove unnecessary intermediate files
 #	clobber			make clean, and remove ftnchek executable
-#	dcl2inc.doc		plain text form of documentation
+#	dcl2inc.txt		plain text form of documentation
 #	dcl2inc.ps		PostScript form of documentation
 #	distclean		remove everything not in the distribution
 #	docs			documentation files
 #	fortran.c		translates yacc code to C (made from fortran.y)
 #	ftnchek			ftnchek executable program
 #	ftnchek.1		UNIX manual page (made from fortran.man)
-#	ftnchek.doc		plain text form of documentation
+#	ftnchek.txt		plain text form of documentation
 #	ftnchek.hlp		VMS HELP library source
 #	ftnchek.ps		PostScript form of documentation
 #	ftnchek.pdf		PDF form of documentation
@@ -163,7 +163,7 @@ YACC_NAME	= @YACC_NAME@
 ZIP		= @ZIP@
 ZIPTEXT		= $(ZIP) -l
 
-# The following is only used for targets ftnchek.doc and ftnchek.hlp
+# The following is only used for targets ftnchek.txt and ftnchek.hlp
 # which are not needed for unix platforms.  It removes control chars
 # and converts tabs to blanks.  Normally COL=col -bx but if you don't
 # have it, can make do with cat.
@@ -175,7 +175,7 @@ CTAGSFLAGS	=
 ETAGS		= @ETAGS@
 
 # The following suffixes are for making various forms of documentation
-.SUFFIXES: .cat .catman .doc .man .ps .pdf .i
+.SUFFIXES: .cat .catman .txt .man .ps .pdf .i
 
 
 # Pack is needed only for install-man-sgi target
@@ -217,8 +217,8 @@ OBJS            = fortran.o advance.o argcheck.o calltree.o comcheck.o dtypes.o 
 
 DOCS		= README INSTALL LICENSE PATCHES FAQ ToDo project.magic \
 			average.f average.out correct.f \
-			blurb.txt dcl2inc.doc dcl2inc.man dcl2inc.ps \
-			ftnchek.doc ftnchek.hlp ftnchek.man ftnchek.ps ftnchek.pdf html \
+			blurb.txt dcl2inc.txt dcl2inc.man dcl2inc.ps \
+			ftnchek.txt ftnchek.hlp ftnchek.man ftnchek.ps ftnchek.pdf html \
 			macro-doc.txt project-doc.tex
 
 UNIX_BUILDFILES	= Makefile.in configure configure.in config.guess config.sub \
@@ -323,7 +323,7 @@ clobber realclean:	clean
 	-$(RM) ftnchek$(EXE)
 
 # Remove everything that make can rebuild, preparatory to making a
-# distribution version.  We intentionally do NOT remove .ps and .doc
+# distribution version.  We intentionally do NOT remove .ps and .txt
 # files, because some UNIX systems lack nroff/troff/groff.
 distclean:	realclean testclean htmlclean
 	-$(RM) *.dcl
@@ -407,8 +407,8 @@ iokeywds_enum.h: iokeywds.h
 # applying soelim) except that some troff-like processors may not
 # give satisfactory results.
 
-docs:	average.out blurb.txt ftnchek.doc ftnchek.hlp \
-	htmldocs ftnchek.ps ftnchek.pdf dcl2inc.doc dcl2inc.ps
+docs:	average.out blurb.txt ftnchek.txt ftnchek.hlp \
+	htmldocs ftnchek.ps ftnchek.pdf dcl2inc.txt dcl2inc.ps
 
 
 # Following sed script trims out the if-else machinery contained in
@@ -443,8 +443,8 @@ ftnchek$(manext):	ftnchek.man average.f average.out correct.f
 	  echo "You must use the catman documentation (provided separately)." ; \
 	fi
 
-# .doc files are ascii text form of documentation.
-.man.doc:
+# .txt files are ascii text form of documentation.
+.man.txt:
 	$(TBL) $< | $(NROFFPLAIN) -man | $(COL) > $@
 
 # Rule to convert PostScript files to PDF.
@@ -630,7 +630,7 @@ uninstall:
 # to recreate the formatted documentation files.
 spotless:	distclean
 	$(RM) blurb.txt
-	$(RM) dcl2inc.doc ftnchek.doc
+	$(RM) dcl2inc.txt ftnchek.txt
 	$(RM) dcl2inc.ps ftnchek.ps
 	$(RM) ftnchek.hlp
 
