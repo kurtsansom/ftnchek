@@ -396,13 +396,13 @@ struct tokstruct {
 	union {
 		long integer;
 		DBLVAL dbl;
-		char *string;
+		const char *string;
 	} value;		/* Value of constant */
 	array_dim_t array_dim;	/* array size and no. of dims */
 	struct tokstruct
 	  *left_token,		/* Left child in expr tree */
 	  *next_token;		/* Right child or next in linked list */
-	char *src_text;		/* Original text string of token */
+	const char *src_text;	/* Original text string of token */
 	long tclass,tsubclass;	/* Token category and subcategory */
 	long size;		/* sizeof(datatype) */
 	type_t TOK_type;	/* Storage class & data type of identifier */
@@ -573,7 +573,7 @@ typedef struct CMHead {	/* ComListHeader: head node of common var list */
 typedef struct TLHead {	/* TokenListHeader: head node of token list */
 	Token *tokenlist;
 	struct TLHead *next;
-	char *filename;
+	const char *filename;
 	LINENO_t line_num, top_line_num;
 	unsigned
 	  external_decl:1,
@@ -676,11 +676,11 @@ typedef struct IInfo{
 
 			/* Structure for parameter info */
 typedef struct PInfo{
-	char *src_text;		/* source text of parameter value */
+	const char *src_text;		/* source text of parameter value */
 	union {
 	  long integer;		/* integer value */
 	  DBLVAL dbl;		/* float value */
-	  char *string;		/* character string value */
+	  const char *string;		/* character string value */
 	} value;
 	int seq_num;		/* position in parameter definitions */
 } ParamInfo;
@@ -749,8 +749,8 @@ typedef struct lSymtEntry{
              used_before_allocation:1, /* pointer/allocatable variable is used before allocation */
 	     target: 1,		/* has TARGET attribute */
 	     assigned_as_target: 1,	/* assigned to a pointer */
-	     public: 1,		/* has PUBLIC attribute / public type */
-	     private: 1,	/* has PRIVATE attribute / private type */
+	     public_attr: 1,		/* has PUBLIC attribute / public type */
+	     private_attr: 1,		/* has PRIVATE attribute / private type */
 	     private_components: 1,	/* PRIVATE decl inside type defn */
 	     sequence: 1,	/* has SEQUENCE attribute */
 	     intent_in: 1,	/* has IN attribute */
@@ -798,7 +798,7 @@ typedef struct gSymtEntry{	/* Global symbol table element */
 	     internal_subprog: 1,
 	     module_subprog: 1,
 	     valid: 1,
-	     private: 1,	/* accessibility of module subprogs */
+	     private_attr: 1,	/* accessibility of module subprogs */
 	     from_module: 1,	/* procedure imported via USE stmt */
 			/* The following flags are for project-file use.
 			   They get reset when a file is opened and accumulate
@@ -837,6 +837,7 @@ typedef struct implicit_def {	/* structure to hold IMPLICIT definition */
   char *len_text[('Z'-'A'+1)+2];
 } Implicit;
 
+SYM_SHARED
 Implicit implicit_info;
 
 PROTO(void set_implicit_none, ( void ));
@@ -952,7 +953,7 @@ int num_io_unit_usages		/* number of I/O usage instances in list */
 ;
 				/* Struct for include-file list */
 typedef struct {
-    char *fname;		/* name of include file */
+    const char *fname;		/* name of include file */
     LINENO_t line;		/* line of topfile where included */
     short footnote;             /* footnote number--for printing
 				   labels */
@@ -1202,6 +1203,7 @@ PROTO(const char *keytok_name,(int tclass));
 PROTO(void check_seq_header,( Token *t ));
 PROTO(Token * append_token,( Token *tlist, Token *t ));
 PROTO(void process_forall_construct,(Token *t));
+PROTO(SUBPROG_TYPE, find_subprog_type(int stmt_class));
 
 			/* in prlists.c */
 PROTO(ModVar * new_modvar,( unsigned count ));
@@ -1213,6 +1215,7 @@ PROTO(void print_loc_symbols,( void ));
 
 			/* in makehtml.c */
 PROTO(void make_html,(Lsymtab **sym_list, char *mod_name, Lsymtab *prog_unit ));
+PROTO(const char *strip_blanks,(const char *s));
 
 			/* in makedcls.c */
 PROTO(void make_declarations,( Lsymtab *sym_list[], char *mod_name ));
@@ -1232,7 +1235,7 @@ PROTO(int array_size_is_unknown,(array_dim_t dim_info));
 PROTO(int array_dim_cmp,(array_dim_t a, array_dim_t b));
 PROTO(void call_func,( Token *id, Token *arg ));
 PROTO(void call_subr,( Token *id, Token *arg ));
-PROTO(char * char_expr_value,( Token *t ));
+PROTO(const char * char_expr_value,( Token *t ));
 PROTO(void check_loose_ends,( int curmodhash ));
 PROTO(void declare_type,( Token *id, int datatype, kind_t kind, long size, char *size_text ));
 PROTO(void def_arg_name,( Token *id ));
@@ -1252,12 +1255,13 @@ PROTO(void def_namelist_item,( Token *id ));
 PROTO(void def_parameter,( Token *id, Token *val, int noparen ));
 PROTO(void def_result_name,( Token *id ));
 PROTO(void def_stmt_function,( Token *id, Token *args ));
+PROTO(void do_assignment_stmt,( Token *stmt ));
 PROTO(void do_ASSIGN,( Token *id ));
 PROTO(void do_assigned_GOTO,( Token *id ));
 PROTO(void do_ENTRY,( Token *id, Token *args, int hashno ));
 PROTO(int do_RETURN,( int hashno, Token *keyword ));
 PROTO(void do_bind_spec,(Token *p, SUBPROG_TYPE subprogtype));
-PROTO(void do_suffix,(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno));
+PROTO(void do_suffix,(int stmt_class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int result_var_hashno));
 PROTO(void equivalence,( Token *id1, Token *id2 ));
 PROTO(void equivalence_result_vars,(int result_hashno));
 PROTO(DBLVAL float_expr_value,( Token *t ));

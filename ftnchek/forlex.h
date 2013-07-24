@@ -82,7 +82,7 @@ LEX_SHARED COLNO_t
 	max_stmt_col;		/* line length limit */
 
 #ifdef ALLOW_UNIX_CPP
-LEX_SHARED char
+LEX_SHARED const char
 	*next_filename;
 LEX_SHARED int
 	cpp_handled, cpp_start_of_file;
@@ -100,7 +100,7 @@ LEX_SHARED LINENO_t
 		   maintained correctly.  Also helps avoid storing the
 		   same filenames repeatedly in new global space.  */
 typedef struct {
-  char *filename;		/* Name of file included at this depth */
+  const char *filename;		/* Name of file included at this depth */
 } CppIncludeStack;
 
 LEX_SHARED

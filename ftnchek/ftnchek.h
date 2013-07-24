@@ -846,7 +846,11 @@ typedef unsigned COLNO_t;
 	   machines without coprocessor, we neutralize the few
 	   floating-point operations that there are.  */
 
-#ifndef DEBUG_FORLEX
+#ifdef DEBUG_FORLEX
+#define EVALUATE_REALS
+#endif
+
+#ifndef EVALUATE_REALS
 #ifndef NO_FLOATING_POINT
 #define NO_FLOATING_POINT
 #endif
@@ -871,12 +875,12 @@ SHARED FILE
 
 SHARED char *html_filename;     /* name of the html documentation file */
 SHARED char *htmlcalltree_filename;  /* name of the html call tree doc file */
-SHARED char *current_filename,	/* name of current input file */
+SHARED const char *current_filename,	/* name of current input file */
 	    *top_filename;	/* name of toplevel parent input file */
 SHARED int incdepth;
 
 #ifdef VCG_SUPPORT
-SHARED char *main_filename;	/* name of file containing main program */
+SHARED const char *main_filename;	/* name of file containing main program */
 #endif
 
 
@@ -1299,7 +1303,7 @@ SHARED unsigned
     error_count,	/* Count of syntax error messages per file */
     warning_count;	/* Count of warning messages per file */
 
-SHARED char *
+SHARED const char *
     tab_filename;	/* Filename where there are tabs for -port */
 
 		/* Resource usage information: */
@@ -1381,9 +1385,9 @@ PROTO(void init_stream,( void ));
 
 
 	/* in include.c */
-PROTO(void open_include_file, ( char *fname, LINENO_t include_line_num ));
+PROTO(void open_include_file, ( const char *fname, LINENO_t include_line_num ));
 PROTO(int pop_include_file,( void ));
-PROTO(FILE* find_include,( char **fname, const char *mode, int is_module ));
+PROTO(FILE* find_include,( const char **fname, const char *mode, int is_module ));
 
 	/* in fortran.y/fortran.c */
 PROTO(void init_parser, ( void ));

@@ -310,8 +310,8 @@ else {
 			    is private if so declared or else if not
 			    declared public and module is declared private.
 			  */
-			  gsymt->private = loc_symtab[i].private ||
-			    (!loc_symtab[i].public &&
+			  gsymt->private_attr = loc_symtab[i].private_attr ||
+			    (!loc_symtab[i].public_attr &&
 			     module_accessibility == tok_PRIVATE);
 
 			}

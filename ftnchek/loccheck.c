@@ -311,7 +311,7 @@ check_flags(list,n,used,set,ubs,msg,mod_name)
 		else {
 		    LINENO_t lineno;
 		    int inc_index;
-		    char *filename;
+		    const char *filename;
 		    const char *tag;
 		    char detail[MAXIDSIZE+MAX_TAG_LEN+6]; /* see sprintf below */
 		    if( ubs ) {
@@ -434,7 +434,7 @@ check_pointer_flags(list,n,used,alloc,uba,msg,mod_name)
 		else {
 		    LINENO_t lineno;
 		    int inc_index;
-		    char *filename;
+		    const char *filename;
 		    const char *tag;
 		    char detail[MAXIDSIZE+MAX_TAG_LEN+6]; /* see sprintf below */
 		    if( uba ) {
@@ -546,7 +546,7 @@ check_nonpure(sym_list, n, mod_name)
 	    !sym_list[i]->intent_out) { /* since -pure is default, may be intent out */
 	    if(sym_list[i]->assigned_flag && sym_list[i]->argument && !CASCADE_LIMIT(args_modified))
 	    {
-		char *filename = choose_filename(sym_list[i],file_set);
+		const char *filename = choose_filename(sym_list[i],file_set);
 
 		local_warn_head(mod_name,
 			       filename,
@@ -565,7 +565,7 @@ check_nonpure(sym_list, n, mod_name)
 	if( pure_common && sym_list[i]->common_var && sym_list[i]->set_flag ) {
 	    if( sym_list[i]->assigned_flag && sym_list[i]->common_var && !CASCADE_LIMIT(com_vars_modified) )
 	    {
-		char *filename = choose_filename(sym_list[i],file_set);
+		const char *filename = choose_filename(sym_list[i],file_set);
 
 		local_warn_head(mod_name,
 			       filename,

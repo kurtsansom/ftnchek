@@ -240,7 +240,7 @@ use_io_keyword(keyword,value,stmt_class)
 			/*  Handle ACCESS=mode and FORM=mode */
     if( stmt_flag != INQ && (k == IOKW_ACCESS || k == IOKW_FORM) ) {
       if( type_flag == CHR ) { /* protect ourself: error was warned about already */
-	char *modespec=(char *)NULL; /* place to record the literal string of value */
+	const char *modespec=(const char *)NULL; /* place to record the literal string of value */
 	if( is_true(LIT_CONST,value->TOK_flags) ) {
 	  modespec = value->value.string;
 	}

@@ -192,16 +192,16 @@ if(debug_latest) {
 
     switch( access_spec ) {	/* access spec declared in TYPE stmt */
     case tok_PUBLIC:
-      symt->public = dtype->public = TRUE;
-      symt->private = dtype->private = FALSE;
+      symt->public_attr = dtype->public_attr = TRUE;
+      symt->private_attr = dtype->private_attr = FALSE;
       break;
     case tok_PRIVATE:
-      symt->private = dtype->private = TRUE;
-      symt->public = dtype->public = FALSE;
+      symt->private_attr = dtype->private_attr = TRUE;
+      symt->public_attr = dtype->public_attr = FALSE;
       break;
     default:				/* no spec declared */
-      symt->private = dtype->private = FALSE;
-      symt->public = dtype->public = FALSE;
+      symt->private_attr = dtype->private_attr = FALSE;
+      symt->public_attr = dtype->public_attr = FALSE;
       break;
     }
 
@@ -299,11 +299,11 @@ void process_dtype_components(const char *name)
     curr->type = get_type(&loc_symtab[i]);
     curr->kind = loc_symtab[i].kind;
     curr->size = loc_symtab[i].size;
-    curr->pointer = loc_symtab[i].pointer;
+    curr->pointer_attr = loc_symtab[i].pointer;
     /* Component is private if PRIVATE statement appears and component
        is not explicitly declared PUBLIC; otherwise it is public.
      */
-    curr->private = symt->private_components && !loc_symtab[i].public;
+    curr->private_attr = symt->private_components && !loc_symtab[i].public_attr;
 
     curr->array = loc_symtab[i].array_var;
     curr->array_dim = loc_symtab[i].array_dim;
@@ -416,7 +416,7 @@ PRIVATE int duplicate_dtype( int type_id )
       continue;
 	/* test below may not be necessary due to mutual exclusivity of
 	 * SEQUENCE and PRIVATE attributes */
-    if( source->private || target->private ) 
+    if( source->private_attr || target->private_attr ) 
       continue;
     if( source->num_components != target->num_components )
       continue;
@@ -462,16 +462,16 @@ int is_same_components(int s_id,int t_id,
 
     if ( strcmp(source[i].name, target[i].name) != 0 ) /* names match */
       return FALSE;
-    if ( source[i].pointer != target[i].pointer ) /* attrs match */
+    if ( source[i].pointer_attr != target[i].pointer_attr ) /* attrs match */
       return FALSE;
-    if ( source[i].private || target[i].private ) /* no private components */
+    if ( source[i].private_attr || target[i].private_attr ) /* no private components */
       return FALSE;
     if ( (source[i].array != target[i].array) || /* arrayness match */
 	 (source[i].array && array_dim_cmp(source[i].array_dim,target[i].array_dim) != 0) )
       return FALSE;
       /* types must match except if pointers to own type */
     if ( (source[i].type != target[i].type) &&
-	 ( !(source[i].pointer &&
+	 ( !(source[i].pointer_attr &&
 	     (datatype_of(source[i].type) == s_id &&
 	      datatype_of(target[i].type) == t_id)) ) )
       return FALSE;
@@ -494,7 +494,7 @@ DtypeComponent *find_component(int d, const char *s)
   for (i = 0; i < n; i++ ) {
     if ( strcmp(s, comp_dtype->name) == 0 ) {
       /* ignore private components if this is a module-defined type */
-      if(comp_dtype->private) {
+      if(comp_dtype->private_attr) {
 	/* find the type entry in local symbol table */
 	int h = hash_lookup(dtype_table[d]->name);
 	Lsymtab *symt = hashtab[h].loc_symtab;
@@ -850,7 +850,7 @@ void ref_component(Token *comp_token, Token *result, int lvalue)
 #endif
 
       /* Set POINTER attribute in result to match component. */
-    if(comp_dtype->pointer) {
+    if(comp_dtype->pointer_attr) {
       make_true(POINTER_EXPR,result->TOK_flags);
     }
     else {

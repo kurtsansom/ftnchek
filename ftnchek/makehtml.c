@@ -56,7 +56,7 @@ extern int free_form;           /* for choosing 'C' or '!' as comment char */
 
                 /* Declarations of local functions */
 
-PROTO(PRIVATE char * base_filename,( char *curr_filename ));
+PROTO(PRIVATE const char * base_filename,( const char *curr_filename ));
 
 PROTO(PRIVATE char * str_end_strip,( char *str ));
 PROTO(PRIVATE void append_char_to_fragment,( int c ));
@@ -93,7 +93,7 @@ PROTO(PRIVATE int make_sym_list,( Lsymtab *sym_list[], int (*selector)(Lsymtab
 PROTO(PRIVATE int make_unsorted_sym_list,( Lsymtab *sym_list[],
                            int (*selector)(Lsymtab *sym_entry) ));
 PROTO(PRIVATE int select_arguments,( Lsymtab *sym_entry ));
-PROTO(PRIVATE void strip_blanks,(char *s));
+PROTO(PRIVATE int has_whitespace,(const char *s));
 
 PROTO(PRIVATE int select_externals_by_name,( Lsymtab *sym_entry ));
 PROTO(PRIVATE int select_entry_points_by_name,( Lsymtab *sym_entry ));
@@ -553,16 +553,16 @@ get_comments(
 *  Convenience routine determine filename only from path/filename
 *
 *================================================================================*/
-PRIVATE char *
+PRIVATE const char *
 #if HAVE_STDC
-base_filename(char *curr_filename)
+base_filename(const char *curr_filename)
 #else /* K&R style */
 base_filename(curr_filename)
      char *curr_filename;
 #endif /* HAVE_STDC */
 
 {
-  char *path_end=(char *)NULL;
+  const char *path_end=(char *)NULL;
 
 #ifdef UNIX
   path_end = strrchr(curr_filename,'/');
@@ -747,7 +747,7 @@ make_html( sym_list, mod_name, prog_unit )
    const char *header;
    char prog_unit_str[256];
    char modname[256];
-   char *base_curr_filename;           /* basename of current input file */
+   const char *base_curr_filename;           /* basename of current input file */
    int mod_type;                       /* datatype of this prog unit */
    int n, nargs;
 
@@ -1976,7 +1976,7 @@ make_sym_list(sym_list,selector)
             if( FREE_FORM() ) {
                 for(i=0; i < n; i++) {
                     if( is_numeric_type(get_type(sym_list[i])) ) {
-                        strip_blanks(sym_list[i]->info.param->src_text);
+                        sym_list[i]->info.param->src_text = strip_blanks(sym_list[i]->info.param->src_text);
                     }
                 }
             }
@@ -2019,7 +2019,7 @@ make_unsorted_sym_list(sym_list,selector)
             if( FREE_FORM() ) {
                 for(i=0; i < n; i++) {
                     if( is_numeric_type(get_type(sym_list[i])) ) {
-                        strip_blanks(sym_list[i]->info.param->src_text);
+                        sym_list[i]->info.param->src_text = strip_blanks(sym_list[i]->info.param->src_text);
                     }
                 }
             }
@@ -2033,24 +2033,34 @@ make_unsorted_sym_list(sym_list,selector)
     return (n);
 }
 
-                        /* Routine to remove whitespace from a string */
-PRIVATE void
-#if HAVE_STDC
-strip_blanks(
-   char *s)
-#else /* K&R style */
-strip_blanks( s )
-   char *s;
-#endif
-   {
-   char *t;
-   for( t=s; *s != '\0'; s++ )
-      {
-      if ( !isspace(*s) )
-         *t++ = *s;
-      }
-   *t = '\0';
-   }
+PRIVATE int
+has_whitespace(const char *s)
+{
+    while( *s != '\0' && !isspace(*s) ) {
+	s++;
+    }
+    return (*s != '\0');
+}
+			/* Routine to produce copy of string with whitespace removed.
+			   If string has no whitespace then argument is returned.
+			 */
+const char*
+strip_blanks(const char *s)
+{
+    if( has_whitespace(s) ) {
+	char *stripped_text = new_src_text(s,strlen(s)); /* make writeable copy */
+	char *t;
+	for( t=stripped_text; *s != '\0'; s++ ) {
+	    if( !isspace(*s) )
+		*t++ = *s;
+	}
+	*t = '\0';
+	return (const char *)stripped_text;
+    }
+    else {
+	return s;
+    }
+}
 
 /*=================================================================================
 *

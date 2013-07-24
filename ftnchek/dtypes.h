@@ -61,24 +61,24 @@ typedef struct DerivedTypeComponent {
   	/* flags */
   unsigned
 	array: 1,		/* is an array */
-	pointer: 1,		/* has POINTER attribute */
-  	private: 1,		/* has PRIVATE attribute */
+	pointer_attr: 1,	/* has POINTER attribute */
+  	private_attr: 1,	/* has PRIVATE attribute */
 	allocatable: 1;		/* has ALLOCATABLE attribute */
 } DtypeComponent;
 
 typedef struct DtypeTableEntry {
   /* fields for root node of derived type */
-  char *name;			/* name of derived type */
-  char *module_name;		/* name of module declaring it, NULL if none */
+  const char *name;			/* name of derived type */
+  const char *module_name;		/* name of module declaring it, NULL if none */
   int num_components;
   DtypeComponent *components;
   /* end of fields for root node */
   LINENO_t line_declared;
-  char *filename;
+  const char *filename;
   Lsymtab *symt;		/* current symbol table entry */
   unsigned
-  	public: 1,		/* is PUBLIC type */
-  	private: 1,		/* is PRIVATE type */
+  	public_attr: 1,		/* is PUBLIC type */
+  	private_attr: 1,	/* is PRIVATE type */
 	private_components: 1,  /* has PRIVATE stmt within def */
 	sequence: 1;		/* has SEQUENCE statement */
 } Dtype;

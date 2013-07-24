@@ -90,7 +90,7 @@ PROTO(PRIVATE int has_call,( ArgListHeader *alist ));
 PROTO(PRIVATE int has_defn,( ArgListHeader *alist ));
 PROTO(PRIVATE int nil,( void ));
 PROTO(PRIVATE void alist_out,( Gsymtab *gsymt, FILE *fd, int mode ));
-PROTO(PRIVATE void arg_info_in,( FILE *fd, char *filename, int is_defn, int module, Token *item_list, int only_list_mode));
+PROTO(PRIVATE void arg_info_in,( FILE *fd, const char *filename, int is_defn, int module, Token *item_list, int only_list_mode));
 PROTO(PRIVATE int find_types, (Lsymtab *sym_list[]));
 PROTO(PRIVATE int find_variables,(Lsymtab *sym_list[]));
 PROTO(PRIVATE void mod_type_out,(Lsymtab *symt,FILE *fd));
@@ -198,7 +198,7 @@ make_module_filename(const char *module_name)
   char *module_filename;
 
 			/* source file path component is prepended if present */
-  module_filename =  malloc(strlen(module_name)
+  module_filename =  (char *)malloc(strlen(module_name)
 			    + strlen(DEF_MODULE_EXTENSION) + 1);
   (void)strcpy(module_filename,module_name);
   (void)strtolower(module_filename); /* filename is lowercased version of name */
@@ -219,7 +219,7 @@ void
 write_module_file(int h)
 {
   FILE *fd;
-  char *module_filename = make_module_filename(hashtab[h].name);
+  const char *module_filename = make_module_filename(hashtab[h].name);
 
   if( (fd = find_include(&module_filename,"w",TRUE)) == (FILE *)NULL ) {
     (void)fflush(list_fd);
@@ -359,7 +359,7 @@ find_types(Lsymtab *sym_list[])
   numtypes=0;
   for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
     if( storage_class_of(loc_symtab[i].type) == class_DTYPE &&
-	!loc_symtab[i].private ) { /* omit private types */
+	!loc_symtab[i].private_attr ) { /* omit private types */
       sym_list[numtypes++] = &loc_symtab[i];
     }
   }
@@ -375,7 +375,7 @@ find_variables(Lsymtab *sym_list[])
   for(i=curr_scope_bottom; i<loc_symtab_top; i++) {
     if( storage_class_of(loc_symtab[i].type) == class_VAR &&
 	datatype_of(loc_symtab[i].type) != type_MODULE && /* skip module's own entry */
-	!loc_symtab[i].private ) { /* for module: omit private variables */
+	!loc_symtab[i].private_attr ) { /* for module: omit private variables */
       sym_list[numvars++] = &loc_symtab[i];
     }
   }
@@ -397,8 +397,8 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
   WRITE_STR(" module",dtype_table[type_index]->module_name);
   WRITE_NUM(" size",lsymt->size);
   (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
-		lsymt->public,
-		lsymt->private,		/* never present in module file */
+		lsymt->public_attr,
+		lsymt->private_attr,		/* never present in module file */
 		lsymt->private_components,
 		lsymt->sequence,
 		0,0,0,0);		/* for future use */
@@ -418,8 +418,8 @@ mod_type_out(Lsymtab *lsymt, FILE *fd)
     WRITE_NUM(" size",curr[i].size);
     (void)fprintf(fd," flags %d %d %d %d %d %d %d %d",
 		  curr[i].array,
-		  curr[i].pointer,
-		  curr[i].private,
+		  curr[i].pointer_attr,
+		  curr[i].private_attr,
 		  0,0,0,0,0);		/* for future use */
     if(curr[i].array) {
       NEXTLINE;
@@ -508,7 +508,7 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),
   if(debug_latest) {
       fprintf(list_fd,"\n%d %s",i,glob_symtab[i].name);
       fprintf(list_fd," %svalid",glob_symtab[i].valid?"":"in");
-      fprintf(list_fd," %s",glob_symtab[i].private?"private":"public");
+      fprintf(list_fd," %s",glob_symtab[i].private_attr?"private":"public");
   }
 #endif
   /* In case module is processed after an earlier USE, module entry may be
@@ -516,7 +516,7 @@ find_prog_units(Gsymtab *sym_list[], int (*has_x)(ArgListHeader *alist),
    */
     if(glob_symtab[i].valid && (!module_mode || i==start_i || glob_symtab[i].module_subprog) &&
 	storage_class_of(glob_symtab[i].type) == class_SUBPROGRAM &&
-	!glob_symtab[i].private && /* for module: omit private routines */
+	!glob_symtab[i].private_attr && /* for module: omit private routines */
 	(alist=glob_symtab[i].info.arglist) != NULL) {
 			/* Look for defns or calls of this guy. */
 
@@ -1062,8 +1062,9 @@ void read_module_file(int h, Token *item_list, int only_list_mode)
   Lsymtab *symt;		/* symbol table entries for module */
   Gsymtab *gsymt;
 
-  char buf[MAXNAME+1],*topfilename=NULL,*modulename=NULL;
-  char *module_filename;
+  char buf[MAXNAME+1];
+  const char *topfilename=NULL,*modulename=NULL;
+  const char *module_filename;
 
      /* def_module should have created symtab entries if first encounter
       */
@@ -1428,8 +1429,8 @@ if (use_this_item) {
     dtype->filename = new_global_string((char *)filename);
     dtype->module_name = new_global_string((char *)type_module);
     dtype->num_components = dtype_num_components;
-    dtype->public = dtype_public;
-    dtype->private = dtype_private;
+    dtype->public_attr = dtype_public;
+    dtype->private_attr = dtype_private;
     dtype->private_components = dtype_private_components;
     dtype->sequence = dtype_sequence;
 
@@ -1445,8 +1446,8 @@ if (use_this_item) {
     /* Copy type info to symbol table entry.  (Probably not used.) */
   symt->size = dtype_size;
   symt->file_declared = inctable_index;	/* NEED TO CARRY THIS INFO OVER */
-  symt->public = dtype->public;
-  symt->private = dtype->private;
+  symt->public_attr = dtype->public_attr;
+  symt->private_attr = dtype->private_attr;
   symt->defined_in_module = TRUE; /* for honoring private components */
 }
 
@@ -1486,8 +1487,8 @@ if (use_this_item) {
       curr[i].array_dim = array_dim_info(component_array_dims,component_array_elts);
       curr[i].size = component_size;
       curr[i].array = component_array;
-      curr[i].pointer = component_pointer;
-      curr[i].private = component_private;
+      curr[i].pointer_attr = component_pointer;
+      curr[i].private_attr = component_private;
     }
   } /* finished reading in components */
 }
@@ -1685,7 +1686,7 @@ mod_var_in(FILE *fd, const char *filename, Token *item_list, int only_list_mode,
 			/* Read arglist info */
 PRIVATE void
 #if HAVE_STDC
-arg_info_in(FILE *fd, char *filename, int is_defn, int module, Token *item_list, int only_list_mode)
+arg_info_in(FILE *fd, const char *filename, int is_defn, int module, Token *item_list, int only_list_mode)
                    		/* name of toplevel file */
 #else /* K&R style */
 arg_info_in(fd,filename,is_defn,item_list)

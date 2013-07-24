@@ -188,10 +188,10 @@ apply_attr(Token *id,		/* token of variable to apply attr to */
 	       check_and_set_attr2(target,pointer);
 	       break;
 	  case tok_PUBLIC:
-	       check_and_set_attr2(public,private);
+	       check_and_set_attr2(public_attr,private_attr);
 	       break;
 	  case tok_PRIVATE:
-	       check_and_set_attr2(private,public);
+	       check_and_set_attr2(private_attr,public_attr);
 	       break;
 	  case tok_IN:
 	       check_and_set_attr2(intent_in,intent_out);
@@ -1457,8 +1457,8 @@ void def_function(int datatype, long int size, char *size_text, kind_t kind,
 	          old_symt->info.toklist = NULL;
 
 	           /* copy accessibility attribute to this entry */
-	          symt->private = old_symt->private;
-	          symt->public = old_symt->public;
+	          symt->private_attr = old_symt->private_attr;
+	          symt->public_attr = old_symt->public_attr;
 	     }
 	   }
 	}
@@ -1891,8 +1891,16 @@ def_stmt_function(id, args)
 	symt->external = TRUE;
 }/*def_stmt_function*/
 
-
-
+/* Descend assignment stmt tree.  For now, just print the tree */
+void do_assignment_stmt(Token *stmt)
+{
+#ifdef DEVELOPMENT
+  if(debug_latest) {
+    fprintf(list_fd,"Assignment stmt:\n");
+    print_expr_tree(stmt->left_token);
+  }
+#endif
+}
 
 void
 #if HAVE_STDC
@@ -2004,11 +2012,11 @@ do_ENTRY(id,args,hashno)	/* Processes ENTRY statement */
 		break;
 	    case type_SUBROUTINE:	/* Subroutine entry */
 		def_function(type_SUBROUTINE,size_DEFAULT,(char *)NULL,
-			     (kind_t)0,id,args,tok_SUBROUTINE);
+			     (kind_t)0,id,args,find_subprog_type(tok_SUBROUTINE));
 		break;
 	    default:		/* Function entry */
 		def_function(type_UNDECL,size_DEFAULT,(char *)NULL,
-			     default_kind(datatype),id,args,tok_FUNCTION);
+			     default_kind(datatype),id,args,find_subprog_type(tok_FUNCTION));
 		break;
 	}
 
@@ -2253,7 +2261,7 @@ if(debug_latest) {
 
 /* process suffix part of subprogram declaration */
 void
-do_suffix(int class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int entry_hashno)
+do_suffix(int stmt_class, SUBPROG_TYPE subprogtype, int hashno, Token *suffix, int entry_hashno)
 {
 
     Token *currToken;
@@ -2712,7 +2720,7 @@ float_expr_value(t)
     return (DBLVAL)0;		/* float values are not propagated */
 }
 
-char *
+const char *
 #if HAVE_STDC
 char_expr_value(Token *t)
 #else /* K&R style */
@@ -2756,8 +2764,7 @@ msg_expr_tree(const Token *t)
 
 #ifdef DEVELOPMENT		/* Routines to print out expr tree src text */
 void
-print_src_text(t)
-     Token *t;
+print_src_text(Token *t)
 {
   char textbuf[256];
   (void) cp_tok_src_text(textbuf,t,sizeof(textbuf)-1);
@@ -2765,8 +2772,7 @@ print_src_text(t)
 }
 
 void
-print_expr_tree(t)
-     Token *t;
+print_expr_tree(Token *t)
 {
   char textbuf[256];
   (void) cp_tree_src_text(textbuf,t,sizeof(textbuf)-1);
@@ -2774,8 +2780,7 @@ print_expr_tree(t)
 }
 
 void
-print_expr_list(t)
-     Token *t;
+print_expr_list(Token *t)
 {
   char textbuf[256];
   (void) cp_list_src_text(textbuf,t,sizeof(textbuf)-1);
@@ -3041,12 +3046,7 @@ stmt_function_stmt(id)			/* ARGSUSED0 */
 }/*stmt_function_stmt(id)*/
 
 char *
-#if HAVE_STDC
 token_name(Token *t)
-#else /* K&R style */
-token_name(t)
-	Token *t;
-#endif /* HAVE_STDC */
 {
 	return hashtab[t->value.integer].name;
 }/*token_name*/

@@ -48,7 +48,7 @@ typedef struct {
   srcLine  *input_buf;		/* start of source buffer */
   srcLine  *curr_input_line;	/* current position in source buffer */
   srcLine  *next_input_line;	/* line buffer holding next_char */
-  char	   *fname;
+  const char	   *fname;
 /* eventually some of the following can be removed and srcLine info used */
   int      curr_char;
   int      next_char;
@@ -65,11 +65,11 @@ PRIVATE IncludeFileStack include_stack[MAX_INCLUDE_DEPTH];
 
 
 
-PROTO(PRIVATE FILE * fopen_with_path,( const char *inc_path, char **fname,
+PROTO(PRIVATE FILE * fopen_with_path,( const char *inc_path, const char **fname,
 				       const char *mode ));
 
 
-PROTO(PRIVATE int push_include_file,( char *fname, srcLine *newbuf, LINENO_t
+PROTO(PRIVATE int push_include_file,( const char *fname, srcLine *newbuf, LINENO_t
 			      include_line_num ));
 
 
@@ -77,7 +77,7 @@ PROTO(PRIVATE int push_include_file,( char *fname, srcLine *newbuf, LINENO_t
 
 
 PRIVATE int
-push_include_file(char *fname, srcLine *newbuf, LINENO_t include_line_num)
+push_include_file(const char *fname, srcLine *newbuf, LINENO_t include_line_num)
 {
 	 if (incdepth == MAX_INCLUDE_DEPTH) {
 	   oops_message(OOPS_NONFATAL,line_num,NO_COL_NUM,
@@ -174,7 +174,7 @@ int incfile_list_space=16;	/* no. of entries allocated for incfile_list */
 
 void
 #if HAVE_STDC
-open_include_file(char *fname, LINENO_t include_line_num)
+open_include_file(const char *fname, LINENO_t include_line_num)
 #else /* K&R style */
 open_include_file(fname,include_line_num)
      char *fname;
@@ -185,23 +185,27 @@ open_include_file(fname,include_line_num)
   srcLine *new_srcBuf;
   int list_option=FALSE;	/* /[NO]LIST qualifier: default=NOLIST */
   short inc_index;
+  char *trimmed_fname;
+
+  /* Hold filename in temporary in case VMS /[no]list qualifier is trimmed off */
+  trimmed_fname = strcpy((char *)malloc(strlen(fname)+1),fname);
 
 				/* for VMS: default extension is .for */
   if(source_vms_include) {
     if(has_extension(fname,"/nolist")) {
       list_option = FALSE;
-      fname[strlen(fname)-strlen("/nolist")] = '\0'; /* trim off qualifier */
+      trimmed_fname[strlen(fname)-strlen("/nolist")] = '\0'; /* trim off qualifier */
     }
     else if(has_extension(fname,"/list")) {
       list_option = TRUE;
-      fname[strlen(fname)-strlen("/list")] = '\0'; /* trim off qualifier */
+      trimmed_fname[strlen(fname)-strlen("/list")] = '\0'; /* trim off qualifier */
     }
   }
 
 				/* Look for inc file name in the list. */
 
   for(inc_index=0; inc_index<num_incfiles; inc_index++) {
-      if(strcmp(fname,incfile_list[inc_index].fname) == 0) {
+      if(strcmp(trimmed_fname,incfile_list[inc_index].fname) == 0) {
 	  break;
       }
   }
@@ -223,9 +227,10 @@ open_include_file(fname,include_line_num)
       }
 	
 		/* Need to put the name in permanent space */
-      incfile_list[inc_index].fname = new_global_string(fname);
+      incfile_list[inc_index].fname = new_global_string(trimmed_fname);
       ++num_incfiles;
   }
+  free(trimmed_fname);			 /* no longer needed */
 
   fname = incfile_list[inc_index].fname; /* use the permanent version */
 			/* Record line where included in topmost file */
@@ -233,12 +238,12 @@ open_include_file(fname,include_line_num)
       (incdepth == 0? include_line_num: top_file_line_num);
 
 
-  if ((fd = find_include(&fname,"r",FALSE)) == NULL) {
+  if ((fd = find_include((const char **)&fname,"r",FALSE)) == NULL) {
 		/* If not found, try it with extension (vms mode only) */
     if(source_vms_include && ! has_extension(fname,DEF_INC_EXTENSION)) {
       char *fname_ext = add_ext(fname, DEF_INC_EXTENSION);
       fname_ext = new_global_string(fname_ext);
-      if( (fd = find_include(&fname_ext,"r",FALSE)) != NULL)
+      if( (fd = find_include((const char **)&fname_ext,"r",FALSE)) != NULL)
 	fname = fname_ext;	/* adopt the new name if successful */
     }
     if( fd == NULL ) {
@@ -288,12 +293,12 @@ open_include_file(fname,include_line_num)
 	   unsuccessful the same search paths as for include-files.
 	*/
 FILE*
-find_include(char **fname, const char *mode, int is_module)
+find_include(const char **fname, const char *mode, int is_module)
 {
   FILE *fp;
   char *env_include_var;
   IncludePathNode *p;
-  char *path_end=(char *)NULL;
+  const char *path_end=(char *)NULL;
   int fname_path_absolute=FALSE;
   int module_write_mode = (is_module && strcmp(mode,"w")==0);
 
@@ -435,7 +440,7 @@ find_include(char **fname, const char *mode, int is_module)
 		   by pointer to full name.  */
 PRIVATE FILE *
 #if HAVE_STDC
-fopen_with_path(const char *inc_path, char **fname, const char *mode)
+fopen_with_path(const char *inc_path, const char **fname, const char *mode)
 #else /* K&R style */
 fopen_with_path(inc_path,fname,mode)
      char *inc_path, **fname, *mode;

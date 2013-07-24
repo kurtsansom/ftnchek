@@ -363,7 +363,7 @@ print_lsyms_verbosely(sym_list,n,do_types)
 void local_detail(int inc_index, LINENO_t lineno,
 		  const char *tag, const char *msg)
 {
-    char *fname;
+    const char *fname;
     if( inc_index >= 0 ) {
 	fname = incfile_list[inc_index].fname;
     }
@@ -427,7 +427,7 @@ print_variables(sym_list,n)
 	    *need_key = 1;
 	  }
 	  /* Append - on private variables */
-	  if(sym_list[i]->private) {
+	  if(sym_list[i]->private_attr) {
 	    (void)fprintf(list_fd,"-");
 	    *need_key = 1;
 	  }

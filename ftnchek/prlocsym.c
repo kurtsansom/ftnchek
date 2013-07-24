@@ -823,7 +823,7 @@ if(debug_latest) {
 }
 #endif
      /* (these are mutually exclusive attributes) */
-     if( sym_list[i]->private )
+     if( sym_list[i]->private_attr )
 	(void)fprintf(list_fd," Private");
      if( sym_list[i]->sequence )
 	(void)fprintf(list_fd," Sequence");
@@ -858,20 +858,20 @@ if(debug_latest) {
 	  if( s != size_DEFAULT )
 	     (void)fprintf(list_fd,"%d",s);
 	  /* Append ^ on pointers and - on private components */
-	  if(components[j].pointer) {
+	  if(components[j].pointer_attr) {
 	     (void)fprintf(list_fd,"^");
 	     *need_key = 1;
 	  }
-	  if(components[j].private) {
+	  if(components[j].private_attr) {
 	     (void)fprintf(list_fd,"-");
 	     *need_key = 1;
 	  }
 	  /* fill in blanks for any appended items not printed */
 	  if( s == size_DEFAULT )
 	     (void)fprintf(list_fd," ");
-	  if(!components[j].pointer)
+	  if(!components[j].pointer_attr)
 	     (void)fprintf(list_fd," ");
-	  if(!components[j].private)
+	  if(!components[j].private_attr)
 	     (void)fprintf(list_fd," ");
 
 	  if(components[j].array) {

@@ -92,11 +92,11 @@ as the "MIT License."
 #endif /* alloca now defined.  */
 
 #ifndef YYDEBUG	/* If not declared otherwise... */
-int yydebug;	/* declare yydebug to satisfy extern in ftnchek.c */
 #ifdef DEVELOPMENT
 #define YYDEBUG 1		/* For development it is handy */
 #else
 #define YYDEBUG 0
+int yydebug;	/* declare yydebug to satisfy extern in options.c */
 #endif
 #endif
 
@@ -190,7 +190,6 @@ int
     in_attrbased_typedecl=FALSE,/* help is_keyword lex type, attr :: list */
     inside_format=FALSE,	/* when inside parens of FORMAT  */
     integer_context=FALSE,	/* says integers-only are to follow */
-    use_keywords_allowed=FALSE,	/* help for recognizing ONLY in USE stmt */
     generic_spec_allowed=FALSE, /* help for recognizing generic_spec */
     disallow_double_colon=FALSE,/* help for recognizing array sections 
     				   with missing subscripts */
@@ -239,7 +238,7 @@ typedef enum {subprog, construct} BLOCK_TYPE;
 
 typedef struct {
     int sclass;			/* stmt_class of block opener */
-    char *name;			/* name of block or subprogram */
+    const char *name;			/* name of block or subprogram */
     LABEL_t label;		/* label of closing statement for DO */
     LINENO_t first_line;	/* line number of block opener */
     BLOCK_TYPE blocktype;	/* category for wording of warnings */
@@ -253,7 +252,7 @@ typedef struct {
 
 PRIVATE BlockStack block_stack[MAX_BLOCK_DEPTH];
 
-PRIVATE char *
+PRIVATE const char *
     curr_stmt_name;	/* subprog or END-subprog name; DO, IF construct name*/
 
 PRIVATE int
@@ -263,10 +262,10 @@ PRIVATE int
 
 PRIVATE void check_token(Token *);	/* hook for ddd debugging */
 PROTO(PRIVATE void push_block,(Token *t, int stmt_class, BLOCK_TYPE blocktype,
-			       char *name, LABEL_t label));
+			       const char *name, LABEL_t label));
 PROTO(PRIVATE void pop_block,(Token *t, int stmt_class,
-			      char *name, LABEL_t label));
-PROTO(PRIVATE void check_construct_name_match,(Token *stmt, char *name));
+			      const char *name, LABEL_t label));
+PROTO(PRIVATE void check_construct_name_match,(Token *stmt, const char *name));
 
 PROTO(PRIVATE Token * add_tree_node,( Token *node, Token *left, Token *right ));
 PROTO(PRIVATE void check_stmt_sequence,( Token *t, int seq_num ));
@@ -287,15 +286,14 @@ PROTO(PRIVATE void process_prefix_attrs,(Token *t));
 PROTO(PRIVATE int kind_expr_value,(Token *t));
 
 #ifdef DEBUG_PARSER
-PROTO(PRIVATE void print_exprlist,( char *s, Token *t ));
-PROTO(PRIVATE void print_comlist,( char *s, Token *t ));
+PROTO(PRIVATE void print_exprlist,( const char *s, Token *t ));
+PROTO(PRIVATE void print_comlist,( const char *s, Token *t ));
 #endif
 
-SUBPROG_TYPE find_subprog_type(int stmt_class);
 PRIVATE int get_curr_block_class();
-PRIVATE char *get_curr_block_name();
+PRIVATE const char *get_curr_block_name();
 PRIVATE void block_stack_top_swap();
-PRIVATE void create_generic_procedure(char *generic_name, Token *proc_list);
+PRIVATE void create_generic_procedure(const char *generic_name, Token *proc_list);
 PRIVATE void clone_defn_ahead(Gsymtab *proc_gsymt, Gsymtab *gen_gsymt);
 
 		/* Uses of Token fields for nonterminals: */
@@ -950,7 +948,7 @@ specif_stmt	:	dimension_stmt
 		 	}
 		|	end_derived_type_stmt
 		 	{
-			    char *dtype_name = get_curr_block_name();
+			    const char *dtype_name = get_curr_block_name();
 			    process_dtype_components(dtype_name);
 			    pop_loc_scope();
 		 	    pop_block(&($1),$1.tclass,curr_stmt_name,NO_LABEL);
@@ -1000,6 +998,9 @@ transfer_stmt	:	unconditional_goto
 		;
 
 nontransfer_stmt:	assignment_stmt
+			{
+			    do_assignment_stmt(&($1));
+			}
 		|	assign_stmt
 		|	call_stmt
 		|	computed_goto	/* fallthru allowed */
@@ -3798,6 +3799,7 @@ assignment_stmt	:	lvalue assignment_op {complex_const_allowed = TRUE;
 
 			    assignment_stmt_type(&($1),&($2),
 					&($4));
+
 			  }
 			  complex_const_allowed = FALSE;
 			  in_assignment_stmt = FALSE;
@@ -3808,6 +3810,9 @@ assignment_stmt	:	lvalue assignment_op {complex_const_allowed = TRUE;
 			  if(is_true(STMT_FUNCTION_EXPR, $1.TOK_flags)
 				     && stmt_sequence_no <= SEQ_STMT_FUN)
 			     stmt_function_stmt(&($1));
+
+			  $$.left_token = add_tree_node(&($2),&($1),&($4));
+			  $$.next_token = (Token *) NULL;
 		        }
 		;
 
@@ -5047,6 +5052,10 @@ expr		:	defined_binary_expr
 
 defined_binary_expr:	log_expr
 		|	expr tok_defined_op log_expr
+			{
+			    do_binexpr(&($1),&($2),&($3)
+					 ,&($$));
+			}
 		;
 
 log_expr	:	log_disjunct
@@ -5160,6 +5169,9 @@ char_expr	:	defined_unary_expr
 
 defined_unary_expr:	primary
 		|	tok_defined_op primary
+			{
+			    do_unexpr(&($1),&($2),&($$));
+			}
 		;
 
 primary		:	data_object
@@ -5514,14 +5526,17 @@ complex_const	:	tok_lparen signed_numeric_literal_const ',' signed_numeric_liter
 			       source text for error messages.  (Do
 			       not save as a tree.)
 			    */
-			    $$.src_text = new_src_text_alloc( 3 +
+			    {
+				char *cplx_const_text = new_src_text_alloc( 3 +
 			    			strlen($2.src_text) + 
 						strlen($4.src_text) + 1 );
-			    strcpy($$.src_text, $1.src_text);
-			    strcat($$.src_text, $2.src_text);
-			    strcat($$.src_text, $3.src_text);
-			    strcat($$.src_text, $4.src_text);
-			    strcat($$.src_text, $5.src_text);
+				strcpy(cplx_const_text, $1.src_text);
+				strcat(cplx_const_text, $2.src_text);
+				strcat(cplx_const_text, $3.src_text);
+				strcat(cplx_const_text, $4.src_text);
+				strcat(cplx_const_text, $5.src_text);
+				$$.src_text = cplx_const_text;
+			    }
 			}
 		;
 
@@ -5535,10 +5550,13 @@ signed_numeric_literal_const: numeric_literal_const
 			       constant token which will include
 			       the plus sign
 			    */
-			    $$.src_text = new_src_text_alloc( 2 + 
+			    {
+				char *lit_const_text = new_src_text_alloc( 2 + 
 			    			strlen($2.src_text) );
-			    strcpy($$.src_text, $1.src_text);
-			    strcat($$.src_text, $2.src_text);
+				strcpy(lit_const_text, $1.src_text);
+				strcat(lit_const_text, $2.src_text);
+				$$.src_text = lit_const_text;
+			    }
 			}
 		|	 '-' numeric_literal_const
 			{
@@ -5549,10 +5567,13 @@ signed_numeric_literal_const: numeric_literal_const
 			       constant token which will include
 			       the minus sign
 			    */
-			    $$.src_text = new_src_text_alloc( 2 + 
+			    {
+				char *lit_const_text = new_src_text_alloc( 2 + 
 			    			strlen($2.src_text) );
-			    strcpy($$.src_text, $1.src_text);
-			    strcat($$.src_text, $2.src_text);
+				strcpy(lit_const_text, $1.src_text);
+				strcat(lit_const_text, $2.src_text);
+				$$.src_text = lit_const_text;
+			    }
 			}
 		;
 
@@ -6155,9 +6176,9 @@ empty_token(t)
 #endif /* HAVE_STDC */
 {
 #ifdef DEBUG_EMPTY_TOKEN
-  static char *nullstring="(empty)"; /* for debugging.  */
+  static const char *nullstring="(empty)"; /* for debugging.  */
 #else
-  static char *nullstring=""; /* for operation.  */
+  static const char *nullstring=""; /* for operation.  */
 #endif
   t->tclass = tok_empty;
   t->tsubclass = 0;
@@ -6190,9 +6211,7 @@ do_bounds_type(t1,t2,t3)
 /* Debugging routine: prints the expression list of various productions */
 #ifdef DEBUG_PARSER
 PRIVATE void
-print_exprlist(s,t)
-	char *s;
-	Token *t;
+print_exprlist(const char *s, Token *t)
 {
 
 	(void)fprintf(list_fd,"\n%s arglist: ",s);
@@ -6209,9 +6228,7 @@ print_exprlist(s,t)
 }
 
 PRIVATE void
-print_comlist(s,t)
-	char *s;
-	Token *t;
+print_comlist(const char *s, Token *t)
 {
 
 	(void)fprintf(list_fd,"\n%s varlist: ",s);
@@ -6444,7 +6461,7 @@ END_processing(t)
     		get_type(hashtab[current_prog_unit_hash].loc_symtab);
     if(exec_stmt_count == 0 && !interface_block) {
 	  if(misc_warn) {
-	    char *prog_unit_type_name = NULL;
+	    const char *prog_unit_type_name = NULL;
 	    switch (current_prog_unit_type) {
 		case type_PROGRAM:
 		  prog_unit_type_name = "Program";
@@ -6486,7 +6503,7 @@ END_processing(t)
 	   !!! but not for generic interface
   	*/
   	else {
-	  char *generic_name = get_curr_block_name();
+	  const char *generic_name = get_curr_block_name();
 	  /* It is a generic interface */
 	  if (generic_name != NULL) {
 	    Gsymtab *proc_gsymt = 
@@ -6648,7 +6665,7 @@ append_token(tlist,t)
 			   if the statement has a label, except for terminal
 			   statement of a labeled DO loop.
 			 */
-PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
+PRIVATE void pop_block(Token *t, int stmt_class, const char *name, LABEL_t label)
 {
 
 	/* Define lookup table for block matches.  This table is generated
@@ -6939,7 +6956,7 @@ PRIVATE void pop_block(Token *t, int stmt_class, char *name, LABEL_t label)
 			   with enclosing DO loop.
 			*/
 
-PRIVATE void check_construct_name_match(Token *t, char *name)
+PRIVATE void check_construct_name_match(Token *t, const char *name)
 {
 
 				/* If no name on statement, it must at
@@ -6972,7 +6989,7 @@ PRIVATE void check_construct_name_match(Token *t, char *name)
 }
 
 PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
-			char *name, LABEL_t label)
+			const char *name, LABEL_t label)
 {
   if(block_depth == MAX_BLOCK_DEPTH) {
     oops_message(OOPS_FATAL,t->line_num,t->col_num,
@@ -7142,7 +7159,7 @@ int get_curr_block_class()
 
 /* Routine to return the construct name of the current block.  For
    derived type blocks it is the type name. */
-char *get_curr_block_name()
+const char *get_curr_block_name()
 {
   return block_stack[block_depth-1].name;
 }
@@ -7170,7 +7187,7 @@ PRIVATE void check_token(Token *id)
    Copies the argument list headers of definitions from the specific
    procedures into the global entry of the generic procedure.
 */
-PRIVATE void create_generic_procedure(char *generic_name, Token *proc_list)
+PRIVATE void create_generic_procedure(const char *generic_name, Token *proc_list)
 {
   Gsymtab *proc_gsymt = NULL;
   ArgListHeader *proc_ahead = NULL;

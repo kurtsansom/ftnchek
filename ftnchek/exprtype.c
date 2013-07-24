@@ -304,6 +304,12 @@ binexpr_type(term1,op,term2,result)
 		  result_type = (unsigned)arith_expr_type[type1][type2];
 		break;
 
+	    case tok_defined_op:
+	        warning(op->line_num,op->col_num,
+		      "defined operators not yet supported: type assumed same as 1st operand");
+		result_type = type1; /* punt */
+		break;
+
 	    default:
 		oops_message(OOPS_NONFATAL,
 			     op->line_num,op->col_num,
@@ -797,6 +803,11 @@ is_true(EVALUATED_EXPR,result->TOK_flags));
 	    case tok_OR: c = a|b; break;
 	    case tok_EQV: c = ~(a^b); break;
 	    case tok_NEQV: c = a^b; break;
+	    case tok_defined_op:
+	        warning(op->line_num,op->col_num,
+		      "defined operator result value not calculated: 0 assumed");
+		c = 0;
+		break;
 	    default:
 	      oops_message(OOPS_NONFATAL,
 			   op->line_num,op->col_num,
@@ -871,6 +882,12 @@ unexpr_type(op,term1,result)
 		    result_type = E;
 		break;
 
+	    case tok_defined_op:
+	        warning(op->line_num,op->col_num,
+		      "defined operators not yet supported: type assumed same as operand");
+		result_type = type1; /* punt */
+		break;
+
 	    default:
 		oops_message(OOPS_NONFATAL,
 			     op->line_num,op->col_num,
@@ -933,6 +950,12 @@ unexpr_type(op,term1,result)
 	    case '+': c = a; break;
 	    case '-': c = -a; break;
 	    case tok_NOT: c = ~a; break;
+	    case tok_defined_op:
+	        warning(op->line_num,op->col_num,
+		      "defined operator result value not calculated: 0 assumed");
+		c = 0;
+		break;
+
 	    default: oops_message(OOPS_NONFATAL,
 			     op->line_num,op->col_num,
 			     "invalid int expr operator");

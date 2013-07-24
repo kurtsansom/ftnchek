@@ -1213,8 +1213,8 @@ ii_index(Token *args)		/* INDEX(STRING,SUBSTRING,[,BACK]) */
     }
     else {
       int i;
-      char *s1=string->value.string;
-      char *s2=substring->value.string;
+      const char *s1=string->value.string;
+      const char *s2=substring->value.string;
       int n1=strlen(s1), n2=strlen(s2);
 
       for(i=1; n1 > 0 && n1 >= n2; i++,s1++,n1--) {

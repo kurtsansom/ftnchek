@@ -58,11 +58,11 @@ extern int free_form;		/* for choosing 'C' or '!' as comment char */
 
 		/* Declarations of local functions */
 
-PROTO(PRIVATE char * base_filename,( char *curr_filename ));
+PROTO(PRIVATE const char * base_filename,( const char *curr_filename ));
 
 PROTO(PRIVATE void append_char_to_fragment,( int c ));
 PROTO(PRIVATE void append_string_to_fragment,( const char *s ));
-PROTO(PRIVATE void append_expr_text_to_fragment,( char *s ));
+PROTO(PRIVATE void append_expr_text_to_fragment,( const char *s ));
 
 PROTO(PRIVATE void maybe_print_prog_unit_header,( void ));
 PROTO(PRIVATE void new_fragment,( void ));
@@ -88,7 +88,6 @@ PROTO(PRIVATE int print_typename,( int the_type, const char *the_type_name, int
 PROTO(PRIVATE int make_sym_list,( Lsymtab *sym_list[], int (*selector)(Lsymtab
 							      *sym_entry) ));
 PROTO(PRIVATE int select_arguments,( Lsymtab *sym_entry ));
-PROTO(PRIVATE void strip_blanks,(char *s));
 #if 0 /* not currently used */
 PROTO(PRIVATE int select_commons,( Lsymtab *sym_entry ));
 #endif
@@ -176,16 +175,16 @@ PRIVATE int
 dcl_indent;			/* amount to indent declarations */
 
 
-PRIVATE char *
+PRIVATE const char *
 #if HAVE_STDC
-base_filename(char *curr_filename)
+base_filename(const char *curr_filename)
 #else /* K&R style */
 base_filename(curr_filename)
      char *curr_filename;
 #endif /* HAVE_STDC */
 
 {
-  char *path_end=(char *)NULL;
+  const char *path_end=(char *)NULL;
 
 #ifdef UNIX
   path_end = strrchr(curr_filename,'/');
@@ -241,7 +240,7 @@ char *s;
 			   down-casing the letters according to pref. */
 PRIVATE void
 #if HAVE_STDC
-append_expr_text_to_fragment(char *s)
+append_expr_text_to_fragment(const char *s)
 #else /* K&R style */
 append_expr_text_to_fragment(s)
   char *s;
@@ -360,7 +359,7 @@ make_declarations(sym_list,prog_unit_name)
 {
     const char *header;
     char begin[72+1+72+1+2+1];
-    char *base_curr_filename;	/* basename of current input file */
+    const char *base_curr_filename;	/* basename of current input file */
     int len_base_curr_filename;
 
     if ( ! ANY_DCL_DECLARATIONS() )
@@ -1446,12 +1445,17 @@ make_sym_list(sym_list,selector)
 	if (selector == select_parameters) {
 			/* Free form is not blank-insensitive, so go
 			   thru parameter declarations and remove any
-			   blanks from within numbers.
+			   blanks from within numbers.  We are not allowed
+			   to modify the const src_text but we can replace
+			   the string by another.  This is illegitimate since
+			   we should leave the src_text as given, but we are
+			   dealing here with bad old crufty code being turned
+			   into good.
 			*/
 	    if( FREE_FORM() ) {
 		for(i=0; i < n; i++) {
 		    if( is_numeric_type(get_type(sym_list[i])) ) {
-			strip_blanks(sym_list[i]->info.param->src_text);
+			sym_list[i]->info.param->src_text = strip_blanks(sym_list[i]->info.param->src_text);
 		    }
 		}
 	    }
@@ -1465,15 +1469,4 @@ make_sym_list(sym_list,selector)
     return (n);
 }
 
-			/* Routine to remove whitespace from a string */
-PRIVATE void
-strip_blanks(char *s)
-{
-    char *t;
-    for( t=s; *s != '\0'; s++ ) {
-	if( !isspace(*s) )
-	    *t++ = *s;
-    }
-    *t = '\0';
-}
 

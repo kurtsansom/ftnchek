@@ -684,7 +684,7 @@ PRIVATE int
 take_cpp_line(srcLine *Buf)
 {
   int nchars, handled;
-  char *filename;
+  const char *filename;
   char *s = Buf->line;
 
   handled = FALSE;
@@ -1769,7 +1769,7 @@ array_dim_t parsed_array_dim;		/* array attrs of function result */
 
 struct keywd_list {
   const char* keywd;		/* keyword string */
-  int class;			/* token class of keyword */
+  int kwd_class;			/* token class of keyword */
 };
 
 /* Array of subprogram keywords. */
@@ -1867,7 +1867,7 @@ srcPosn parse_subprog_keywd(srcPosn pos)
     fprintf(list_fd,"\nparse_subprog_keywd found %s",subprog_keywd[k].keywd);
    }
 #endif
-       parsed_subprog_class = subprog_keywd[k].class;
+       parsed_subprog_class = subprog_keywd[k].kwd_class;
       return pos;
     }
     else {
@@ -1907,7 +1907,7 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
     fprintf(list_fd,"\nparse_prefix_keywd found %s",prefix_keywd[k].keywd);
    }
 #endif
-      switch(prefix_keywd[k].class) {
+      switch(prefix_keywd[k].kwd_class) {
       case tok_INTEGER:
 	parsed_datatype = type_INTEGER;
 	parsed_kind_param = kind_DEFAULT_INTEGER;
@@ -1951,7 +1951,7 @@ srcPosn parse_prefix_keywd(srcPosn pos, int only_types)
       }/* end switch */
 
 		/* For applicable types, look for *size or (kind-selector) */
-      switch(prefix_keywd[k].class) {
+      switch(prefix_keywd[k].kwd_class) {
       case tok_INTEGER:
       case tok_REAL:
       case tok_COMPLEX:
@@ -2721,7 +2721,7 @@ srcPosn parse_attr_spec(srcPosn pos)
     fprintf(list_fd,"\nparse_attr_spec found %s",attr_keywd[k].keywd);
   }
 #endif
-      switch(attr_keywd[k].class) {
+      switch(attr_keywd[k].kwd_class) {
       case tok_DIMENSION:
 	pos = parse_array_spec(pos); /* sets parsed_array_dim */
 	break;
@@ -2922,7 +2922,7 @@ srcPosn parse_attr_decl(const char *name, ProcInterface *interface, srcPosn pos)
       if(pos.idx < 0)
 	pos = save_pos;
 
-      switch(attr_keywd[k].class) {
+      switch(attr_keywd[k].kwd_class) {
       case tok_DIMENSION:
 	/* No action needed: no stmt array dim info, info will be set on
 	   decl items */

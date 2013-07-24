@@ -912,7 +912,7 @@ if(debug_latest) {
 		    if(!glob_symtab[i].visited
 		       && datatype_of(glob_symtab[i].type) != type_BLOCK_DATA
 		       && datatype_of(glob_symtab[i].type) != type_MODULE
-		       && !(glob_symtab[i].library_prog_unit || (glob_symtab[i].module_subprog && !glob_symtab[i].private))
+		       && !(glob_symtab[i].library_prog_unit || (glob_symtab[i].module_subprog && !glob_symtab[i].private_attr))
 		       && usage_ext_unused) {
 			cmp_error_count = 0;
 			(void)argcmp_error_head(glob_symtab[i].name,

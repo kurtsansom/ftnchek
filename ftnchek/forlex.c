@@ -85,21 +85,15 @@ Part I. yylex()
 	get_binary_const(t, c ) Creates token for binary constant
 	get_string(t)		Creates token for a string
 
-Note: compilation options LEX_STORE_STRINGS and LEX_STORE_HOLLERITHS:
-  Define the macro name LEX_STORE_STRINGS to build a version of ftnchek that
-  stores string constants, and LEX_STORE_HOLLERITHS to store hollerith
-  constants.  Now that INCLUDE statements are supported, strings must
-  be stored.  Holleriths are not used, so they need not be stored.
 */
-#ifndef LEX_STORE_STRINGS
-#define LEX_STORE_STRINGS
-#endif
 
-#ifdef DEBUG_FORLEX		/* For maintaining the program */
-#define LEX_STORE_HOLLERITHS
-#endif
 
-#ifdef DEBUG_FORLEX
+/* Evaluation of real constants can cause overflow or other problems
+   at run time, and they are not used for anything, so turn off
+   evaluation except for debugging purposes.  A value of 0.0 will be
+   substituted.
+ */
+#ifdef EVALUATE_REALS
 #include <math.h>		/* Only used for pow() in debug mode */
 #endif
 
@@ -621,10 +615,6 @@ get_dotted_keyword(token)
 #endif
 	return;
 
-			/* Match not found: signal an error */
-	lex_error("Unknown logical/relational operator or constant");
-	get_illegal_token(token);
-
 } /* get_dotted_keyword */
 
 PRIVATE void
@@ -1028,7 +1018,7 @@ get_number(token)
 {
 	DBLVAL dvalue,leftside,rightside,pwr_of_ten;
 	int exponent,datatype,c;
-#ifdef DEBUG_FORLEX
+#ifdef EVALUATE_REALS
 	int expsign;
 #endif
 	int numdigits,	/* Count of digits in integer, significant or not */
@@ -1134,15 +1124,14 @@ get_number(token)
 			space_seen_lately = iswhitespace(prev_char);
 		}
 	}
-#ifdef DEBUG_FORLEX
-if(debug_lexer)
+#ifdef EVALUATE_REALS
 	dvalue = leftside + rightside*pwr_of_ten;
-else
-#endif
+#else
 	dvalue = (DBLVAL)0;
+#endif
 
 	exponent = 0;
-#ifdef DEBUG_FORLEX
+#ifdef EVALUATE_REALS
 	expsign = 1;
 #endif
 		/* Integer followed by E or D gives a real/d.p constant.
@@ -1162,7 +1151,7 @@ else
 		bi_advance();
 		space_seen_lately = iswhitespace(prev_char);
 		if(curr_char == '+') {
-#ifdef DEBUG_FORLEX
+#ifdef EVALUATE_REALS
 			expsign = 1;
 #endif
 			if(src_text_len < MAX_SRC_TEXT)
@@ -1171,7 +1160,7 @@ else
 			space_seen_lately = space_seen_lately || iswhitespace(prev_char);
 		}
 		else if(curr_char == '-') {
-#ifdef DEBUG_FORLEX
+#ifdef EVALUATE_REALS
 			expsign = -1;
 #endif
 			if( iswhitespace(prev_char) )
@@ -1197,12 +1186,11 @@ else
 	/*  Compute real value only if debugging. If it exceeds max magnitude,
 	    computing it may cause crash. At this time, value of real const
 	    is not used for anything. */
-#ifdef DEBUG_FORLEX
-if(debug_lexer)
+#ifdef EVALUATE_REALS
 		  dvalue *= pow(10.0, (double)(exponent*expsign));
-else
-#endif
+#else
 		  dvalue = (DBLVAL)0;
+#endif
 
 	}
     }/* end if(!integer_context) */
