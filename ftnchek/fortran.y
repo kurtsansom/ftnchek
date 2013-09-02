@@ -170,7 +170,6 @@ PRIVATE int
     prev_goto=FALSE,
     goto_flag=FALSE,	/* if unconditional GOTO was encountered */
 
-/*---------------addition-----------------------------*/
     contains_ended,		/* var to remember that a CONTAINS block just ended */
     inside_function=FALSE,	/* is inside a function */
     contains_sect=FALSE,	/* for contains block */
@@ -178,7 +177,6 @@ PRIVATE int
     in_where_construct=FALSE,	/* for WHERE construct */
     sequence_dtype=FALSE,	/* for derived types with SEQUENCE attr */
     private_dtype=FALSE;	/* for derived types with PRIVATE attr */
-/*----------------------------------------------------*/
 
 
 
@@ -244,10 +242,8 @@ typedef struct {
     BLOCK_TYPE blocktype;	/* category for wording of warnings */
     int do_var_hash;		/* hash index for index variable of DO block */
 
-/*------------------------------ addition --------------------------*/
 	SUBPROG_TYPE subprogtype; /* differentiates between module_subprog
 									 and internal_subprog */
-/*-------------------------------------------------------------------*/
 } BlockStack;
 
 PRIVATE BlockStack block_stack[MAX_BLOCK_DEPTH];
@@ -641,7 +637,6 @@ unlabeled_stmt	:	subprogram_header
 			}
         |   non_subprogram_header
             {
-/*--------------------addition--------------------------------*/
 
 				if (contains_sect) 
                     syntax_error($1.line_num,$1.col_num,
@@ -670,7 +665,6 @@ unlabeled_stmt	:	subprogram_header
 				}
 
 				stmt_sequence_no = 0;
-/*-----------------------------------------------------------*/
 			}
         ;
 
@@ -683,13 +677,10 @@ non_subprogram_header
 		|	executable_stmt
 			{	
 
-/*--------------------addition--------------------------------*/
 
                 if (interface_block)
                     syntax_error($1.line_num,$1.col_num,
                         "executable statement invalid inside interface block");
-
-/*-----------------------------------------------------------*/
 
 			/* handle statement functions correctly */
 			  if(is_true(STMT_FUNCTION_EXPR, $1.TOK_flags)
@@ -709,13 +700,11 @@ non_subprogram_header
 		|	restricted_stmt
 			{
 
-/*--------------------addition--------------------------------*/
 
                 if (interface_block)
                     syntax_error($1.line_num,$1.col_num,
                         " restricted statement invalid inside interface block");
 
-/*-----------------------------------------------------------*/
 
 			    stmt_sequence_no = SEQ_EXEC;
 			    f90_stmt_sequence_no = F90_SEQ_EXEC;
@@ -1383,17 +1372,6 @@ unlabeled_function_stmt
 			}
 		;
 
-/*------------------- original ----------------------------*/
-
-/*typed_function_handle:	type_name function_keyword
-			{
-			    $$ = $2; /* needed for block opener info */
-/*			}
-		; */
-
-/*--------------------------------------------------------*/
-
-/*----------------------- addition---------------------------*/
 
 prefixed_function_handle:  prefix function_keyword
             {
@@ -1538,7 +1516,6 @@ intent_id	:	variable_name
 optional_stmt	:	tok_OPTIONAL attr_decl_list EOS
 	      	;
 
-/*--------------------------------------------------------*/
 
 
 plain_function_handle:	function_keyword
@@ -1564,8 +1541,6 @@ type_name	:	arith_type_name
 /* 11 not present: see 9 */
 
 
-/*----------------------- addition---------------------------*/
-
 module_stmt	:   module_handle symbolic_name EOS
 			{
                 def_function(
@@ -1585,8 +1560,6 @@ module_handle	:	tok_MODULE
 			    check_seq_header(&($1));
 			}
 		;
-/*------------------------------------------------------------*/
-
 
 /* 12 */
 subroutine_stmt	:   unlabeled_subroutine_stmt EOS
@@ -1676,7 +1649,6 @@ unlabeled_subroutine_stmt
 			}
 		;
 
-/*--------------------- addition -----------------------------------*/
 
 prefixed_subroutine_handle:    prefix subroutine_keyword
 			{
@@ -1693,7 +1665,7 @@ subroutine_keyword :	tok_SUBROUTINE
 			}
 		;
 
-/*--------------------------------------------------------------------*/
+
 
 dummy_argument_list:	/* empty */
 			{
@@ -2618,7 +2590,6 @@ char_array_declarator_entity: array_declarator
 			}
 		;
 
-/*---------------------------addition----------------------------*/
 
 contains_stmt:  tok_CONTAINS EOS
         ;
@@ -3027,8 +2998,6 @@ derived_type_name:	tok_TYPE '(' symbolic_name ')'
 			}
 		;
 
-
-/*---------------------------------------------------------------*/
 
 
 
@@ -6869,7 +6838,7 @@ PRIVATE void pop_block(Token *t, int stmt_class, const char *name, LABEL_t label
       }
     }
 
-/*--------------------------addition-----------------------------------*/
+
 	if (block_stack[block_depth].subprogtype == internal_subprog ||
 			block_stack[block_depth].subprogtype == module_subprog) {
 	  /* If we have hit END of containing module subprogram, need
@@ -6900,7 +6869,7 @@ PRIVATE void pop_block(Token *t, int stmt_class, const char *name, LABEL_t label
 	  }
 	}
 
-/*---------------------------------------------------------------------*/
+
 
 		/* Issue syntax error if name missing from a component of
 		   a named construct.  In picky mode warn if no name tag on
@@ -7018,7 +6987,7 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
     block_stack[block_depth].blocktype = blocktype;
     block_stack[block_depth].do_var_hash = -1; /* undefined at this time */
 
-/*--------------------------addition------------------------------------*/
+
 
     if (!contains_sect) {
 		block_stack[block_depth].subprogtype = not_subprog;
@@ -7053,7 +7022,6 @@ PRIVATE void push_block(Token *t, int stmt_class, BLOCK_TYPE blocktype,
     }
 #endif
 
-/*---------------------------------------------------------------------*/
 
     ++block_depth;
   }

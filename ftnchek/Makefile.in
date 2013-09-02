@@ -352,7 +352,11 @@ ftnchek$(EXE): $(OBJS)
 
 # N.B. tokdefs.h is copy of y.tab.h used to avoid remaking stuff when
 # grammar changes but not tokens.  If the parser is made by bison,
-# it is edited to make token names in "parse error" messages more readable.
+# it is edited to make token names in "parse error" messages more readable,
+# mainly by removing "tok_" from token names and changing underscores to
+# blanks in terminal names.  Special cases: YY_NULL introduced in bison 2.6
+# must be put back as it was, and tok_NON_INTRINSIC needs to keep the underscore
+# since it is part of the keyword.
 # Also concatenate backslash-continued #if lines, which some older
 # compilers don't like.
 # The following copies y.tab.h to tokdefs.h if changed, then aborts make,
@@ -363,6 +367,7 @@ fortran.c: fortran.y
 	then \
 	  $(SED) -e '/yytname\[] =/,/^};/s/tok_//g' \
 	         -e '/yytname\[] =/,/^};/s/_/ /g' \
+		 -e '/yytname\[] =/,/^};/s/YY NULL/YY_NULL/g' \
 		 -e '/yytname\[] =/,/^};/s/NON INTRINSIC/NON_INTRINSIC/g' \
 	         -e '/yytname\[] =/,/^};/s/EOS/end of statement/g' \
 		 -e  ':CAT'  -e '/^# *if.*\\$$/N' -e 's/\\\n//' -e tCAT \
