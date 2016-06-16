@@ -1781,7 +1781,9 @@ struct keywd_list subprog_keywd[] = {
   {"MODULE",tok_MODULE},
   {"BLOCKDATA",tok_BLOCKDATA}
 };
-#define NUM_SUBPROG_KEYWDS (sizeof(subprog_keywd)/sizeof(subprog_keywd[0]))
+
+PRIVATE
+const int NUM_SUBPROG_KEYWDS= (sizeof(subprog_keywd)/sizeof(subprog_keywd[0]));
 
 /* Array of prefix keywords.  Type names must be first so list
    can also be used to look for just type names.
@@ -1812,7 +1814,8 @@ struct keywd_list attr_keywd[] = {
   {"TARGET",tok_TARGET},
   {"ALLOCATABLE",tok_ALLOCATABLE}, /* legal in F2003 not F95 */
 };
-#define NUM_ATTR_KEYWDS (sizeof(attr_keywd)/sizeof(attr_keywd[0]))
+PRIVATE
+const int NUM_ATTR_KEYWDS= (sizeof(attr_keywd)/sizeof(attr_keywd[0]));
 
 
 /* Function to advance a srcPosn location to next statement.  Mainly
@@ -1840,7 +1843,7 @@ void reset_attrs(void)
   parsed_kind_param = kind_DEFAULT_UNKNOWN;
   kind_is_bogus = FALSE;	/* hope it will be default kind */
   parsed_array_attr = FALSE;
-  parsed_array_dim = array_dim_info(0,0); /* scalar */
+  parsed_array_dim = array_dim_info((short)0,0); /* scalar */
   parsed_pointer_attr = FALSE;
   parsed_target_attr = FALSE;
   parsed_allocatable_attr = FALSE;
@@ -2661,7 +2664,7 @@ srcPosn parse_array_bound(srcPosn pos, int *size)
 PRIVATE
 srcPosn parse_array_spec(srcPosn pos)
 {
-  int ndims = 0;
+  short ndims = 0;
   int dim_size, array_size = 1;
   if( CHAR_AT(pos) == '(' ) {
     stepPosn(&pos);		/* eat the '(' */

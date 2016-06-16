@@ -1289,7 +1289,7 @@ OPT(int,wrap_column,WRAP_COLUMN);/* For wrapping error messages */
 		/* Declare variables for commandline StrSettings */
 OPT(char*,out_fname,(char *)NULL);	/* Output filename */
 OPT(char*,include_path,(char *)NULL);	/* An include-file directory */
-OPT(char*,idletter_list,DEF_IDLETTER_LIST);/* non-alpha chars allowed in identifiers */
+OPT(char*,idletter_list,(char *)DEF_IDLETTER_LIST);/* non-alpha chars allowed in identifiers */
 OPT(char*,module_path,(char *)NULL);	   /* module search directory */
 
 SHARED LINENO_t

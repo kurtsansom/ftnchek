@@ -472,8 +472,8 @@ int is_same_components(int s_id,int t_id,
       /* types must match except if pointers to own type */
     if ( (source[i].type != target[i].type) &&
 	 ( !(source[i].pointer_attr &&
-	     (datatype_of(source[i].type) == s_id &&
-	      datatype_of(target[i].type) == t_id)) ) )
+	     ((int)datatype_of(source[i].type) == s_id &&
+	      (int)datatype_of(target[i].type) == t_id)) ) )
       return FALSE;
   }
 

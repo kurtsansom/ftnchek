@@ -2060,7 +2060,7 @@ subarray_size(Token *id, Token *subscript_list)
      */
 
     long size = 1;
-    int dims = 0;
+    short dims = 0;
 
     /* Argument is a handle which acts as a header for the list */
     Token *subscript = subscript_list->next_token;

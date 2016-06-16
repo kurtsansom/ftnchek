@@ -2,7 +2,7 @@ dnl configure.in   Process with autoconf to produce a configure script.
 dnl  This autoconf input file is for ftnchek version 2.9, April 1996
 dnl  Acknowledgement and thanks to Judah Milgram for help producing this file.
 
-AC_INIT(ftnchek.c)
+AC_INIT(ftnchek.cc)
 AC_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
@@ -55,9 +55,12 @@ dnl The above test sets AWK to pathless name.  Later we will add a path
 dnl and AWK_NAME will keep the pathless name to simplify flavor tests.
 AWK_NAME=${AWK=awk}
 
-dnl Check for gcc/cc
+dnl Check for gcc/cc (no longer used now that we are using C++)
 
 AC_PROG_CC
+
+dnl Check for C++ compiler
+AC_PROG_CXX
 
 dnl Check for floating point option (really on applies to Suns, I
 dnl think, and probably only Solaris at that).
@@ -80,6 +83,7 @@ LOCALPATH=$STDPATH:/usr/local/bin
 
 AC_PATH_PROG(AWK,$AWK_NAME,$AWK_NAME,$STDPATH)
 AC_PATH_PROG(CC,${CC-cc},cc)
+AC_PATH_PROG(CXX,${CXX-c++},c++)
 AC_PATH_PROG(CHMOD,chmod,chmod,$STDPATH)
 AC_PATH_PROG(CMP,cmp,cmp,$STDPATH)
 AC_PATH_PROG(CP,cp,cp,$STDPATH)
@@ -279,6 +283,8 @@ dnl Set compiler options depending on operating system:
 
 dnl Here's the place to tweak compiler settings, not in 
 dnl Makefile.in, (and certainly not in Makefile!)
+dnl NOTE: the customizations for various host_os have not been
+dnl updated to adapt flags for C++
 
 INSTALL_MAN='install-man'
 sgimansubdir="/manl"
@@ -433,11 +439,19 @@ fi
 
 
 CFLAGS="-DUNIX \$(OPT) $OS_FLAGS $PROTOFLAG \$(OPTIONS)"
-AC_MSG_RESULT([Compile command is $CC $CFLAGS])
+AC_MSG_RESULT([Compile command for C programs is $CC $CFLAGS])
 AC_MSG_RESULT([\$(OPT) is $OPT])
 AC_MSG_RESULT([\$(OPTIONS) is for optional defines, normally blank])
 if test $GCC; then
 AC_MSG_RESULT([If you prefer using cc, setenv CC cc and re-run configure])
+fi
+
+CXXFLAGS="-DUNIX \$(OPT) $OS_FLAGS $PROTOFLAG \$(OPTIONS)"
+AC_MSG_RESULT([Compile command for C++ programs is $CXX $CXXFLAGS])
+AC_MSG_RESULT([\$(OPT) is $OPT])
+AC_MSG_RESULT([\$(OPTIONS) is for optional defines, normally blank])
+if test $GXX; then
+AC_MSG_RESULT([If you prefer using c++, setenv CXX c++ and re-run configure])
 fi
 
 dnl Here we define EXE and CMD prefixes to be null, as needed by Unix.

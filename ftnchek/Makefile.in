@@ -13,7 +13,7 @@
 #	dcl2inc.ps		PostScript form of documentation
 #	distclean		remove everything not in the distribution
 #	docs			documentation files
-#	fortran.c		translates yacc code to C (made from fortran.y)
+#	fortran.cc		translates yacc code to C (made from fortran.y)
 #	ftnchek			ftnchek executable program
 #	ftnchek.1		UNIX manual page (made from fortran.man)
 #	ftnchek.txt		plain text form of documentation
@@ -55,7 +55,7 @@
 #
 #
 #
-# Copyright (c) 2001 by Robert K. Moniot.
+# Copyright (c) 2016 by Robert K. Moniot.
 # 
 # Permission is hereby granted, free of charge, to any person
 # obtaining a copy of this software and associated documentation
@@ -134,6 +134,7 @@ CC              = @CC@
 CHMOD		= @CHMOD@
 CMP		= @CMP@
 CP		= @CP@
+CXX		= @CXX@
 DIFF		= @DIFF@
 EMACS		= @EMACS@
 EQN		= @EQN@
@@ -194,12 +195,13 @@ FTNCHEK		= ./ftnchek$(EXE)
 #OPTIONS        = -DSTRICT_SYNTAX
 
 # OPT is optimization level
-# CFLAGS is used to define the operating system and options
+# CXXFLAGS is used to define the operating system and options
 # LDLIBS gives any system-specific libraries for linker
 # LDFLAGS gives linker options
 # YFLAGS specifies yacc options
 OPT		= @OPT@
 CFLAGS          = @CFLAGS@ $(DEBUG_FLAGS) $(DEVEL_CFLAGS)
+CXXFLAGS        = @CXXFLAGS@ $(DEBUG_FLAGS) $(DEVEL_CXXFLAGS)
 LDLIBS          = @LDLIBS@
 LDFLAGS         = @LDFLAGS@ $(DEBUG_FLAGS) $(DEVEL_LDFLAGS)
 YFLAGS          = @YFLAGS@ -d
@@ -237,18 +239,18 @@ OTHER_BUILDFILES= makefile.bcc32 \
 BUILDFILES	= $(UNIX_BUILDFILES) $(VMS_BUILDFILES) $(OS2_BUILDFILES) \
 			$(OTHER_BUILDFILES)
 
-SRCS            = advance.c advance.h argcheck.c block_match.h \
-		  calltree.c comcheck.c config-generic.h config-win32.h dtypes.h dtypes.c exprtype.c \
-		  forlex.c forlex.h fortran.y fortran.c ftnchek.c ftnchek.h \
-		  include.c intake.c intrins.c intrins.h iokeywds.h \
-		  iokeywds_enum.h iokeywds.c \
-		  keywords.c labels.c \
-		  loccheck.c loccheck.h makedcls.c makehtml.c message.c \
-		  modcheck.c options.c \
-		  options.h pgsymtab.c pgsymtab.h plsymtab.c plsymtab.h \
-		  prlists.c prlocsym.c project.c symspace.c \
-		  symspace.h symtab.c symtab.h symutils.c symutils.h tokdefs.h \
-		  utils.h utils.c
+SRCS            = advance.cc advance.h argcheck.cc block_match.h \
+		  calltree.cc comcheck.cc config-generic.h config-win32.h dtypes.h dtypes.cc exprtype.cc \
+		  forlex.cc forlex.h fortran.y fortran.cc ftnchek.cc ftnchek.h \
+		  include.cc intake.cc intrins.cc intrins.h iokeywds.h \
+		  iokeywds_enum.h iokeywds.cc \
+		  keywords.cc labels.cc \
+		  loccheck.cc loccheck.h makedcls.cc makehtml.cc message.cc \
+		  modcheck.cc options.cc \
+		  options.h pgsymtab.cc pgsymtab.h plsymtab.cc plsymtab.h \
+		  prlists.cc prlocsym.cc project.cc symspace.cc \
+		  symspace.h symtab.cc symtab.h symutils.cc symutils.h tokdefs.h \
+		  utils.h utils.cc
 SCRIPTS		= dcl2inc dcl2inc.in dcl2inc.awk dcl2inc.awk.in \
 		  man2ps ftnchek.el
 TESTDIR		= test
@@ -273,7 +275,7 @@ CONFIGURED_FILES = makefile.generic dcl2inc.awk dcl2inc make_blockmatch.pl \
 #=======================================================================
 #  Rule to run source thru preprocessor only; useful for tracing down
 #  compilation problems.  Blank lines are removed for convenient viewing.
-.c.i:
+.cc.i:
 	$(CC) -E -I. $(DEFS) $(CPPFLAGS) $(CFLAGS) $< 2>&1 | \
 		grep -v '^[ 	]*$$' > $@
 
@@ -302,7 +304,7 @@ check: default
 	cd $(TESTDIR); $(MAKE) NAWK="$(NAWK)" -i -s check
 
 lint:
-	$(LINT) $(LINTFLAGS) $(OBJS:.o=.c) -lm
+	$(LINT) $(LINTFLAGS) $(OBJS:.o=.cc) -lm
 
 # Remove intermediate files that are not required after the program is
 # built.
@@ -318,7 +320,7 @@ clean mostlyclean:
 	-$(RM) *.fkm
 
 # Remove almost everything that make can rebuild.  We do not remove
-# fortran.c since some places don't have yacc or bison.
+# fortran.cc since some places don't have yacc or bison.
 clobber realclean:	clean
 	-$(RM) ftnchek$(EXE)
 
@@ -344,7 +346,7 @@ maintainer-clean:	distclean
 	@echo "it deletes files that may require special tools to rebuild."
 	-$(RM) Makefile
 	-$(RM) configure
-	-$(RM) fortran.c
+	-$(RM) fortran.cc
 	-$(RM) *.catman
 
 ftnchek$(EXE): $(OBJS)
@@ -361,7 +363,7 @@ ftnchek$(EXE): $(OBJS)
 # compilers don't like.
 # The following copies y.tab.h to tokdefs.h if changed, then aborts make,
 # since dependencies may have changed.
-fortran.c: fortran.y
+fortran.cc: fortran.y
 	$(YACC) $(YFLAGS) fortran.y
 	@if test "$(YACC_NAME)" = "bison$(EXE)" ; \
 	then \
@@ -371,10 +373,10 @@ fortran.c: fortran.y
 		 -e '/yytname\[] =/,/^};/s/NON INTRINSIC/NON_INTRINSIC/g' \
 	         -e '/yytname\[] =/,/^};/s/EOS/end of statement/g' \
 		 -e  ':CAT'  -e '/^# *if.*\\$$/N' -e 's/\\\n//' -e tCAT \
-		y.tab.c > fortran.c ; \
+		y.tab.c > fortran.cc ; \
 	  $(RM) y.tab.c ; \
 	else \
-	  $(MV) y.tab.c fortran.c ; \
+	  $(MV) y.tab.c fortran.cc ; \
 	fi
 	@if $(CMP) -s y.tab.h tokdefs.h ; then true ; else \
 		echo; echo tokdefs.h changed -- repeat make ; \
@@ -384,10 +386,10 @@ fortran.c: fortran.y
 
 # In case tokdefs.h does not exist, make might complain no rule exists
 # to make it.  There is no dependency here so it won't make it unless
-# it does not exist.  The rule for fortran.c will always re-make it if
+# it does not exist.  The rule for fortran.cc will always re-make it if
 # there is a change in the token definitions.
 tokdefs.h:
-	$(MAKE) fortran.c
+	$(MAKE) fortran.cc
 
 # If tokdefs.h changes, update the lookup table used by block-balancing code.
 # The dependency on make_blockmatch.pl is not present in the non-devel
@@ -471,7 +473,7 @@ listings: listings.pdf
 
 listings.ps:
 	$(TXTtoPS) $(TXTtoPSOPTS) -o listings.ps \
-	`echo $(SRCS)|sed -e 's/fortran\.c//' -e 's/config-[^ ]*//g'`
+	`echo $(SRCS)|sed -e 's/fortran\.cc//' -e 's/config-[^ ]*//g'`
 
 # $(HTMLDIR)/toc.html represents all the files in the html directory.  They
 # are built from ftnchek.html by the script make_html.sh whenever
@@ -664,7 +666,7 @@ exprtype.o:	config.h ftnchek.h symtab.h symutils.h tokdefs.h
 
 forlex.o:	config.h ftnchek.h symtab.h tokdefs.h forlex.h
 
-fortran.o:	config.h ftnchek.h symtab.h dtypes.h block_match.h fortran.c
+fortran.o:	config.h ftnchek.h symtab.h dtypes.h block_match.h fortran.cc
 
 ftnchek.o:	config.h ftnchek.h intrins.h options.h utils.h
 
