@@ -276,7 +276,7 @@ CONFIGURED_FILES = makefile.generic dcl2inc.awk dcl2inc make_blockmatch.pl \
 #  Rule to run source thru preprocessor only; useful for tracing down
 #  compilation problems.  Blank lines are removed for convenient viewing.
 .cc.i:
-	$(CC) -E -I. $(DEFS) $(CPPFLAGS) $(CFLAGS) $< 2>&1 | \
+	$(CXX) -E -I. $(DEFS) $(CPPFLAGS) $(CXXFLAGS) $< 2>&1 | \
 		grep -v '^[ 	]*$$' > $@
 
 #=======================================================================
@@ -297,7 +297,7 @@ manpage: ftnchek$(manext)
 #  Development version includes debugging machinery not normally used.  It
 #  evaluates some floating-point expressions including sqrt, so needs math lib.
 devel: tags TAGS
-	$(MAKE) prog DEVEL_CFLAGS='-DDEVELOPMENT' DEBUG_FLAGS='-g -Wall -ansi' LDLIBS='$(LDLIBS) -lm'
+	$(MAKE) prog DEVEL_CXXFLAGS='-DDEVELOPMENT' DEBUG_FLAGS='-g -Wall -ansi' LDLIBS='$(LDLIBS) -lm'
 
 check: default
 	cd $(TESTDIR); $(MAKE) NAWK="$(NAWK)" -s precheck
@@ -350,7 +350,7 @@ maintainer-clean:	distclean
 	-$(RM) *.catman
 
 ftnchek$(EXE): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o ftnchek$(EXE) $(OBJS) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o ftnchek$(EXE) $(OBJS) $(LDLIBS)
 
 # N.B. tokdefs.h is copy of y.tab.h used to avoid remaking stuff when
 # grammar changes but not tokens.  If the parser is made by bison,
